@@ -25,7 +25,7 @@ export default function DenemeAnalizleriPage() {
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [analytics, setAnalytics] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'ranking' | 'questions' | 'common_errors'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'questions' | 'common_errors' | 'mastery'>('ranking');
   const [transferMessage, setTransferMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -277,6 +277,18 @@ export default function DenemeAnalizleriPage() {
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>📊 Soru & Zorluk Analizi (OnlineExamMaker)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('mastery')}
+                className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  activeTab === 'mastery'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                }`}
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>🏅 Öğrenme Kanıtı (Classting)</span>
               </button>
             </div>
 
@@ -640,6 +652,186 @@ export default function DenemeAnalizleriPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. SEKME: Öğrenme Kanıtı & Kalıcılık Analizi (Classting LMS Modeli) */}
+          {activeTab === 'mastery' && (
+            <div className="space-y-6">
+              {/* Üst Kartlar: Donut Grafiği & Başarı Trendi */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Sol: Öğrenme Durumu (학습 상태 / Learning Status) */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Öğrenme Durumu Dağılımı (Learning Status)
+                    </h3>
+                    <span className="text-[11px] font-semibold text-slate-400">24 Öğrenci Toplam</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-2">
+                    {/* Donut Chart */}
+                    <div className="relative w-40 h-40 flex items-center justify-center">
+                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                        {/* Başarıldı %58 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="18" strokeDasharray="138 239" strokeDashoffset="0" />
+                        {/* Devam Ediyor %17 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="18" strokeDasharray="41 239" strokeDashoffset="-138" />
+                        {/* Destek Gerekiyor %13 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f59e0b" strokeWidth="18" strokeDasharray="31 239" strokeDashoffset="-179" />
+                        {/* Katılmadı %12 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#cbd5e1" strokeWidth="18" strokeDasharray="29 239" strokeDashoffset="-210" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                        <span className="text-sm font-black text-slate-800 dark:text-white">%58</span>
+                        <span className="text-[10px] text-slate-400">Kalıcı</span>
+                      </div>
+                    </div>
+
+                    {/* Lejant ve Öğrenci Sayıları */}
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-blue-600"></span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">Kalıcı Öğrenildi</span>
+                        </span>
+                        <strong className="text-blue-600 font-bold">14 Öğr (%58)</strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">Öğrenme Sürecinde</span>
+                        </span>
+                        <strong className="text-emerald-600 font-bold">4 Öğr (%17)</strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-amber-500"></span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">Destek Gerekiyor</span>
+                        </span>
+                        <strong className="text-amber-600 font-bold">3 Öğr (%13)</strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                          <span className="text-slate-500">Henüz Başlanmadı</span>
+                        </span>
+                        <strong className="text-slate-400 font-bold">3 Öğr (%12)</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sağ: Kazanım Başarı Oranı Değişim Grafiği (성취완료율 변화) */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Kazanım Başarı Oranı Değişim Grafiği (Completion Trend)
+                    </h3>
+                    <span className="text-[11px] font-semibold text-emerald-600">▲ +%32 Artış</span>
+                  </div>
+
+                  <div className="relative h-44 w-full pt-4">
+                    <svg viewBox="0 0 500 140" className="w-full h-full overflow-visible">
+                      {/* Grid lines */}
+                      <line x1="40" y1="20" x2="480" y2="20" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
+                      <line x1="40" y1="60" x2="480" y2="60" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
+                      <line x1="40" y1="100" x2="480" y2="100" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
+
+                      <text x="10" y="24" fill="#94a3b8" fontSize="10">80%</text>
+                      <text x="10" y="64" fill="#94a3b8" fontSize="10">60%</text>
+                      <text x="10" y="104" fill="#94a3b8" fontSize="10">40%</text>
+
+                      {/* Area fill */}
+                      <polygon
+                        fill="rgba(59, 130, 246, 0.1)"
+                        points="50,105 150,95 260,75 370,55 470,30 470,120 50,120"
+                      />
+                      {/* Line */}
+                      <polyline
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="3.5"
+                        points="50,105 150,95 260,75 370,55 470,30"
+                      />
+                      <circle cx="50" cy="105" r="4" fill="#3b82f6" />
+                      <circle cx="150" cy="95" r="4" fill="#3b82f6" />
+                      <circle cx="260" cy="75" r="4" fill="#3b82f6" />
+                      <circle cx="370" cy="55" r="4" fill="#3b82f6" />
+                      <circle cx="470" cy="30" r="5" fill="#1d4ed8" />
+
+                      <text x="45" y="135" fill="#94a3b8" fontSize="10">1. Hafta</text>
+                      <text x="145" y="135" fill="#94a3b8" fontSize="10">2. Hafta</text>
+                      <text x="255" y="135" fill="#94a3b8" fontSize="10">3. Hafta</text>
+                      <text x="365" y="135" fill="#94a3b8" fontSize="10">4. Hafta</text>
+                      <text x="460" y="135" fill="#94a3b8" fontSize="10">Bugün</text>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alt Bölüm: Başarı Seviyesi Dağılım Grafiği (성취수준 분포 / Mastery Distribution) */}
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Öğrenci Başarı Düzeyi Dağılımı (Mastery Level Distribution)
+                    </h3>
+                    <span className="text-[11px] text-slate-400">
+                      Soru çözümlerinin kalıcılık kanıtına göre seviyelendirilmesi
+                    </span>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 rounded-full">
+                    Kore LMS Değerlendirme Çanı
+                  </span>
+                </div>
+
+                {/* Sütun Grafiği ve Eğri Çizgisi */}
+                <div className="relative h-56 w-full pt-4">
+                  <svg viewBox="0 0 600 180" className="w-full h-full overflow-visible">
+                    {/* Grid lines */}
+                    <line x1="40" y1="30" x2="580" y2="30" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
+                    <line x1="40" y1="75" x2="580" y2="75" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
+                    <line x1="40" y1="120" x2="580" y2="120" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
+
+                    <text x="10" y="34" fill="#94a3b8" fontSize="10">100%</text>
+                    <text x="15" y="79" fill="#94a3b8" fontSize="10">60%</text>
+                    <text x="15" y="124" fill="#94a3b8" fontSize="10">20%</text>
+
+                    {/* Bars: Yetersiz, Gayret Gerekir, Yeterli, Başarılı, İleri Seviye */}
+                    {/* Bar 1 */}
+                    <rect x="65" y="95" width="80" height="55" fill="#bfdbfe" rx="3" className="dark:fill-blue-950/60" />
+                    {/* Bar 2 */}
+                    <rect x="175" y="80" width="80" height="70" fill="#93c5fd" rx="3" className="dark:fill-blue-900/60" />
+                    {/* Bar 3 */}
+                    <rect x="285" y="65" width="80" height="85" fill="#60a5fa" rx="3" className="dark:fill-blue-800/70" />
+                    {/* Bar 4 (Peak) */}
+                    <rect x="395" y="30" width="80" height="120" fill="#3b82f6" rx="3" className="dark:fill-blue-600" />
+                    {/* Bar 5 */}
+                    <rect x="505" y="48" width="70" height="102" fill="#60a5fa" rx="3" className="dark:fill-blue-800/70" />
+
+                    {/* Dashed Bell / Ascending Curve */}
+                    <polyline
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                      points="105,95 215,80 325,65 435,30 540,48"
+                    />
+                    <circle cx="435" cy="30" r="5" fill="#1d4ed8" stroke="#ffffff" strokeWidth="2" />
+
+                    {/* Labels */}
+                    <text x="80" y="165" fill="#64748b" fontSize="11" fontWeight="bold">Yetersiz</text>
+                    <text x="178" y="165" fill="#64748b" fontSize="11" fontWeight="bold">Gayret Gerekir</text>
+                    <text x="305" y="165" fill="#64748b" fontSize="11" fontWeight="bold">Yeterli</text>
+                    <text x="415" y="165" fill="#1d4ed8" fontSize="11" fontWeight="bold">Başarılı (Zirve)</text>
+                    <text x="515" y="165" fill="#64748b" fontSize="11" fontWeight="bold">İleri Seviye</text>
+                  </svg>
                 </div>
               </div>
             </div>

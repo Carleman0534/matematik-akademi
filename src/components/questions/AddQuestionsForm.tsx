@@ -7,6 +7,7 @@ import { ensureSource } from '@/app/soru/actions';
 import { DIFFICULTY_LABEL, ERROR_TYPES } from '@/lib/labels';
 import { IMAGE_BUCKET } from '@/lib/env';
 import { TopicSelect, type TopicOption } from './TopicSelect';
+import { PageScannerModal } from './PageScannerModal';
 
 interface Draft {
   key: string; file: File | null; preview: string | null; text: string;
@@ -32,6 +33,7 @@ export function AddQuestionsForm({ studentId, studentName, options, sources, ban
   const [difficulty, setDifficulty] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
   const camRef = useRef<HTMLInputElement>(null);
   const galRef = useRef<HTMLInputElement>(null);
 
@@ -121,10 +123,25 @@ export function AddQuestionsForm({ studentId, studentName, options, sources, ban
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-primary" onClick={() => camRef.current?.click()}>📷 Fotoğraf çek</button>
           <button type="button" className="btn-secondary" onClick={() => galRef.current?.click()}>🖼️ Galeriden seç (birden çok)</button>
+          <button type="button" className="btn-secondary bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 hover:bg-amber-100 flex items-center gap-1.5 font-bold" onClick={() => setScannerOpen(true)}>📑 Sayfadan Toplu Kırp (MiaoMiaoJi)</button>
           <button type="button" className="btn-secondary" onClick={addText}>✍️ Fotoğrafsız soru</button>
           <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
           <input ref={galRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
         </div>
+        <PageScannerModal
+          isOpen={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onAddCroppedQuestions={(cropped) => {
+            const list = cropped.map(c => ({
+              key: newKey(),
+              file: c.file,
+              preview: URL.createObjectURL(c.file),
+              ...base(),
+              questionNo: c.name.replace(/\D/g, '') || '',
+            }));
+            setDrafts(d => [...d, ...list]);
+          }}
+        />
         {drafts.length === 0 && <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">Bir denemedeki tüm yanlış ve boş sorularınızı tek seferde seçebilirsiniz; her biri ayrı soru olarak kaydedilir.</p>}
 
         <div className="space-y-3">
