@@ -7,10 +7,16 @@ const GradeSelect = ({ value }: { value?: number | null }) => (
   <select name="sinif" defaultValue={value ?? ''} className="input"><option value="">Seçilmedi</option>{[5, 6, 7, 8, 9, 10, 11, 12].map(g => <option key={g} value={g}>{g}. sınıf</option>)}<option value="13">Mezun</option></select>
 );
 
+export interface ClassOpt { id: string; name: string }
+const ClassSelect = ({ classes, value, id }: { classes: ClassOpt[]; value?: string | null; id: string }) => (
+  <div><label className="label" htmlFor={id}>Sınıf / grup</label>
+    <select id={id} name="sinif_grubu" defaultValue={value ?? ''} className="input"><option value="">Grupsuz</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+);
+
 // Rastgele, okunaklı geçici şifre (öğretmen öğrenciye iletir)
 const makePassword = () => { const A = 'abcdefghjkmnpqrstuvwxyz23456789'; const r = crypto.getRandomValues(new Uint32Array(10)); return Array.from(r, x => A[x % A.length]).join(''); };
 
-export function CreateStudentForm() {
+export function CreateStudentForm({ classes }: { classes: ClassOpt[] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createStudent, {});
   const [pw, setPw] = useState('');
   return (
@@ -21,20 +27,22 @@ export function CreateStudentForm() {
         <div className="flex gap-2"><input id="sifre" name="sifre" className="input" required minLength={8} value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" />
           <button type="button" className="btn-secondary shrink-0" onClick={() => setPw(makePassword())}>Üret</button></div></div>
       <div><label className="label" htmlFor="sinif">Sınıf</label><GradeSelect /></div>
-      <div className="sm:col-span-2"><label className="label" htmlFor="okul">Okul</label><input id="okul" name="okul" className="input" /></div>
+      <div><label className="label" htmlFor="okul">Okul</label><input id="okul" name="okul" className="input" /></div>
+      <ClassSelect classes={classes} id="grup" />
       <div className="flex items-center gap-3 sm:col-span-2"><button className="btn-primary" disabled={pending}>{pending ? 'Ekleniyor…' : 'Öğrenciyi ekle'}</button><Msg s={state} /></div>
     </form>
   );
 }
 
-export function EditStudentForm({ s }: { s: { id: string; full_name: string; grade_level: number | null; school_name: string | null; notes: string | null } }) {
+export function EditStudentForm({ s, classes }: { s: { id: string; full_name: string; grade_level: number | null; school_name: string | null; notes: string | null; class_id: string | null }; classes: ClassOpt[] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateStudent, {});
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
       <input type="hidden" name="id" value={s.id} />
       <div><label className="label" htmlFor="e-ad">Ad soyad</label><input id="e-ad" name="ad" defaultValue={s.full_name} className="input" required /></div>
       <div><label className="label" htmlFor="e-sinif">Sınıf</label><GradeSelect value={s.grade_level} /></div>
-      <div className="sm:col-span-2"><label className="label" htmlFor="e-okul">Okul</label><input id="e-okul" name="okul" defaultValue={s.school_name || ''} className="input" /></div>
+      <div><label className="label" htmlFor="e-okul">Okul</label><input id="e-okul" name="okul" defaultValue={s.school_name || ''} className="input" /></div>
+      <ClassSelect classes={classes} value={s.class_id} id="e-grup" />
       <div className="sm:col-span-2"><label className="label" htmlFor="e-not">Öğretmen notları (öğrenci görmez)</label><textarea id="e-not" name="notlar" defaultValue={s.notes || ''} rows={3} className="input" /></div>
       <div className="flex items-center gap-3 sm:col-span-2"><button className="btn-primary" disabled={pending}>Kaydet</button><Msg s={state} /></div>
     </form>

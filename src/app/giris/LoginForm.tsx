@@ -17,7 +17,8 @@ export function LoginForm({ notice }: { notice?: string }) {
       </div>
       {state.error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       <button className="btn-primary w-full" disabled={pending}>{pending ? 'Giriş yapılıyor…' : 'Giriş yap'}</button>
-      <p className="text-center text-xs text-slate-500">Öğrenci hesapları öğretmen tarafından açılır. Şifrenizi unuttuysanız öğretmeninize yazın.</p>
+      <p className="text-center text-sm">Hesabınız yok mu? <a href="/kayit" className="font-semibold text-indigo-600 dark:text-indigo-400">Kodla kayıt olun</a></p>
+      <p className="text-center text-xs text-slate-500">Şifrenizi unuttuysanız öğretmeninize yazın; öğretmeniniz yeni şifre verebilir.</p>
     </form>
   );
 }

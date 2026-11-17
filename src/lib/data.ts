@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { IMAGE_BUCKET } from '@/lib/env';
+import { IMAGE_BUCKET, EXAM_PAGE_BUCKET } from '@/lib/env';
 import { analyzeQuestion, summarize, type Attempt, type QuestionAnalysis, type BankSummary } from '@/lib/learning';
 import { descendantIds, topicPath, type Topic } from '@/lib/topics';
 import { matchesComputed, sanitizeSearch, type BankFilters } from '@/lib/filters';
@@ -17,7 +17,14 @@ export interface QuestionRow {
   question_images: ImageRow[]; question_attempts: AttemptRow[];
 }
 export interface Source { id: string; name: string }
-export interface StudentRow { id: string; profile_id: string | null; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; notes: string | null; created_at: string }
+export interface StudentRow { id: string; profile_id: string | null; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; notes: string | null; created_at: string; class_id: string | null; teacher_id: string | null }
+export interface ClassRow { id: string; name: string; join_code: string; is_open: boolean; teacher_id: string; created_at: string }
+
+// Öğretmenin sınıfları (RLS: yalnızca kendi sınıfları; yönetici hepsini görür, bu yüzden öğretmene göre süzülür)
+export async function getClasses(sb: SupabaseClient, teacherId: string): Promise<ClassRow[]> {
+  const { data } = await sb.from('classes').select('id, name, join_code, is_open, teacher_id, created_at').eq('teacher_id', teacherId).order('name');
+  return (data || []) as ClassRow[];
+}
 export interface BankItem { q: QuestionRow; a: QuestionAnalysis; thumbUrl: string | null; topic: string; source: string }
 
 const Q_SELECT = 'id, student_id, topic_id, source_id, initial_status, difficulty, page_no, test_no, question_no, question_text, correct_answer, student_answer, error_type, solution, teacher_note, student_note, created_at, archived_at, question_images(id, path, thumb_path, sort_order, width, height), question_attempts(id, result, attempt_type, attempted_at, time_spent_sec, note)';
@@ -33,13 +40,21 @@ export async function getSources(sb: SupabaseClient): Promise<Source[]> {
   return (data || []) as Source[];
 }
 
-// Gizli kovadaki görseller için süreli (1 saat) adresler
-export async function signedUrlMap(sb: SupabaseClient, paths: string[]): Promise<Map<string, string>> {
+// Gizli kovadaki görseller için süreli (1 saat) adresler. "exam-pages:<yol>" biçimindeki yollar deneme sayfası
+// kovasından okunur (denemeden soru bankasına aktarılan sorular, sayfa görselini kopyalamadan kullanır).
+export const EXAM_PAGE_PREFIX = 'exam-pages:';
+export async function signedUrlMap(sb: SupabaseClient, paths: string[], seconds = 3600): Promise<Map<string, string>> {
   const list = [...new Set(paths.filter(Boolean))];
   const out = new Map<string, string>();
-  for (let i = 0; i < list.length; i += 100) {
-    const { data } = await sb.storage.from(IMAGE_BUCKET).createSignedUrls(list.slice(i, i + 100), 3600);
-    (data || []).forEach(d => { if (d.signedUrl && d.path) out.set(d.path, d.signedUrl); });
+  const groups: [string, string[], (p: string) => string][] = [
+    [IMAGE_BUCKET, list.filter(p => !p.startsWith(EXAM_PAGE_PREFIX)), p => p],
+    [EXAM_PAGE_BUCKET, list.filter(p => p.startsWith(EXAM_PAGE_PREFIX)).map(p => p.slice(EXAM_PAGE_PREFIX.length)), p => EXAM_PAGE_PREFIX + p],
+  ];
+  for (const [bucket, items, key] of groups) {
+    for (let i = 0; i < items.length; i += 100) {
+      const { data } = await sb.storage.from(bucket).createSignedUrls(items.slice(i, i + 100), seconds);
+      (data || []).forEach(d => { if (d.signedUrl && d.path) out.set(key(d.path), d.signedUrl); });
+    }
   }
   return out;
 }
@@ -84,7 +99,7 @@ export async function getQuestion(sb: SupabaseClient, id: string): Promise<Quest
 }
 
 export async function getStudent(sb: SupabaseClient, id: string): Promise<StudentRow | null> {
-  const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at').eq('id', id).maybeSingle();
+  const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at, class_id, teacher_id').eq('id', id).maybeSingle();
   return (data as StudentRow) || null;
 }
 

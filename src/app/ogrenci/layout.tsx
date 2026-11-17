@@ -6,6 +6,7 @@ const NAV: NavItem[] = [
   { href: '/ogrenci/soru-bankam', label: 'Soru Bankam', icon: '🗂️', mobile: true },
   { href: '/ogrenci/soru-ekle', label: 'Soru Ekle', icon: '📷', mobile: true },
   { href: '/ogrenci/tekrar', label: 'Tekrar Et', icon: '🔁', mobile: true },
+  { href: '/ogrenci/pdf-denemeler', label: 'Hazır Denemeler (PDF)', icon: '📄', mobile: true },
   { href: '/ogrenci/denemeler', label: 'Denemelerim', icon: '📝', soon: 'Faz 2' },
   { href: '/ogrenci/gelisim', label: 'Gelişimim', icon: '📈', soon: 'Faz 3' },
 ];

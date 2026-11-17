@@ -11,13 +11,24 @@ export interface FormState { error?: string; ok?: string }
 async function assertTeacher() {
   const s = await getSession();
   if (!s || s.role !== 'teacher') throw new Error('Bu işlem için öğretmen olarak giriş yapmalısınız.');
+  return s;
+}
+
+// Seçilen sınıf bu öğretmenin mi? (sunucu anahtarıyla yazmadan önce, RLS'li istemciyle doğrulanır)
+async function ownClassId(v: FormDataEntryValue | null): Promise<string | null> {
+  const id = String(v || '');
+  if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+  const sb = await supabaseServer();
+  const { data } = await sb.from('classes').select('id').eq('id', id).maybeSingle();
+  return data?.id ?? null;
 }
 
 const gradeOf = (v: FormDataEntryValue | null) => { const n = parseInt(String(v || ''), 10); return n >= 1 && n <= 13 ? n : null; };
 
 // Öğretmen öğrenci hesabı açar: kullanıcı adı + şifre (öğrencinin e-postası gerekmez)
 export async function createStudent(_prev: FormState, form: FormData): Promise<FormState> {
-  try { await assertTeacher(); } catch (e) { return { error: (e as Error).message }; }
+  let me;
+  try { me = await assertTeacher(); } catch (e) { return { error: (e as Error).message }; }
   const fullName = String(form.get('ad') || '').trim();
   const username = normalizeUsername(String(form.get('kullanici') || ''));
   const password = String(form.get('sifre') || '');
@@ -39,6 +50,7 @@ export async function createStudent(_prev: FormState, form: FormData): Promise<F
   const { error: stErr } = await admin.from('students').insert({
     profile_id: created.user.id, full_name: fullName, grade_level: gradeOf(form.get('sinif')),
     school_name: String(form.get('okul') || '').trim() || null,
+    teacher_id: me.userId, class_id: await ownClassId(form.get('sinif_grubu')),
   });
   if (stErr) {
     await admin.auth.admin.deleteUser(created.user.id); // yarım kayıt kalmasın
@@ -57,6 +69,7 @@ export async function updateStudent(_prev: FormState, form: FormData): Promise<F
   const { data: st, error } = await sb.from('students').update({
     full_name: fullName, grade_level: gradeOf(form.get('sinif')),
     school_name: String(form.get('okul') || '').trim() || null, notes: String(form.get('notlar') || '').trim() || null,
+    class_id: await ownClassId(form.get('sinif_grubu')),
   }).eq('id', id).select('profile_id').maybeSingle();
   if (error || !st) return { error: 'Kaydedilemedi: ' + (error?.message || 'öğrenci bulunamadı') };
   if (st.profile_id) await sb.from('profiles').update({ full_name: fullName }).eq('id', st.profile_id);

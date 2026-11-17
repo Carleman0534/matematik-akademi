@@ -100,3 +100,60 @@ test('hesaplanan filtreler: en az 2 yanlış, bugün tekrar, öğrenilenler', ()
   assert.equal(matchesComputed(parseFilters({ ogrenme: 'learned' }), learned), true);
   assert.equal(matchesComputed(parseFilters({ ogrenme: 'learned' }), twice), false);
 });
+
+// ============ Deneme puanlama ============
+import { parseAnswers, parseKeyString, scoreSheet, questionStats, topicStats, examPhase, fmtRemaining, makeCode, normalizeCode, type KeyRow, type Letter } from './exams.ts';
+
+const keyMap = (s: string, topics: (string | null)[] = []): Map<number, KeyRow> =>
+  new Map(s.split('').map((c, i) => [i + 1, { question_no: i + 1, correct: c === '-' ? null : c as Letter, topic_id: topics[i] ?? null, page_no: null }]));
+const CFG = { question_count: 5, option_count: 5, penalty_divisor: 4 };
+
+test('cevap matrisi metni ve hızlı anahtar girişi', () => {
+  assert.deepEqual(parseAnswers('AB-D', 5), ['A', 'B', null, 'D', null]);
+  assert.deepEqual(parseKeyString('ab c-d', 5), ['A', 'B', 'C', null, 'D']);
+  assert.deepEqual(parseKeyString('AB', 4), ['A', 'B', null, null]);
+  assert.match(String(parseKeyString('ABZ', 5)), /geçersiz/);
+  assert.match(String(parseKeyString('ABCDEA', 5)), /5 soru/);
+});
+
+test('net: 4 yanlış 1 doğruyu götürür, iptal edilen soru sayılmaz', () => {
+  const s = scoreSheet(parseAnswers('ABCE-', 5), keyMap('ABCD-'), CFG); // 3 D, 1 Y, son soru iptal
+  assert.deepEqual([s.correct, s.wrong, s.blank, s.cancelled, s.scored], [3, 1, 0, 1, 4]);
+  assert.equal(s.net, 2.75);
+  assert.deepEqual(s.marks, ['D', 'D', 'D', 'Y', 'I']);
+  assert.equal(scoreSheet(parseAnswers('ABCE-', 5), keyMap('ABCD-'), { ...CFG, penalty_divisor: 0 }).net, 3);
+  assert.equal(scoreSheet(parseAnswers('EEEE-', 5), keyMap('ABCD-'), CFG).pct, 0); // negatif net yüzdeyi eksiye düşürmez
+});
+
+test('soru ve konu analizi: çeldirici ve en zayıf konu', () => {
+  const key = keyMap('AB', ['t1', 't2']);
+  const cfg = { question_count: 2, option_count: 5, penalty_divisor: 4 };
+  const sheets = [parseAnswers('AC', 2), parseAnswers('BC', 2), parseAnswers('A-', 2)];
+  const qs = questionStats(sheets, key, cfg);
+  assert.deepEqual([qs[0].nCorrect, qs[0].nWrong, qs[0].nBlank], [2, 1, 0]);
+  assert.equal(qs[1].topWrong, 'C'); assert.equal(qs[1].dist.C, 2); assert.equal(qs[1].rate, 0);
+  const ts = topicStats(sheets, key, cfg);
+  assert.equal(ts[0].topic_id, 't2'); assert.equal(ts[0].correct, 0); assert.equal(ts[0].blank, 1);
+  assert.equal(ts[1].rate, 2 / 3);
+});
+
+test('deneme aşaması', () => {
+  const base = { status: 'published' as const, started_at: null, opens_at: null, closes_at: null, duration_min: 40 };
+  const now = Date.parse('2026-11-20T10:00:00Z');
+  assert.equal(examPhase({ ...base, status: 'draft', mode: 'live' }, now), 'taslak');
+  assert.equal(examPhase({ ...base, mode: 'live' }, now), 'bekliyor');
+  assert.equal(examPhase({ ...base, mode: 'live', started_at: '2026-11-20T09:30:00Z' }, now), 'canli');
+  assert.equal(examPhase({ ...base, mode: 'live', started_at: '2026-11-20T09:10:00Z' }, now), 'bitti');
+  assert.equal(examPhase({ ...base, mode: 'assignment', opens_at: '2026-11-21T00:00:00Z' }, now), 'acilacak');
+  assert.equal(examPhase({ ...base, mode: 'assignment', closes_at: '2026-11-19T00:00:00Z' }, now), 'bitti');
+  assert.equal(examPhase({ ...base, mode: 'assignment', closes_at: '2026-11-21T00:00:00Z' }, now), 'acik');
+  assert.equal(examPhase({ ...base, status: 'closed', mode: 'assignment' }, now), 'bitti');
+});
+
+test('süre biçimi ve kodlar', () => {
+  assert.equal(fmtRemaining(299_000), '04:59');
+  assert.equal(fmtRemaining(3_909_000), '1:05:09');
+  assert.equal(fmtRemaining(-5), '00:00');
+  assert.match(makeCode(8), /^[A-HJ-NP-Z2-9]{8}$/);
+  assert.equal(normalizeCode(' ab-12 cd '), 'AB12CD');
+});

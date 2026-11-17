@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 
 // Her istekte Supabase oturumunu yeniler ve giriş yapmamış kullanıcıyı korunan sayfalardan giriş ekranına yönlendirir.
 // Rol (öğretmen/öğrenci) denetimi sayfa düzenlerinde ve veritabanında (RLS) yapılır.
-const PROTECTED = ['/ogretmen', '/ogrenci', '/soru'];
+const PROTECTED = ['/ogretmen', '/ogrenci', '/soru', '/coz'];
 
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

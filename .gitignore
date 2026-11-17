@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local databases and uploads
+*.db
+*.sqlite
+public/uploads/pdfs/*.pdf
