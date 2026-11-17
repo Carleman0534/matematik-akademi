@@ -93,7 +93,7 @@ Kurallar `src/lib/learning.ts` içinde, testleri `src/lib/logic.test.ts` içinde
 
 ## Test durumu
 
-- ✅ Tür denetimi, ESLint, 14 birim testi ve üretim derlemesi geçiyor.
+- ✅ Tür denetimi, ESLint, 19 birim testi ve üretim derlemesi geçiyor.
 - ✅ Supabase bilgileri girilmeden açıldığında tüm sayfalar kurulum ekranına yönleniyor.
 - ✅ Gerçek Supabase projesinde: öğretmen girişi, öğrenci açma, soru ekleme (yeni kaynakla), soru detayı ve çözüm geçmişi arayüzden denendi.
 - ✅ **Veri yalıtımı testi** (`npm run rls`, Windows'ta `npm.cmd run rls`): iki geçici öğrenciyle 26 kontrol — bir öğrenci diğerinin
