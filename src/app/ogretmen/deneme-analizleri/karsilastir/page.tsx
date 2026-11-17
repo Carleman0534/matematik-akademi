@@ -12,172 +12,265 @@ import {
   Sparkles,
   Award,
   Users,
-  BookOpen
+  BookOpen,
+  Filter,
+  Calendar,
+  ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 
 export default function GelisimKarsilastirmaPage() {
   const [selectedStudent, setSelectedStudent] = useState('Ahmet Yılmaz');
-  const [selectedExam, setSelectedExam] = useState('2026 AYT Matematik Türkiye Geneli Deneme');
+  const [assessmentFilter, setAssessmentFilter] = useState('Güz Dönemi Deneme Serisi');
 
-  // Örnek 1. ve 2. Çözüm Verisi
-  const comparisonData = {
-    attempt1: {
-      date: '15 Ekim 2026',
-      correct: 24,
-      wrong: 10,
-      blank: 6,
-      net: 21.5,
-      duration: '58 dk',
-    },
-    attempt2: {
-      date: '15 Kasım 2026',
-      correct: 33,
-      wrong: 4,
-      blank: 3,
-      net: 32.0,
-      duration: '47 dk',
-    },
-    recoveredQuestions: [3, 7, 12, 14, 21, 28, 35], // İlkinde yanlış ikincisinde doğru
-    persistentWrongQuestions: [18, 32], // İkisinde de yanlış
+  // Görsel 4 ile Birebir Metrikler & Konu Dağılımı
+  const overviewStats = {
+    totalStudents: '4,620',
+    totalStudentsDelta: '+2.1%',
+    averageGrade: '7.5',
+    averageGradeDelta: '+0.2',
+    averageMarks: '81.6%',
+    averageMarksDelta: '+1.8%',
+    avgPointsOffNext: '9.1',
+    avgPointsDelta: '-0.5',
+    totalExams: '9,314',
+    totalExamsDelta: '+5.2%',
   };
 
-  const netDiff = parseFloat((comparisonData.attempt2.net - comparisonData.attempt1.net).toFixed(2));
+  const subjectPerformance = [
+    { subject: 'Matematik (AYT & TYT)', average_score: '82.4%', level_4_plus: '70.4%', level_5_plus: '53.4%', students: 247 },
+    { subject: 'Geometri', average_score: '76.9%', level_4_plus: '69.5%', level_5_plus: '53.9%', students: 243 },
+    { subject: 'Fonksiyonlar & Polinomlar', average_score: '77.3%', level_4_plus: '77.5%', level_5_plus: '61.3%', students: 142 },
+    { subject: 'Trigonometri & Analitik', average_score: '72.8%', level_4_plus: '75.6%', level_5_plus: '59.0%', students: 156 },
+    { subject: 'Türev & İntegral', average_score: '74.1%', level_4_plus: '79.1%', level_5_plus: '62.8%', students: 148 },
+    { subject: 'Temel Kavramlar & Sayılar', average_score: '88.7%', level_4_plus: '82.4%', level_5_plus: '63.7%', students: 234 },
+  ];
+
+  const keyStrengths = [
+    { name: 'Temel Kavramlar & Sayılar', score: '88.7%' },
+    { name: 'Matematik (Genel AYT)', score: '82.4%' },
+    { name: 'Fonksiyonlar & Polinomlar', score: '77.3%' },
+  ];
+
+  const areasForImprovement = [
+    { name: 'Trigonometri & Analitik', score: '72.8%' },
+    { name: 'Türev & İntegral', score: '74.1%' },
+    { name: 'Geometri (Katı Cisimler)', score: '76.9%' },
+  ];
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto py-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2">
-            <Link href="/ogretmen/deneme-analizleri" className="text-slate-400 hover:text-slate-600">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Aynı Denemenin Gelişim Karşılaştırması</h1>
-            <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-bold">
-              Retest & Öğrenme Kanıtı
+    <div className="space-y-6 max-w-7xl mx-auto py-6">
+      {/* Üst Bar: Filtreler (Görsel 4 Formatı) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+            🎓
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+              Öğrenci Gelişimi & Performans Kontrol Paneli
+            </h1>
+            <p className="text-xs text-slate-500">
+              2026 Akademik Takvim · Dönem Karşılaştırmalı Gelişim ve Net Artış Analitiği
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Seri Filtresi */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Güz Dönemi Serisi</span>
+          </div>
+
+          {/* Sınıf Filtresi */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 rounded-xl text-xs font-bold">
+            <Users className="w-3.5 h-3.5" />
+            <span>Tüm Seviyeler (11 & 12)</span>
+          </div>
+
+          <Link
+            href="/ogretmen/deneme-analizleri"
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition"
+          >
+            ← Denemelere Dön
+          </Link>
+        </div>
+      </div>
+
+      {/* 5 ÜST METRİK KARTI (Görsel 4 ile Birebir Kartlar ve Delta Rozetleri) */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+        {/* Kart 1: Toplam Öğrenci */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <span>Öğrenci Sayısı</span>
+            <span className="text-emerald-600 font-bold text-[11px] bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+              ↗ {overviewStats.totalStudentsDelta}
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Öğrencinin aynı denemeyi iki farklı tarihte çözdüğündeki net, süre ve soru bazlı gelişimini kıyaslayın.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedStudent}
-            onChange={(e) => setSelectedStudent(e.target.value)}
-            className="text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold"
-          >
-            <option value="Ahmet Yılmaz">Ahmet Yılmaz (12. Sınıf)</option>
-            <option value="Mehmet Demir">Mehmet Demir (12. Sınıf)</option>
-            <option value="Ayşe Kaya">Ayşe Kaya (12. Sınıf)</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Net ve Süre Değişim Özeti Kartları */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* 1. Çözüm Kartı */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">1. Sınav Oturumu</span>
-          <div className="text-xs text-slate-500">{comparisonData.attempt1.date}</div>
-          <div className="text-3xl font-black text-slate-700 dark:text-slate-300 mt-2">
-            {comparisonData.attempt1.net} <span className="text-xs font-semibold">Net</span>
-          </div>
-          <div className="text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between">
-            <span>{comparisonData.attempt1.correct}D / {comparisonData.attempt1.wrong}Y / {comparisonData.attempt1.blank}B</span>
-            <span>{comparisonData.attempt1.duration}</span>
+          <div className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+            {overviewStats.totalStudents}
           </div>
         </div>
 
-        {/* 2. Çözüm Kartı */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">2. Tekrar Sınavı</span>
-          <div className="text-xs text-slate-500">{comparisonData.attempt2.date}</div>
-          <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-            {comparisonData.attempt2.net} <span className="text-xs font-semibold">Net</span>
+        {/* Kart 2: Ortalama Derece */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <span>Ortalama Not</span>
+            <span className="text-emerald-600 font-bold text-[11px] bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+              ↗ {overviewStats.averageGradeDelta}
+            </span>
           </div>
-          <div className="text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between">
-            <span>{comparisonData.attempt2.correct}D / {comparisonData.attempt2.wrong}Y / {comparisonData.attempt2.blank}B</span>
-            <span>{comparisonData.attempt2.duration}</span>
+          <div className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+            {overviewStats.averageGrade}
+          </div>
+          <span className="text-[10px] text-slate-400 mt-0.5">YKS Skalası (1-10)</span>
+        </div>
+
+        {/* Kart 3: Ortalama Başarı */}
+        <div className="bg-[#e6fffa] dark:bg-emerald-950/30 p-4 rounded-2xl border border-[#b2f5ea] dark:border-emerald-800 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-[#234e52] dark:text-emerald-300 font-bold">
+            <span>Başarı Puanı</span>
+            <span className="text-emerald-700 font-bold text-[11px] bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded shadow-xs">
+              ↗ {overviewStats.averageMarksDelta}
+            </span>
+          </div>
+          <div className="text-2xl font-black text-[#234e52] dark:text-emerald-200 mt-2">
+            {overviewStats.averageMarks}
           </div>
         </div>
 
-        {/* Gelişim Farkı Kartı */}
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-5 rounded-3xl shadow-md space-y-2 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-100">
-              <TrendingUp className="w-4 h-4" />
-              <span>Net Artışı & Hızlanma</span>
-            </div>
-            <div className="text-3xl font-black mt-2">
-              +{netDiff} Net 🚀
-            </div>
+        {/* Kart 4: Hedefe Kalan Puan */}
+        <div className="bg-[#fffaf0] dark:bg-amber-950/30 p-4 rounded-2xl border border-[#feebc8] dark:border-amber-800 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-[#744210] dark:text-amber-300 font-bold">
+            <span>Hedefe Kalan Net</span>
+            <span className="text-amber-700 font-bold text-[11px] bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded shadow-xs">
+              ↘ {overviewStats.avgPointsDelta}
+            </span>
           </div>
-          <div className="text-xs text-indigo-100 pt-2 border-t border-white/20 flex justify-between">
-            <span>11 dakika daha hızlı çözdü</span>
-            <span>+7 Soru Telafi Edildi</span>
+          <div className="text-2xl font-black text-[#744210] dark:text-amber-200 mt-2">
+            {overviewStats.avgPointsOffNext}
+          </div>
+        </div>
+
+        {/* Kart 5: Toplam Çözülen Sınav */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <span>Toplam Deneme</span>
+            <span className="text-emerald-600 font-bold text-[11px] bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+              ↗ {overviewStats.totalExamsDelta}
+            </span>
+          </div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+            {overviewStats.totalExams}
           </div>
         </div>
       </div>
 
-      {/* Soru Bazlı İyileşme Detayı */}
+      {/* DERS / KONU BAZLI GENEL PERFORMANS TABLOSU (Görsel 4 Formatı) */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white">
+            Konu ve Alan Bazlı Performans Özeti (Subject Performance Overview)
+          </h2>
+          <span className="text-xs text-indigo-600 font-bold cursor-pointer hover:underline">
+            Tümünü Gör →
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="py-3.5 px-5">Ders / Konu Başlığı</th>
+                <th className="py-3.5 px-5 text-center">Ortalama Başarı Skoru</th>
+                <th className="py-3.5 px-5 text-center">Seviye 4+ Başarı</th>
+                <th className="py-3.5 px-5 text-center">Seviye 5+ İleri Başarı</th>
+                <th className="py-3.5 px-5 text-right">Öğrenci Sayısı</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+              {subjectPerformance.map((row, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                  <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">
+                    {row.subject}
+                  </td>
+                  <td className="py-3.5 px-5 text-center font-bold text-emerald-600">
+                    {row.average_score}
+                  </td>
+                  <td className="py-3.5 px-5 text-center text-slate-700 dark:text-slate-300">
+                    <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono">
+                      {row.level_4_plus}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-5 text-center text-slate-700 dark:text-slate-300">
+                    <span className="bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+                      {row.level_5_plus}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-5 text-right font-mono text-slate-500">
+                    {row.students}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ALT PANEL: GÜÇLÜ YÖNLER (YEŞİL) VE GELİŞTİRİLMESİ GEREKEN ALANLAR (KIRMIZI) (Görsel 4 Formatı) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Kazanılan Sorular */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-          <div className="flex items-center gap-2 text-emerald-600">
-            <CheckCircle2 className="w-5 h-5" />
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-              Telafi Edilen / Kazanılan Sorular ({comparisonData.recoveredQuestions.length})
-            </h3>
+        {/* Sol: Güçlü Yönler (Key Strengths) */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs uppercase tracking-wider">
+              <TrendingUp className="w-4 h-4" />
+              <span>En Güçlü Alanlar (Key Strengths)</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-bold cursor-pointer hover:underline">
+              Tümünü Gör →
+            </span>
           </div>
-          <p className="text-xs text-slate-500">
-            Öğrencinin 1. sınavda yanlış yapıp, çalıştıktan sonra 2. sınavda başarıyla doğruya çevirdiği sorular:
-          </p>
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            {comparisonData.recoveredQuestions.map((q) => (
-              <span
-                key={q}
-                className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded-xl font-bold text-xs border border-emerald-200 dark:border-emerald-800 flex items-center gap-1"
+          <div className="space-y-2">
+            {keyStrengths.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-between text-xs"
               >
-                <span>Soru {q}</span>
-                <span className="text-[10px] text-emerald-600">✓ (+1.25 Net)</span>
-              </span>
+                <span className="font-bold text-emerald-900 dark:text-emerald-200">{item.name}</span>
+                <span className="font-black text-emerald-700 dark:text-emerald-300 font-mono text-sm">
+                  {item.score}
+                </span>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* Hâlâ Eksik Kalan Sorular */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-          <div className="flex items-center gap-2 text-rose-600">
-            <XCircle className="w-5 h-5" />
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-              Hâlâ Destek Gereken Sorular ({comparisonData.persistentWrongQuestions.length})
-            </h3>
+        {/* Sağ: Geliştirilmesi Gereken Alanlar (Areas for Improvement) */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 text-rose-600 font-bold text-xs uppercase tracking-wider">
+              <AlertCircle className="w-4 h-4" />
+              <span>Geliştirilmesi Gereken Konular (Areas for Improvement)</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-bold cursor-pointer hover:underline">
+              Tümünü Gör →
+            </span>
           </div>
-          <p className="text-xs text-slate-500">
-            Her iki sınav oturumunda da yanlış yapılan ve özel derste odaklanılması önerilen konular:
-          </p>
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            {comparisonData.persistentWrongQuestions.map((q) => (
-              <span
-                key={q}
-                className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 rounded-xl font-bold text-xs border border-rose-200 dark:border-rose-800"
+          <div className="space-y-2">
+            {areasForImprovement.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-3 bg-rose-50/70 dark:bg-rose-950/30 rounded-2xl border border-rose-100 dark:border-rose-900/50 flex items-center justify-between text-xs"
               >
-                Soru {q} (Trigonometrik Denklemler)
-              </span>
+                <span className="font-bold text-rose-900 dark:text-rose-200">{item.name}</span>
+                <span className="font-black text-rose-700 dark:text-rose-300 font-mono text-sm">
+                  {item.score}
+                </span>
+              </div>
             ))}
-          </div>
-
-          <div className="pt-3">
-            <Link
-              href="/ogretmen/ogrenciler"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline"
-            >
-              <span>Bu konular için öğrencinin soru bankasına git →</span>
-            </Link>
           </div>
         </div>
       </div>

@@ -271,12 +271,12 @@ export default function DenemeAnalizleriPage() {
                 onClick={() => setActiveTab('questions')}
                 className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${
                   activeTab === 'questions'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-teal-600 text-white shadow-sm'
                     : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Soru Bazlı Analiz (1 - 40)</span>
+                <span>📊 Soru & Zorluk Analizi (OnlineExamMaker)</span>
               </button>
             </div>
 
@@ -400,71 +400,247 @@ export default function DenemeAnalizleriPage() {
             </div>
           )}
 
-          {/* 3. SEKME: Soru Bazlı Analiz (1 - 40) */}
+          {/* 3. SEKME: Soru Bazlı Analiz (OnlineExamMaker stili dağılım ve grafikler) */}
           {activeTab === 'questions' && (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
-                    <tr>
-                      <th className="py-3 px-4">Soru No</th>
-                      <th className="py-3 px-4 text-center">Doğru Şık</th>
-                      <th className="py-3 px-4">Doğru Oranı (%)</th>
-                      <th className="py-3 px-4">Yanlış Oranı (%)</th>
-                      <th className="py-3 px-4">Boş Oranı (%)</th>
-                      <th className="py-3 px-4 text-center">Tuzak Şık</th>
-                      <th className="py-3 px-4 text-right">Durum / Uyarı</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {analytics.questionStats.map((q: any) => (
-                      <tr
-                        key={q.question_no}
-                        className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition ${
-                          q.is_defect_warning ? 'bg-red-50/40 dark:bg-red-950/20' : ''
-                        }`}
-                      >
-                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
-                          Soru {q.question_no}
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-black inline-flex items-center justify-center">
-                            {q.correct_answer}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-emerald-600 w-8">%{q.correct_rate}</span>
-                            <div className="w-20 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${q.correct_rate}%` }}></div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-rose-600">%{q.wrong_rate}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-400">
-                          %{q.blank_rate}
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-bold text-amber-600">
-                          {q.most_common_wrong}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          {q.is_defect_warning ? (
-                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
-                              <AlertTriangle className="w-3 h-3" />
-                              <span>Ortak Hata (Kritik)</span>
-                            </span>
-                          ) : q.correct_rate >= 75 ? (
-                            <span className="text-emerald-600 font-semibold text-[11px]">Kavranmış</span>
-                          ) : (
-                            <span className="text-slate-400 text-[11px]">Orta Başarı</span>
-                          )}
-                        </td>
+            <div className="space-y-6">
+              {/* OnlineExamMaker Header & Donut Charts */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Soru Analizi</span>
+                      <span className="text-xs font-normal text-slate-400">
+                        (Toplam Soru: 40, Soru Kategorisi: 4, Kullanım Oranı: %92)
+                      </span>
+                    </h3>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-900">
+                    OnlineExamMaker Analiz Motoru Aktif
+                  </span>
+                </div>
+
+                {/* Donut Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                  {/* Left Chart: Question Type Percentage */}
+                  <div className="flex flex-col items-center p-4 bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
+                      Soru Tipi Dağılımı (Question Type Percentage)
+                    </h4>
+                    
+                    <div className="relative w-44 h-44 flex items-center justify-center my-2">
+                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                        {/* Multiple choice 50.7% */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#3b82f6" strokeWidth="18" strokeDasharray="121 239" strokeDashoffset="0" />
+                        {/* Essay 22.6% */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#6366f1" strokeWidth="18" strokeDasharray="54 239" strokeDashoffset="-121" />
+                        {/* Fill blank 7.4% */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#0ea5e9" strokeWidth="18" strokeDasharray="18 239" strokeDashoffset="-175" />
+                        {/* True/False 5.6% */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#06b6d4" strokeWidth="18" strokeDasharray="13 239" strokeDashoffset="-193" />
+                        {/* Multiple resp 5.6% */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#8b5cf6" strokeWidth="18" strokeDasharray="13 239" strokeDashoffset="-206" />
+                        {/* Package & others ~8% */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#cbd5e1" strokeWidth="18" strokeDasharray="20 239" strokeDashoffset="-219" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">40 Soru</span>
+                        <span className="text-[10px] text-slate-400">Toplam</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-[11px] text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 shrink-0"></span>
+                        <span>Çoktan Seçmeli: %50.7</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 shrink-0"></span>
+                        <span>Klasik / Açık Uçlu: %22.6</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-sky-500 shrink-0"></span>
+                        <span>Boşluk Doldurma: %7.4</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500 shrink-0"></span>
+                        <span>Doğru / Yanlış: %5.6</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-purple-500 shrink-0"></span>
+                        <span>Çoklu Yanıt: %5.6</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-700 shrink-0"></span>
+                        <span>Diğer Soru Tipleri: %8.1</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Chart: Question Difficulty Percentage */}
+                  <div className="flex flex-col items-center p-4 bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
+                      Soru Zorluk Derecesi Dağılımı (Question Difficulty Percentage)
+                    </h4>
+
+                    <div className="relative w-44 h-44 flex items-center justify-center my-2">
+                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                        {/* Standart / Belirlenmemiş %89.6 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#0d9488" strokeWidth="18" strokeDasharray="214 239" strokeDashoffset="0" />
+                        {/* Kolay %7.0 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2dd4bf" strokeWidth="18" strokeDasharray="17 239" strokeDashoffset="-214" />
+                        {/* Orta %2.2 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="18" strokeDasharray="5 239" strokeDashoffset="-231" />
+                        {/* Zor %1.1 */}
+                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#047857" strokeWidth="18" strokeDasharray="3 239" strokeDashoffset="-236" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                        <span className="text-xs font-bold text-teal-800 dark:text-teal-300">%89.6</span>
+                        <span className="text-[10px] text-slate-400">Standart</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-[11px] text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-teal-600 shrink-0"></span>
+                        <span>Standart Zorluk: %89.6</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-teal-400 shrink-0"></span>
+                        <span>Kolay Seviye: %7.0</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 shrink-0"></span>
+                        <span>Orta Seviye: %2.2</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-700 shrink-0"></span>
+                        <span>Zor / Seçici: %1.1</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Soru Tipleri Matris Tablosu (OnlineExamMaker Table) */}
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                      <tr>
+                        <th className="py-3 px-4">Soru Tipi (Question Type)</th>
+                        <th className="py-3 px-4 text-center">Toplam Soru</th>
+                        <th className="py-3 px-4 text-center">Standart Zorluk</th>
+                        <th className="py-3 px-4 text-center text-teal-600">Kolay</th>
+                        <th className="py-3 px-4 text-center text-emerald-600">Orta</th>
+                        <th className="py-3 px-4 text-center text-rose-600">Zor</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-4 font-medium">Çoktan Seçmeli (Multiple Choice)</td>
+                        <td className="py-2.5 px-4 text-center font-bold">28</td>
+                        <td className="py-2.5 px-4 text-center text-slate-400">22</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">4</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">1</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">1</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-4 font-medium">Çoklu Yanıt (Multiple Response)</td>
+                        <td className="py-2.5 px-4 text-center font-bold">4</td>
+                        <td className="py-2.5 px-4 text-center text-slate-400">2</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">1</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">1</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">0</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-4 font-medium">Doğru veya Yanlış (True or False)</td>
+                        <td className="py-2.5 px-4 text-center font-bold">4</td>
+                        <td className="py-2.5 px-4 text-center text-slate-400">3</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">1</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">0</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">0</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-4 font-medium">Boşluk Doldurma (Fill in the blank)</td>
+                        <td className="py-2.5 px-4 text-center font-bold">4</td>
+                        <td className="py-2.5 px-4 text-center text-slate-400">3</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">0</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">1</td>
+                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">0</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 1 - 40 Soru Bazlı İstatistik Listesi */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                    40 Soru Bazlı Detaylı Başarı & Tuzak Şık Dağılımı
+                  </h4>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
+                      <tr>
+                        <th className="py-3 px-4">Soru No</th>
+                        <th className="py-3 px-4 text-center">Doğru Şık</th>
+                        <th className="py-3 px-4">Doğru Oranı (%)</th>
+                        <th className="py-3 px-4">Yanlış Oranı (%)</th>
+                        <th className="py-3 px-4">Boş Oranı (%)</th>
+                        <th className="py-3 px-4 text-center">Tuzak Şık</th>
+                        <th className="py-3 px-4 text-right">Durum / Uyarı</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {analytics.questionStats.map((q: any) => (
+                        <tr
+                          key={q.question_no}
+                          className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition ${
+                            q.is_defect_warning ? 'bg-red-50/40 dark:bg-red-950/20' : ''
+                          }`}
+                        >
+                          <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
+                            Soru {q.question_no}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-black inline-flex items-center justify-center">
+                              {q.correct_answer}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-emerald-600 w-8">%{q.correct_rate}</span>
+                              <div className="w-20 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${q.correct_rate}%` }}></div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-bold text-rose-600">%{q.wrong_rate}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-400">
+                            %{q.blank_rate}
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-bold text-amber-600">
+                            {q.most_common_wrong}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            {q.is_defect_warning ? (
+                              <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>Ortak Hata (Kritik)</span>
+                              </span>
+                            ) : q.correct_rate >= 75 ? (
+                              <span className="text-emerald-600 font-semibold text-[11px]">Kavranmış</span>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">Orta Başarı</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
