@@ -15,7 +15,9 @@ import {
   BookOpen,
   Printer,
   ChevronDown,
-  Layers
+  Layers,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 
 export default function DenemeAnalizleriPage() {
@@ -23,7 +25,7 @@ export default function DenemeAnalizleriPage() {
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [analytics, setAnalytics] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'ranking' | 'questions'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'questions' | 'common_errors'>('ranking');
   const [transferMessage, setTransferMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function DenemeAnalizleriPage() {
           ],
           questionStats: Array.from({ length: 40 }, (_, i) => {
             const q = i + 1;
-            const correctRate = q === 14 ? 15 : q === 7 ? 25 : Math.floor(Math.random() * 40) + 55;
+            const correctRate = q === 14 ? 15 : q === 7 ? 25 : q === 23 ? 20 : Math.floor(Math.random() * 40) + 55;
             const wrongRate = 100 - correctRate - 10;
             return {
               question_no: q,
@@ -87,7 +89,7 @@ export default function DenemeAnalizleriPage() {
               wrong_rate: Math.max(0, wrongRate),
               blank_rate: 10,
               most_common_wrong: ['B', 'C', 'D', 'E', 'A'][(q + 1) % 5],
-              is_defect_warning: correctRate < 20,
+              is_defect_warning: correctRate < 25,
             };
           }),
         });
@@ -127,6 +129,9 @@ export default function DenemeAnalizleriPage() {
     setTimeout(() => setTransferMessage(null), 4000);
   };
 
+  // Ortak Hata Analizi Listesi (Sınıfın yarısından fazlasının yanlış yaptığı sorular)
+  const commonErrors = analytics?.questionStats?.filter((q: any) => q.wrong_rate >= 40 || q.is_defect_warning) || [];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -139,11 +144,11 @@ export default function DenemeAnalizleriPage() {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Toplu deneme sonuçları, öğrenci sıralaması, net dağılımı ve soru bazlı başarı oranlarını inceleyin.
+            Toplu deneme sonuçları, öğrenci sıralaması, net dağılımı, soru bazlı analiz ve ortak hata tespiti.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Deneme Seçim Açılır Menüsü */}
           <select
             value={selectedExamId}
@@ -160,9 +165,17 @@ export default function DenemeAnalizleriPage() {
             ))}
           </select>
 
+          <Link
+            href="/ogretmen/deneme-analizleri/karsilastir"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-100 transition"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Gelişim Karşılaştır</span>
+          </Link>
+
           <button
             onClick={handleExportCsv}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 transition"
             title="Excel formatında indir"
           >
             <Download className="w-3.5 h-3.5" />
@@ -171,11 +184,11 @@ export default function DenemeAnalizleriPage() {
 
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition"
             title="PDF Olarak Yazdır"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Rapor Yazdır</span>
+            <span>Yazdır</span>
           </button>
         </div>
       </div>
@@ -229,7 +242,7 @@ export default function DenemeAnalizleriPage() {
           </div>
 
           {/* Sekme Seçici */}
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+          <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 gap-2">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setActiveTab('ranking')}
@@ -243,6 +256,18 @@ export default function DenemeAnalizleriPage() {
               </button>
 
               <button
+                onClick={() => setActiveTab('common_errors')}
+                className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  activeTab === 'common_errors'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>🚨 Ortak Hata Analizi ({commonErrors.length} Soru)</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('questions')}
                 className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${
                   activeTab === 'questions'
@@ -251,7 +276,7 @@ export default function DenemeAnalizleriPage() {
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>🔍 Soru Bazlı Analiz & Eksik Tespiti</span>
+                <span>Soru Bazlı Analiz (1 - 40)</span>
               </button>
             </div>
 
@@ -315,83 +340,131 @@ export default function DenemeAnalizleriPage() {
             </div>
           )}
 
-          {/* 2. SEKME: Soru Bazlı Analiz & Eksik Tespiti */}
-          {activeTab === 'questions' && (
+          {/* 2. SEKME: Ortak Hata Analizi (Common Error & Defect Analyzer) */}
+          {activeTab === 'common_errors' && (
             <div className="space-y-4">
-              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 rounded-2xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
+              <div className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-3xl flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-bold">Akıllı Soru Kusur & Ortak Eksik Algılayıcı</div>
-                  <div>
-                    Sınıfın %80'inden fazlasının yanlış yaptığı sorular kırmızı alarm ile işaretlenmiştir. Bu sorular sınav kitapçığı hatası veya ortak konu eksiğine işaret eder.
-                  </div>
+                  <h3 className="font-bold text-sm text-red-900 dark:text-red-200">
+                    Sınıfın Ortak Hata Yaptığı Sorular (Öğretmen Özel Telafi Raporu)
+                  </h3>
+                  <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
+                    12 öğrencinin çoğunluğu tarafından yanlış yapılan sorular burada listelenmiştir. Bu sorular sınav kitapçığı hatası veya ortak konu eksiğini gösterir.
+                  </p>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="py-3 px-4">Soru No</th>
-                        <th className="py-3 px-4 text-center">Doğru Şık</th>
-                        <th className="py-3 px-4">Doğru Oranı (%)</th>
-                        <th className="py-3 px-4">Yanlış Oranı (%)</th>
-                        <th className="py-3 px-4">Boş Oranı (%)</th>
-                        <th className="py-3 px-4 text-center">Tuzak Şık</th>
-                        <th className="py-3 px-4 text-right">Durum / Uyarı</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {analytics.questionStats.map((q: any) => (
-                        <tr
-                          key={q.question_no}
-                          className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition ${
-                            q.is_defect_warning ? 'bg-red-50/40 dark:bg-red-950/20' : ''
-                          }`}
-                        >
-                          <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
-                            Soru {q.question_no}
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-black inline-flex items-center justify-center">
-                              {q.correct_answer}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-emerald-600 w-8">%{q.correct_rate}</span>
-                              <div className="w-20 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${q.correct_rate}%` }}></div>
-                              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {commonErrors.map((q: any) => (
+                  <div
+                    key={q.question_no}
+                    className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-red-200 dark:border-red-900/60 shadow-sm space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-base text-slate-900 dark:text-white">
+                          Soru {q.question_no}
+                        </span>
+                        <span className="bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                          %{q.wrong_rate} Yanlış Oranı
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-lg">
+                        Doğru: {q.correct_answer}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl text-xs space-y-1.5 border border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Çoğunluğun Düştüğü Tuzak Şık:</span>
+                        <span className="font-bold text-amber-600">{q.most_common_wrong} Şıkkı</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Yanlış Yapan Öğrenci Sayısı:</span>
+                        <span className="font-bold text-rose-600">
+                          {Math.round((q.wrong_rate / 100) * 12)} / 12 Öğrenci
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400 bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200/60 flex items-start gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>Öğretmen Tavsiyesi:</strong> Bu soru bir sonraki derste tahtada çözülmeli veya telafi föyü olarak atanmalıdır.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. SEKME: Soru Bazlı Analiz (1 - 40) */}
+          {activeTab === 'questions' && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4">Soru No</th>
+                      <th className="py-3 px-4 text-center">Doğru Şık</th>
+                      <th className="py-3 px-4">Doğru Oranı (%)</th>
+                      <th className="py-3 px-4">Yanlış Oranı (%)</th>
+                      <th className="py-3 px-4">Boş Oranı (%)</th>
+                      <th className="py-3 px-4 text-center">Tuzak Şık</th>
+                      <th className="py-3 px-4 text-right">Durum / Uyarı</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {analytics.questionStats.map((q: any) => (
+                      <tr
+                        key={q.question_no}
+                        className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition ${
+                          q.is_defect_warning ? 'bg-red-50/40 dark:bg-red-950/20' : ''
+                        }`}
+                      >
+                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
+                          Soru {q.question_no}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-black inline-flex items-center justify-center">
+                            {q.correct_answer}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-emerald-600 w-8">%{q.correct_rate}</span>
+                            <div className="w-20 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${q.correct_rate}%` }}></div>
                             </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="font-bold text-rose-600">%{q.wrong_rate}</span>
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-400">
-                            %{q.blank_rate}
-                          </td>
-                          <td className="py-3.5 px-4 text-center font-bold text-amber-600">
-                            {q.most_common_wrong}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            {q.is_defect_warning ? (
-                              <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
-                                <AlertTriangle className="w-3 h-3" />
-                                <span>Olası Soru Hatası / Kritik Eksik</span>
-                              </span>
-                            ) : q.correct_rate >= 75 ? (
-                              <span className="text-emerald-600 font-semibold text-[11px]">Kavranmış</span>
-                            ) : (
-                              <span className="text-slate-400 text-[11px]">Orta Başarı</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-bold text-rose-600">%{q.wrong_rate}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-400">
+                          %{q.blank_rate}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-amber-600">
+                          {q.most_common_wrong}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          {q.is_defect_warning ? (
+                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                              <AlertTriangle className="w-3 h-3" />
+                              <span>Ortak Hata (Kritik)</span>
+                            </span>
+                          ) : q.correct_rate >= 75 ? (
+                            <span className="text-emerald-600 font-semibold text-[11px]">Kavranmış</span>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">Orta Başarı</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

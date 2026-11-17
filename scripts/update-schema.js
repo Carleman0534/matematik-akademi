@@ -111,6 +111,12 @@ async function updateDb() {
     );
   `);
 
+  try { db.run("ALTER TABLE exams ADD COLUMN penalty_divisor INTEGER DEFAULT 4;"); } catch(e){}
+  try { db.run("ALTER TABLE exam_answers ADD COLUMN session_id TEXT;"); } catch(e){}
+  try { db.run("ALTER TABLE exam_answers ADD COLUMN question_no INTEGER;"); } catch(e){}
+  try { db.run("ALTER TABLE exam_answers ADD COLUMN answer TEXT;"); } catch(e){}
+  try { db.run("ALTER TABLE exam_answers ADD COLUMN updated_at TEXT;"); } catch(e){}
+
   // Sample seed if empty
   const check = db.exec('SELECT count(*) as c FROM pdf_documents');
   if (check.length === 0 || check[0].values[0][0] === 0) {
