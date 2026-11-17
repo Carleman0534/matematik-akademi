@@ -1,0 +1,115 @@
+// Veri yalıtımı (RLS) testi: gerçek Supabase projesine karşı çalışır.
+// İki GEÇİCİ öğrenci açar, birinin diğerinin verisine hiçbir yoldan erişemediğini dener, sonunda her şeyi siler.
+// Anahtarları .env.local'den okur ve hiçbir yere yazdırmaz.  Çalıştırma: node scripts/rls-check.mjs
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { createClient } from '@supabase/supabase-js';
+
+const env = Object.fromEntries(fs.readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
+  .split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]));
+const URL_ = env.NEXT_PUBLIC_SUPABASE_URL, ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY, SERVICE = env.SUPABASE_SERVICE_ROLE_KEY;
+const DOMAIN = env.STUDENT_EMAIL_DOMAIN || 'ogrenci.matematikakademi.app';
+if (!URL_ || !ANON || !SERVICE) { console.error('.env.local eksik'); process.exit(2); }
+
+const admin = createClient(URL_, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
+const anonClient = () => createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+const tag = 'rlstest' + crypto.randomBytes(3).toString('hex');
+const results = [];
+const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log((ok ? '  ✓ ' : '  ✗ ') + name + (ok || !detail ? '' : '  → ' + detail)); };
+const made = { users: [], students: [], files: [] };
+
+async function makeStudent(suffix) {
+  const username = `${tag}.${suffix}`, password = crypto.randomBytes(18).toString('base64url');
+  const { data, error } = await admin.auth.admin.createUser({ email: `${username}@${DOMAIN}`, password, email_confirm: true, user_metadata: { full_name: 'RLS Test ' + suffix, username } });
+  if (error) throw new Error('kullanıcı açılamadı: ' + error.message);
+  made.users.push(data.user.id);
+  const { data: st, error: e2 } = await admin.from('students').insert({ profile_id: data.user.id, full_name: 'RLS Test ' + suffix }).select('id').single();
+  if (e2) throw new Error('öğrenci kaydı açılamadı: ' + e2.message);
+  made.students.push(st.id);
+  const c = anonClient();
+  const { error: e3 } = await c.auth.signInWithPassword({ email: `${username}@${DOMAIN}`, password });
+  if (e3) throw new Error('giriş yapılamadı: ' + e3.message);
+  return { c, studentId: st.id, userId: data.user.id };
+}
+
+// 1x1 PNG
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+try {
+  console.log('Geçici öğrenciler açılıyor…');
+  const A = await makeStudent('a'), B = await makeStudent('b');
+  const { data: prof } = await A.c.from('profiles').select('role').eq('id', A.userId).single();
+  check('Yeni hesap öğrenci rolüyle açılıyor (tetikleyici)', prof?.role === 'student', JSON.stringify(prof));
+
+  console.log('Öğrenci A kendi verisini oluşturuyor…');
+  const path = `${A.studentId}/${tag}.png`;
+  const up = await A.c.storage.from('question-images').upload(path, PNG, { contentType: 'image/png' });
+  check('A kendi klasörüne fotoğraf yükleyebiliyor', !up.error, up.error?.message);
+  if (!up.error) made.files.push(path);
+  const { data: qid, error: qErr } = await A.c.rpc('create_question', { p: { student_id: A.studentId, initial_status: 'wrong', question_text: 'RLS deneme sorusu', teacher_note: 'öğrenci yazamamalı', images: [{ path, thumb_path: path, width: 1, height: 1 }] } });
+  check('A create_question ile soru ekleyebiliyor (soru + görsel + ilk kayıt)', !qErr && !!qid, qErr?.message);
+  const { data: own } = await A.c.from('questions').select('id, teacher_note, question_images(id), question_attempts(id, attempt_type)').eq('id', qid).maybeSingle();
+  check('A kendi sorusunu görüyor', !!own);
+  check('İlk yanlış kaydı ve görsel oluştu', own?.question_attempts?.length === 1 && own?.question_attempts[0].attempt_type === 'initial' && own?.question_images?.length === 1);
+  check('Öğrenci öğretmen notu yazamıyor', own?.teacher_note == null, own?.teacher_note);
+  const at = await A.c.from('question_attempts').insert({ question_id: qid, student_id: A.studentId, result: 'correct', attempt_type: 'review' }).select('id').single();
+  check('A kendi sorusuna tekrar çözümü ekleyebiliyor', !at.error, at.error?.message);
+
+  console.log('Öğrenci B, A\'nın verisine erişmeyi deniyor…');
+  const bq = await B.c.from('questions').select('id').eq('id', qid);
+  check('B, A\'nın sorusunu göremiyor', !bq.error && bq.data.length === 0, JSON.stringify(bq.data));
+  const ball = await B.c.from('questions').select('id');
+  check('B soru listesinde A\'nın sorusu yok', !ball.error && ball.data.every(x => x.id !== qid));
+  const ba = await B.c.from('question_attempts').select('id').eq('question_id', qid);
+  check('B, A\'nın çözüm geçmişini göremiyor', !ba.error && ba.data.length === 0);
+  const bi = await B.c.from('question_images').select('id').eq('question_id', qid);
+  check('B, A\'nın görsel kayıtlarını göremiyor', !bi.error && bi.data.length === 0);
+  const bdl = await B.c.storage.from('question-images').download(path);
+  check('B, A\'nın fotoğrafını indiremiyor', !!bdl.error);
+  const bsign = await B.c.storage.from('question-images').createSignedUrl(path, 60);
+  check('B, A\'nın fotoğrafı için imzalı adres alamıyor', !!bsign.error || !bsign.data?.signedUrl);
+  const bup = await B.c.storage.from('question-images').upload(`${A.studentId}/${tag}-b.png`, PNG, { contentType: 'image/png' });
+  check('B, A\'nın klasörüne dosya yükleyemiyor', !!bup.error);
+  if (!bup.error) made.files.push(`${A.studentId}/${tag}-b.png`);
+  const bins = await B.c.from('questions').insert({ student_id: A.studentId, initial_status: 'wrong' }).select('id');
+  check('B, A adına soru ekleyemiyor', !!bins.error);
+  const brpc = await B.c.rpc('create_question', { p: { student_id: A.studentId, initial_status: 'blank' } });
+  check('B, create_question ile A adına soru ekleyemiyor', !!brpc.error);
+  const batt = await B.c.from('question_attempts').insert({ question_id: qid, student_id: B.studentId, result: 'correct' }).select('id');
+  check('B, A\'nın sorusuna çözüm kaydı ekleyemiyor', !!batt.error);
+  const bupd = await B.c.from('questions').update({ question_text: 'değiştirildi' }).eq('id', qid).select('id');
+  check('B, A\'nın sorusunu değiştiremiyor', !bupd.error && bupd.data.length === 0);
+  const bst = await B.c.from('students').select('id');
+  check('B öğrenci listesinde yalnızca kendini görüyor', !bst.error && bst.data.length === 1 && bst.data[0].id === B.studentId, JSON.stringify(bst.data));
+  const bpr = await B.c.from('profiles').select('id');
+  check('B profil listesinde yalnızca kendini görüyor', !bpr.error && bpr.data.length === 1);
+
+  console.log('Yetki yükseltme ve geçmiş silme denemeleri…');
+  const role = await A.c.from('profiles').update({ role: 'teacher' }).eq('id', A.userId).select('id');
+  const { data: prof2 } = await admin.from('profiles').select('role').eq('id', A.userId).single();
+  check('Öğrenci kendini öğretmen yapamıyor', prof2.role === 'student' && (!!role.error || role.data.length === 0));
+  const del = await A.c.from('question_attempts').delete().eq('question_id', qid).select('id');
+  const { count } = await admin.from('question_attempts').select('id', { count: 'exact', head: true }).eq('question_id', qid);
+  check('Öğrenci çözüm geçmişini silemiyor', count === 2 && (!!del.error || del.data.length === 0), 'kalan: ' + count);
+  const qdel = await A.c.from('questions').delete().eq('id', qid).select('id');
+  check('Öğrenci soruyu silemiyor (yalnızca arşivleyebilir)', !!qdel.error || qdel.data.length === 0);
+  const anonQ = await anonClient().from('questions').select('id');
+  check('Giriş yapmamış biri hiçbir soru göremiyor', !anonQ.error && anonQ.data.length === 0);
+
+  console.log('Pasifleştirme…');
+  await admin.from('students').update({ is_active: false }).eq('id', A.studentId);
+  const pas = await A.c.from('questions').select('id');
+  check('Pasif öğrenci kendi sorularına da erişemiyor', !pas.error && pas.data.length === 0);
+} catch (e) {
+  check('Test çalıştırılamadı: ' + e.message, false);
+} finally {
+  console.log('Geçici veriler siliniyor…');
+  if (made.files.length) await admin.storage.from('question-images').remove(made.files);
+  if (made.students.length) await admin.from('students').delete().in('id', made.students);
+  for (const u of made.users) await admin.auth.admin.deleteUser(u);
+  const left = await admin.from('profiles').select('id').like('username', tag + '%');
+  check('Geçici hesaplar ve veriler silindi', !left.error && left.data.length === 0);
+  const failed = results.filter(r => !r.ok).length;
+  console.log(`\n${results.length - failed}/${results.length} kontrol geçti`);
+  process.exit(failed ? 1 : 0);
+}
