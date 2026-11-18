@@ -157,3 +157,51 @@ test('süre biçimi ve kodlar', () => {
   assert.match(makeCode(8), /^[A-HJ-NP-Z2-9]{8}$/);
   assert.equal(normalizeCode(' ab-12 cd '), 'AB12CD');
 });
+
+// ============ PDF'ten otomatik soru bulma ============
+import { findQuestionMarkers, detectSection, findFooterTop, layoutBoxes, lastInkRow, segmentByGaps, parseAnswerKey, type TItem } from './questionDetect.ts';
+
+const W = 595, H = 842;
+const t = (str: string, x: number, y: number, h = 10, w = str.length * 5): TItem => ({ str, x, y, w, h });
+const body = (y: number, x = 80) => t('Bir kenarının uzunluğu olan eşkenar üçgenin', x, y, 10, 200);
+
+test('soru numaraları: büyük yazılı numaralar alınır, uyarı listesi ve cevap anahtarı alınmaz', () => {
+  const page = [t('MATEMATİK', 250, 100, 11), t('1.', 52, 160, 13, 10), body(161), body(180), t('2.', 52, 450, 13, 10), body(451),
+    t('3.', 300, 160, 13, 10), body(161, 320), t('1. Bu testte 20 soru vardır.', 60, 130, 9, 150), body(600), body(620)];
+  const ms = findQuestionMarkers(page, W, H);
+  assert.deepEqual(ms.map(m => m.n), [1, 2, 3]);
+  const cover = [t('1.', 60, 500, 10, 10), t('Salon yoklama listesinde belirtilen sınıfta', 80, 500, 10, 200), body(520), body(540)];
+  assert.equal(findQuestionMarkers(cover, W, H).length, 0);
+  const keyPage = [t('CEVAP ANAHTARI', 200, 60, 12), t('1.', 160, 120, 13, 10), t('D', 185, 121, 9, 6)];
+  assert.equal(findQuestionMarkers(keyPage, W, H).length, 0);
+});
+
+test('bölüm, alt bilgi ve iki sütunlu kutular', () => {
+  assert.equal(detectSection([t('FEN BİLİMLERİ', 100, 60, 11)], H), 'Fen Bilimleri');
+  assert.equal(detectSection([t('MATEMATİK', 100, 400, 11)], H), null); // sayfa ortasında değil, başlıkta aranır
+  const foot = findFooterTop([t('TEST BİTTİ.', 400, 700, 9), t('30', 290, 800, 9, 10)], W, H);
+  assert.equal(foot, 700);
+  assert.equal(findFooterTop([t('MATEMATİK TESTİ BİTTİ.', 400, 720, 9), t('FEN BİLİMLERİ TESTİNE GEÇİNİZ.', 400, 735, 9)], W, H), 720);
+  const boxes = layoutBoxes([{ n: 1, x: 52, y: 160, h: 13 }, { n: 2, x: 52, y: 450, h: 13 }, { n: 3, x: 300, y: 160, h: 13 }], W, H, 780);
+  assert.equal(boxes.length, 3);
+  const [b1, b2, b3] = [1, 2, 3].map(n => boxes.find(b => b.n === n)!);
+  assert.ok(b1.y + b1.h <= 450 && b2.y + b2.h <= 780);     // 1. soru 2.'nin başında biter
+  assert.ok(b1.x + b1.w < W / 2 && b3.x > W / 2 - 15);      // sütunlar ayrı
+  const one = layoutBoxes([{ n: 5, x: 60, y: 90, h: 13 }], W, H, 780);
+  assert.ok(one[0].w > W * 0.7);                           // tek sütunlu sayfa tam genişlik
+});
+
+test('boşluk kırpma ve taranmış sayfayı boşluklardan bölme', () => {
+  assert.equal(lastInkRow([0, 5, 9, 0, 0, 1, 0], 2), 2);
+  assert.equal(lastInkRow([0, 0, 1], 2), -1);
+  const rows = [...Array(10).fill(9), ...Array(30).fill(0), ...Array(20).fill(9), ...Array(30).fill(0), 9, ...Array(5).fill(0)];
+  assert.deepEqual(segmentByGaps(rows, 2, 15, 5), [[0, 10], [40, 60]]); // en alttaki tek satırlık parça (sayfa no) atılır
+});
+
+test('cevap anahtarı: bölüm sütunlarına göre', () => {
+  const page = [t('“A” KİTAPÇIĞI CEVAP ANAHTARI', 150, 60, 12), t('MATEMATİK', 160, 100, 12), t('FEN BİLİMLERİ', 300, 100, 12),
+    t('1.', 170, 130, 12, 10), t('D', 190, 131, 9, 6), t('2.', 170, 150, 12, 10), t('C', 190, 151, 9, 6),
+    t('1.', 330, 130, 12, 10), t('A', 350, 131, 9, 6)];
+  const k = parseAnswerKey(page);
+  assert.equal(k.get('Matematik|1'), 'D'); assert.equal(k.get('Matematik|2'), 'C'); assert.equal(k.get('Fen Bilimleri|1'), 'A');
+});

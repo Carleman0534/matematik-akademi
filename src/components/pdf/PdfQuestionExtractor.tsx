@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import type { TopicOption } from '@/lib/topicOptions';
 import { importToStudentBank, createExamFromCrops } from './extractorSave';
+import { scanDocument, detectPageBoxes, type DocScan, type FoundBox } from '@/lib/pdfQuestionScan';
 
 export interface CropBox {
   id: string;
@@ -34,12 +35,16 @@ export interface CropBox {
   y: number; // Yüzde (0-100)
   width: number; // Yüzde (0-100)
   height: number; // Yüzde (0-100)
+  qno?: number;            // otomatik bulunan soru numarası
+  section?: string | null; // Matematik, Fen Bilimleri …
+  correct?: 'A' | 'B' | 'C' | 'D' | 'E' | null; // kitapçığın cevap anahtarından
 }
 
 export interface ExtractedQuestion {
   id: string;
   pageNo: number;
   questionNo: number;
+  section?: string | null;
   cropBox: CropBox;
   imageDataUrl: string;
   correctAnswer: 'A' | 'B' | 'C' | 'D' | 'E' | null;
@@ -89,6 +94,11 @@ export default function PdfQuestionExtractor({
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageThumbnails, setPageThumbnails] = useState<{ page: number; thumb: string }[]>([]);
+
+  // Otomatik soru bulma (metin katmanı + boşluk kırpma) ve kitapçıktaki cevap anahtarı
+  const [scan, setScan] = useState<DocScan | null>(null);
+  const [sectionFilter, setSectionFilter] = useState('');
+  const [scanNote, setScanNote] = useState('');
 
   // Tuval & Kırpma State
   const [cropBoxes, setCropBoxes] = useState<CropBox[]>([]);
@@ -154,7 +164,7 @@ export default function PdfQuestionExtractor({
 
       // İlk birkaç sayfanın önizlemesini hızlıca oluştur
       const thumbs: { page: number; thumb: string }[] = [];
-      const thumbMax = Math.min(doc.numPages, 16);
+      const thumbMax = Math.min(doc.numPages, 60);
       for (let i = 1; i <= thumbMax; i++) {
         const page = await doc.getPage(i);
         const vp = page.getViewport({ scale: 0.2 });
@@ -169,9 +179,19 @@ export default function PdfQuestionExtractor({
       }
       setPageThumbnails(thumbs);
 
-      // İlk sayfayı çiz ve varsayılan TYT 2 sütun şablonunu uygula
-      await renderPage(doc, 1);
-      applyPreset('tyt_2col_4q', 1);
+      // Bütün sayfaların metnini oku: soruların olduğu sayfalar, bölümler, kitapçıktaki cevap anahtarı
+      setScanNote('Sorular aranıyor…');
+      const sc = await scanDocument(doc, (d, t) => setScanNote(`Sorular aranıyor… ${d}/${t} sayfa`));
+      setScan(sc);
+      setSectionFilter('');
+      const total = sc.sections.reduce((a, s) => a + s.count, 0);
+      setScanNote(sc.hasText
+        ? `Otomatik bulundu: ${total} soru${sc.sections.length ? ' (' + sc.sections.map(s => `${s.name} ${s.count}`).join(', ') + ')' : ''}${sc.answerKey.size ? `; kitapçığın cevap anahtarından ${sc.answerKey.size} cevap okundu` : ''}. Boş sayfalar ve açıklama sayfaları atlanır.`
+        : 'Bu PDF taranmış görünüyor (metin katmanı yok): sorular aradaki boşluklara göre bölünecek; kutuları kontrol edin.');
+      // Soruların başladığı sayfayı aç ve o sayfadaki soruları işaretle
+      setCurrentPage(sc.firstQuestionPage);
+      await renderPage(doc, sc.firstQuestionPage);
+      await detectOnCurrent(doc, sc.firstQuestionPage, sc);
     } catch (e) {
       const err = e as Error;
       console.error('PDF yükleme hatası:', err);
@@ -234,10 +254,25 @@ export default function PdfQuestionExtractor({
     if (!pdfDoc || newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
     await renderPage(pdfDoc, newPage);
-    // Sayfa değiştiğinde mevcut şablon kutularını bu sayfaya da uygula
-    if (cropBoxes.length === 0) {
-      applyPreset('tyt_2col_4q', newPage);
-    }
+    // Yeni sayfadaki soruları otomatik bul (bulunamazsa kutu konmaz; elle çizilebilir)
+    if (scan) await detectOnCurrent(pdfDoc, newPage, scan);
+    else if (cropBoxes.length === 0) applyPreset('tyt_2col_4q', newPage);
+  };
+
+  // Otomatik bulunan kutular → tuvaldeki kırpma kutuları
+  const toCropBoxes = (found: FoundBox[], pageNum: number): CropBox[] => found.map((f, i) => ({
+    id: `a${pageNum}-${i + 1}`,
+    name: f.n ? `Soru ${f.n}${f.correct ? ' · ' + f.correct : ''}` : `Soru ${i + 1}`,
+    x: f.x, y: f.y, width: f.width, height: f.height, qno: f.n || undefined, section: f.section, correct: f.correct,
+  }));
+
+  const detectOnCurrent = async (doc: PDFDocumentProxy, pageNum: number, sc: DocScan) => {
+    if (!canvasRef.current) return;
+    const page = await doc.getPage(pageNum);
+    const found = await detectPageBoxes(page, canvasRef.current, sc, pageNum);
+    setCropBoxes(toCropBoxes(found, pageNum));
+    setActiveBoxId(null);
+    if (!found.length) setSuccessMessage(null);
   };
 
   // Akıllı Otomatik Şablonlar (Presets)
@@ -282,42 +317,8 @@ export default function PdfQuestionExtractor({
         { id: '2', name: `Soru ${b2 + 1}`, x: 6, y: 51, width: 88, height: 43 },
       ]);
     } else if (preset === 'auto_detect') {
-      // Piksel Yoğunluğu Analizi ile Otomatik Boşluk Ayıklama
-      autoDetectBoxes(pageNum);
-    }
-  };
-
-  // Piksel Analizli Akıllı Soru Ayıklama (Whitespace Detector)
-  const autoDetectBoxes = (pageNum: number) => {
-    if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    try {
-      const { width, height } = canvas;
-      // Ortada dikey sütun ayrımı var mı kontrol et (x: %45 - %55)
-      const midImageData = ctx.getImageData(Math.floor(width * 0.48), 0, Math.floor(width * 0.04), height);
-      let isTwoColumn = true;
-      let darkCount = 0;
-      for (let i = 0; i < midImageData.data.length; i += 4) {
-        const r = midImageData.data[i], g = midImageData.data[i + 1], b = midImageData.data[i + 2];
-        if (r < 180 && g < 180 && b < 180) darkCount++;
-      }
-      // Eğer ortada çok fazla metin varsa tek sütundur
-      if (darkCount > (midImageData.data.length / 4) * 0.15) {
-        isTwoColumn = false;
-      }
-
-      if (isTwoColumn) {
-        // İki sütun 4 soru şablonunu uyarla
-        applyPreset('tyt_2col_4q', pageNum);
-      } else {
-        // Tek sütun 3 soru şablonunu uyarla
-        applyPreset('1col_3q', pageNum);
-      }
-    } catch {
-      applyPreset('tyt_2col_4q', pageNum);
+      // Metin katmanı + boşluk analiziyle gerçek soru bulma
+      if (pdfDoc && scan) void detectOnCurrent(pdfDoc, pageNum, scan);
     }
   };
 
@@ -401,97 +402,83 @@ export default function PdfQuestionExtractor({
     };
   };
 
+  // Aynı sayfadaki aynı soru ikinci kez eklenmesin (yeniden taramada yerine geçer)
+  const mergeExtracted = (prev: ExtractedQuestion[], add: ExtractedQuestion[]) => {
+    const keys = new Set(add.filter(a => a.cropBox.qno).map(a => `${a.pageNo}|${a.cropBox.qno}`));
+    return [...prev.filter(q => !q.cropBox.qno || !keys.has(`${q.pageNo}|${q.cropBox.qno}`)), ...add];
+  };
+
+  const makeQuestion = (box: CropBox, pageNo: number, qNo: number, crop: { dataUrl: string; width: number; height: number }): ExtractedQuestion => ({
+    id: crypto.randomUUID(),
+    pageNo,
+    questionNo: box.qno || qNo,
+    section: box.section ?? null,
+    cropBox: { ...box },
+    imageDataUrl: crop.dataUrl,
+    correctAnswer: box.correct ?? null,
+    topicId: commonTopicId || '',
+    difficulty: commonDifficulty,
+    initialStatus: commonStatus,
+    teacherNote: '',
+    width: crop.width,
+    height: crop.height,
+  });
+
   // Geçerli Sayfadaki Kutuları Soru Kuyruğuna Ekle
   const handleExtractCurrentPage = () => {
     if (!canvasRef.current || cropBoxes.length === 0) return;
     const canvas = canvasRef.current;
-
-    const newExtracted: ExtractedQuestion[] = [];
     let startQNum = extractedQuestions.length + 1;
-
+    const newExtracted: ExtractedQuestion[] = [];
     for (const box of cropBoxes) {
-      const { dataUrl, width, height } = cropBoxToDataUrl(box, canvas);
-      if (!dataUrl) continue;
-
-      newExtracted.push({
-        id: crypto.randomUUID(),
-        pageNo: currentPage,
-        questionNo: startQNum++,
-        cropBox: { ...box },
-        imageDataUrl: dataUrl,
-        correctAnswer: null,
-        topicId: commonTopicId || '',
-        difficulty: commonDifficulty,
-        initialStatus: commonStatus,
-        teacherNote: '',
-        width,
-        height,
-      });
+      const crop = cropBoxToDataUrl(box, canvas);
+      if (!crop.dataUrl) continue;
+      newExtracted.push(makeQuestion(box, currentPage, startQNum++, crop));
     }
-
-    setExtractedQuestions(prev => [...prev, ...newExtracted]);
-    setSuccessMessage(`${newExtracted.length} soru başarıyla ayıklandı ve listeye eklendi.`);
+    setExtractedQuestions(prev => mergeExtracted(prev, newExtracted));
+    setSuccessMessage(`${newExtracted.length} soru listeye eklendi.`);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  // TÜM SAYFALARI TOPLU AYIKLA (Otomatik Batch Extract)
+  // TÜM SAYFALARI OTOMATİK TARA: her sayfada soruları bulur, boş/kapak/açıklama sayfalarını atlar
   const handleExtractAllPages = async () => {
     if (!pdfDoc || totalPages === 0) return;
     setIsLoadingPdf(true);
     setErrorMessage(null);
-
     try {
+      const sc = scan ?? await scanDocument(pdfDoc);
+      if (!scan) setScan(sc);
       const allExtracted: ExtractedQuestion[] = [];
-      let currentQNum = extractedQuestions.length + 1;
-
-      // Kullanıcının şu anki şablon oranlarını referans alalım (örn. 4 kutulu 2 sütun)
-      const templateBoxes = cropBoxes.length > 0 ? cropBoxes : [
-        { id: '1', name: 'Soru 1', x: 4, y: 5, width: 44, height: 43 },
-        { id: '2', name: 'Soru 2', x: 4, y: 51, width: 44, height: 43 },
-        { id: '3', name: 'Soru 3', x: 52, y: 5, width: 44, height: 43 },
-        { id: '4', name: 'Soru 4', x: 52, y: 51, width: 44, height: 43 },
-      ];
-
+      let seq = extractedQuestions.length + 1;
+      let skipped = 0;
       for (let p = 1; p <= totalPages; p++) {
+        const info = sc.pages.get(p);
+        if (sc.hasText && !info?.count) { skipped++; continue; }                  // soru olmayan sayfa
+        if (sectionFilter && info?.section !== sectionFilter) continue;            // seçilmeyen bölüm
+        setScanNote(`Sayfa ${p}/${totalPages} taranıyor…`);
         const page = await pdfDoc.getPage(p);
-        const targetWidth = 1400;
         const baseVp = page.getViewport({ scale: 1 });
-        const scale = targetWidth / baseVp.width;
-        const viewport = page.getViewport({ scale });
-
+        const viewport = page.getViewport({ scale: 1400 / baseVp.width });
         const pageCanvas = document.createElement('canvas');
         pageCanvas.width = Math.ceil(viewport.width);
         pageCanvas.height = Math.ceil(viewport.height);
-        const pCtx = pageCanvas.getContext('2d');
+        const pCtx = pageCanvas.getContext('2d', { willReadFrequently: true });
         if (!pCtx) continue;
-
         pCtx.fillStyle = '#ffffff';
         pCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
         await page.render({ canvas: pageCanvas, canvasContext: pCtx, viewport }).promise;
-
-        for (const box of templateBoxes) {
-          const { dataUrl, width, height } = cropBoxToDataUrl(box, pageCanvas);
-          if (!dataUrl) continue;
-
-          allExtracted.push({
-            id: crypto.randomUUID(),
-            pageNo: p,
-            questionNo: currentQNum++,
-            cropBox: { ...box },
-            imageDataUrl: dataUrl,
-            correctAnswer: null,
-            topicId: commonTopicId || '',
-            difficulty: commonDifficulty,
-            initialStatus: commonStatus,
-            teacherNote: '',
-            width,
-            height,
-          });
+        const boxes = toCropBoxes(await detectPageBoxes(page, pageCanvas, sc, p), p);
+        if (!boxes.length) { skipped++; continue; }
+        for (const box of boxes) {
+          const crop = cropBoxToDataUrl(box, pageCanvas);
+          if (crop.dataUrl) allExtracted.push(makeQuestion(box, p, seq++, crop));
         }
+        page.cleanup();
       }
-
-      setExtractedQuestions(prev => [...prev, ...allExtracted]);
-      setSuccessMessage(`Tüm ${totalPages} sayfa başarıyla tarandı ve toplam ${allExtracted.length} soru ayıklandı!`);
+      setExtractedQuestions(prev => mergeExtracted(prev, allExtracted));
+      const withKey = allExtracted.filter(q => q.correctAnswer).length;
+      setScanNote('');
+      setSuccessMessage(`${allExtracted.length} soru ayıklandı${sectionFilter ? ` (${sectionFilter})` : ''}; ${skipped} soru olmayan sayfa atlandı${withKey ? `; ${withKey} sorunun doğru cevabı kitapçıktan dolduruldu` : ''}. Listeyi kontrol edin.`);
     } catch (e) {
       const err = e as Error;
       console.error('Toplu tarama hatası:', err);
@@ -840,14 +827,33 @@ export default function PdfQuestionExtractor({
               <div className="card p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-indigo-600" /> Akıllı Soru Algılama Şablonu:
+                    <Sparkles className="h-3.5 w-3.5 text-indigo-600" /> Otomatik soru bulma
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    Sayfadaki {cropBoxes.length} soru kutusu tanımlı
+                    Bu sayfada {cropBoxes.length} soru kutusu
                   </span>
                 </div>
+                {scanNote && <p className="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200">{scanNote}</p>}
+                {pdfDoc && cropBoxes.length === 0 && !isLoadingPdf && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">Bu sayfada soru bulunamadı (kapak, açıklama ya da boş sayfa). Gerekirse fareyle kutu çizin ya da aşağıdaki şablonlardan birini seçin.</p>
+                )}
+                {scan && scan.sections.length > 1 && (
+                  <label className="flex flex-wrap items-center gap-2 text-xs font-semibold">Hangi bölüm ayıklansın?
+                    <select value={sectionFilter} onChange={e => setSectionFilter(e.target.value)} className="input w-auto py-1 text-xs">
+                      <option value="">Hepsi</option>{scan.sections.map(s => <option key={s.name} value={s.name}>{s.name} ({s.count} soru)</option>)}
+                    </select>
+                  </label>
+                )}
 
                 <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => applyPreset('auto_detect')}
+                    disabled={!scan}
+                    className="btn-primary px-2.5 py-1 text-xs"
+                  >
+                    🔍 Bu sayfadaki soruları bul
+                  </button>
+                  <span className="self-center text-[11px] text-slate-400">ya da elle şablon:</span>
                   <button
                     onClick={() => applyPreset('tyt_2col_4q')}
                     className="btn btn-outline text-xs py-1 px-2.5 hover:border-indigo-500 hover:text-indigo-600"
@@ -872,12 +878,7 @@ export default function PdfQuestionExtractor({
                   >
                     ⚡ Tek Sütun (2 Soru)
                   </button>
-                  <button
-                    onClick={() => applyPreset('auto_detect')}
-                    className="btn btn-outline text-xs py-1 px-2.5 hover:border-indigo-500 hover:text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30"
-                  >
-                    🔍 Otomatik Algıla
-                  </button>
+
                 </div>
               </div>
 
@@ -955,7 +956,7 @@ export default function PdfQuestionExtractor({
                     onClick={handleExtractAllPages}
                     className="btn btn-outline text-xs py-2 px-3 flex items-center gap-1.5 border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                   >
-                    <Zap className="h-4 w-4" /> Tüm ({totalPages}) Sayfayı Otomatik Tara
+                    <Zap className="h-4 w-4" /> {sectionFilter ? `Tüm ${sectionFilter} sorularını ayıkla` : `Tüm sayfalardaki soruları ayıkla`}
                   </button>
                 </div>
               </div>
@@ -1066,7 +1067,7 @@ export default function PdfQuestionExtractor({
                           <span className="font-black text-xs text-indigo-600 dark:text-indigo-400">
                             Soru #{q.questionNo || idx + 1}{' '}
                             <span className="text-[10px] text-slate-400 font-normal">
-                              (Sayfa {q.pageNo})
+                              ({q.section ? q.section + ', ' : ''}sayfa {q.pageNo}){q.correctAnswer ? ' · cevap ' + q.correctAnswer : ''}
                             </span>
                           </span>
 
