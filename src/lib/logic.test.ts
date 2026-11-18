@@ -205,3 +205,22 @@ test('cevap anahtarı: bölüm sütunlarına göre', () => {
   const k = parseAnswerKey(page);
   assert.equal(k.get('Matematik|1'), 'D'); assert.equal(k.get('Matematik|2'), 'C'); assert.equal(k.get('Fen Bilimleri|1'), 'A');
 });
+
+// ============ Müfredat: pasif konular, ünite, kazanım zinciri ============
+import { activeOnly, rootOf, ancestorIds } from './topics.ts';
+import { topicOptions } from './topicOptions.ts';
+import { gradeLabel } from './labels.ts';
+
+test('pasif konu ve altındakiler seçim listesinden çıkar; ünite ve üst konular bulunur', () => {
+  const flat: Topic[] = [
+    { id: 'u', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 8, sort_order: 1 },
+    { id: 'a', parent_id: 'u', name: 'EBOB', grade_level: 8, sort_order: 1 },
+    { id: 'b', parent_id: 'u', name: 'EKOK', grade_level: 8, sort_order: 2, is_active: false },
+    { id: 'b1', parent_id: 'b', name: 'EKOK problemleri', grade_level: 8, sort_order: 1 },
+  ];
+  assert.deepEqual(activeOnly(flat).map(t => t.id), ['u', 'a']);
+  assert.deepEqual(topicOptions(flat).map(o => o.id), ['u', 'a']);
+  assert.equal(rootOf(flat, 'b1'), 'u');
+  assert.deepEqual(ancestorIds(flat, 'b1'), ['b1', 'b', 'u']);
+  assert.equal(gradeLabel(8), '8. sınıf (LGS)'); assert.equal(gradeLabel(10), '10. sınıf');
+});

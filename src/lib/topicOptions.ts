@@ -1,4 +1,4 @@
-import { buildTree, type Topic, type TopicNode } from './topics.ts';
+import { buildTree, activeOnly, type Topic, type TopicNode } from './topics.ts';
 
 // Seçim kutusu seçenekleri: her konunun ait olduğu ünitenin sınıf düzeyi (rootGrade) ile
 export type TopicOption = { id: string; label: string; depth: number; grade: number | null; rootGrade: number | null };
@@ -10,6 +10,6 @@ export function topicOptions(flat: Topic[]): TopicOption[] {
     out.push({ id: n.id, label: n.name, depth: n.depth, grade: n.grade_level, rootGrade: g });
     walk(n.children, g);
   });
-  walk(buildTree(flat), null);
+  walk(buildTree(activeOnly(flat)), null); // pasif konular seçilemez
   return out;
 }

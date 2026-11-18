@@ -11,6 +11,7 @@ Canlı: <https://matematik-akademi-alpha.vercel.app>
 | Alan | Özellikler |
 |---|---|
 | Hesaplar | Öğretmen e-postayla, öğrenci kullanıcı adıyla girer. **Yönetici** (ilk öğretmen) öğretmen davet kodu üretir. Öğretmen **sınıf kodu** verir; öğrenci `/kayit` sayfasında kodla kendi kaydolur ya da öğretmen hesabını açar. |
+| Müfredat | **LGS (8. sınıf) matematik** konu ağacı (12 ünite, 48 alt konu) ve MEB kazanımları (52) hazır; 9–12. sınıf lise konuları da var. Öğretmen konu ekler, adlandırır, sıralar, **pasifleştirir** (eski sorular konusunu korur), kazanım ekler/düzenler. Bir soru **ana konu + yardımcı konulara** ve bir kazanıma bağlanabilir; soru bankası filtresi yardımcı konuları da bulur. |
 | Soru bankası | Fotoğrafla (toplu, sayfadan kırparak) soru ekleme, yanlış/boş, kaynak, konu, zorluk, hata türü; filtreler; çözüm geçmişi; öğrenme durumu ve aralıklı tekrar. |
 | Denemeler | PDF ya da fotoğraftan deneme (PDF sayfaları telefonda net görünsün diye görsele çevrilir). Cevap anahtarı + konu + sayfa. **Canlı oturum** (öğretmen başlatır, süre herkes için birlikte) ya da **süreli ödev** (tarih aralığı). Sınıfa, bütün öğrencilere ya da **seçili öğrencilere** atama. |
 | Öğrenci deneme ekranı | Sayfalar + optik form; her işaret anında kaydedilir, internet kesilirse kaldığı yerden devam; süre sunucuda tutulur, bitince kendiliğinden teslim. |
@@ -29,7 +30,7 @@ Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük iste
 
 ## Kurulum
 
-1. Supabase projesi açın; SQL Editor'de **sırayla** çalıştırın: `supabase/migrations/0001_init.sql` … `0005_exams_policy_fix.sql`.
+1. Supabase projesi açın; SQL Editor'de **sırayla** çalıştırın: `supabase/migrations/0001_init.sql` … `0006_lgs_mufredat.sql`.
 2. Authentication → "Allow new users to sign up" **kapalı** (kayıt yalnızca kodla, sunucuda yapılır).
 3. Öğretmen hesabı: Authentication → Users → Add user (Auto Confirm), sonra SQL Editor'de:
    ```sql
@@ -44,7 +45,7 @@ Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük iste
 
 `profiles` (rol, yönetici) · `students` (öğretmen, sınıf) · `classes` (kayıt kodu) · `teacher_invites` ·
 `questions`, `question_images`, `question_attempts` (soru bankası) ·
-`exams`, `exam_pages`, `exam_key` (öğrenciye sonuçlar açılana kadar kapalı), `exam_assignees`, `exam_sessions`, `exam_answers` ·
+`curriculum_outcomes`, `question_topic_relations` (müfredat) · `exams`, `exam_pages`, `exam_key` (öğrenciye sonuçlar açılana kadar kapalı), `exam_assignees`, `exam_sessions`, `exam_answers` ·
 `pdf_documents`. Kovalar: `question-images`, `exam-pages`, `pdf-library` (hepsi gizli; süreli adreslerle gösterilir).
 
 ## Komutlar
@@ -53,14 +54,14 @@ Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük iste
 |---|---|
 | `npm run dev` | Geliştirme sunucusu |
 | `npm test` | Öğrenme durumu, puanlama (net, iptal, çeldirici, konu analizi), deneme aşaması, filtre ve kullanıcı adı testleri |
-| `npm run rls` | **Gerçek Supabase'e karşı 50 güvenlik kontrolü** (geçici hesaplar açar, sonunda siler) |
+| `npm run rls` | **Gerçek Supabase'e karşı 56 güvenlik kontrolü** (geçici hesaplar açar, sonunda siler) |
 | `npm run check` | Tür denetimi + lint + testler + üretim derlemesi |
 | `node scripts/e2e-accounts.mjs create <dosya> / delete` | Elle deneme için geçici öğretmen + öğrenci hesabı |
 
 ## Test durumu (18 Kasım 2026)
 
-- ✅ Tür denetimi, lint, 19 birim testi, üretim derlemesi.
-- ✅ `npm run rls` 50/50: öğrenciler ve öğretmenler arası yalıtım; öğrenci cevap anahtarını deneme bitmeden göremez,
+- ✅ Tür denetimi, lint, 24 birim testi, üretim derlemesi.
+- ✅ `npm run rls` 56/56 (kazanım ve yardımcı konu yalıtımı dahil): öğrenciler ve öğretmenler arası yalıtım; öğrenci cevap anahtarını deneme bitmeden göremez,
   süresini uzatamaz, cevap tablosuna doğrudan yazamaz, teslimden sonra cevap değiştiremez; başka öğretmen sonuçları,
   kâğıt girişini, PDF arşivini göremez; öğretmen kendini yönetici yapamaz.
 - ✅ Tarayıcıda uçtan uca: PDF'ten deneme → cevap anahtarı → canlı başlatma → öğrenci katılıp çözme → canlı izleme →

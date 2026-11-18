@@ -169,6 +169,21 @@ try {
   const up2 = await T2.c.storage.from('pdf-library').upload(`${T1.userId}/${tag}.pdf`, Buffer.from('%PDF-1.4'), { contentType: 'application/pdf' });
   check('Öğretmen başkasının PDF klasörüne dosya yükleyemiyor', !!up2.error);
 
+  console.log('Müfredat: kazanımlar ve yardımcı konular…');
+  const { data: anyTopic } = await admin.from('topics').select('id').limit(1).single();
+  const outIns = await A.c.from('curriculum_outcomes').insert({ topic_id: anyTopic.id, code: tag, text: 'öğrenci yazamamalı' }).select('id');
+  check('Öğrenci kazanım ekleyemiyor', !!outIns.error);
+  const outRead = await A.c.from('curriculum_outcomes').select('id').limit(1);
+  check('Öğrenci kazanımları okuyabiliyor', !outRead.error);
+  const relOwn = await A.c.from('question_topic_relations').insert({ question_id: qid, topic_id: anyTopic.id }).select('question_id');
+  check('Öğrenci kendi sorusuna yardımcı konu ekleyebiliyor', !relOwn.error, relOwn.error?.message);
+  const relB = await B.c.from('question_topic_relations').insert({ question_id: qid, topic_id: anyTopic.id, role: 'secondary' }).select('question_id');
+  check('Başka öğrenci bu soruya konu ekleyemiyor', !!relB.error);
+  const relBRead = await B.c.from('question_topic_relations').select('question_id').eq('question_id', qid);
+  check('Başka öğrenci bu sorunun konularını göremiyor', !relBRead.error && relBRead.data.length === 0);
+  const relT2 = await T2.c.from('question_topic_relations').select('question_id').eq('question_id', qid);
+  check('Başka öğretmen bu sorunun konularını göremiyor', !relT2.error && relT2.data.length === 0);
+
   console.log('Pasifleştirme…');
   await admin.from('students').update({ is_active: false }).eq('id', A.studentId);
   const pas = await A.c.from('questions').select('id');

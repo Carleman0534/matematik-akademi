@@ -63,9 +63,22 @@ export async function updateQuestion(_prev: ActionResult, form: FormData): Promi
     error_type: errType && ERROR_TYPES.includes(errType) ? errType : null, solution: clean(form.get('solution'), 6000), student_note: clean(form.get('student_note'), 2000),
   };
   if (s.role === 'teacher') patch.teacher_note = clean(form.get('teacher_note'), 2000);
+  const isId = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
+  const outcome = String(form.get('outcome_id') || '');
+  patch.outcome_id = isId(outcome) ? outcome : null;
   const sb = await supabaseServer();
   const { error } = await sb.from('questions').update(patch).eq('id', id);
   if (error) return { error: 'Kaydedilemedi: ' + error.message };
+  // Yardımcı konular: listede olmayanlar silinir, yeniler eklenir (ana konu yardımcı olarak tutulmaz)
+  const extra = [...new Set(String(form.get('yardimci') || '').split(',').filter(isId))].filter(t => t !== patch.topic_id).slice(0, 10);
+  const { data: cur } = await sb.from('question_topic_relations').select('topic_id').eq('question_id', id);
+  const have = ((cur || []) as { topic_id: string }[]).map(r => r.topic_id);
+  const remove = have.filter(t => !extra.includes(t)), add = extra.filter(t => !have.includes(t));
+  if (remove.length) await sb.from('question_topic_relations').delete().eq('question_id', id).in('topic_id', remove);
+  if (add.length) {
+    const { error: rErr } = await sb.from('question_topic_relations').insert(add.map(topic_id => ({ question_id: id, topic_id, role: 'secondary' })));
+    if (rErr) return { error: 'Yardımcı konular kaydedilemedi: ' + rErr.message };
+  }
   revalidatePath('/soru/' + id);
   return { ok: 'Kaydedildi.' };
 }

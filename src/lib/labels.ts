@@ -19,3 +19,7 @@ export const fmtDate = (iso: string | null | undefined): string =>
 export const fmtDateTime = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }) : '—';
 export const pct = (x: number | null | undefined): string => (x == null ? '—' : '%' + Math.round(x * 100));
+
+// Sınıf düzeyleri: 8 = LGS (ortaokul), 9–12 lise
+export const GRADES = [8, 9, 10, 11, 12] as const;
+export const gradeLabel = (g: number | null | undefined): string => (g == null ? 'Sınıfsız' : g === 8 ? '8. sınıf (LGS)' : g === 13 ? 'Mezun' : `${g}. sınıf`);

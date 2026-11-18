@@ -36,16 +36,47 @@ export interface EditableQuestion {
   page_no: string | null; test_no: string | null; question_no: string | null; question_text: string | null;
   correct_answer: string | null; student_answer: string | null; error_type: string | null; solution: string | null;
   teacher_note: string | null; student_note: string | null;
+  outcome_id?: string | null; question_topic_relations?: { topic_id: string; role: string }[];
 }
 
-export function QuestionEditForm({ q, options, sources, isTeacher }: { q: EditableQuestion; options: TopicOption[]; sources: { id: string; name: string }[]; isTeacher: boolean }) {
+export interface OutcomeOpt { id: string; topic_id: string; code: string | null; text: string }
+
+export function QuestionEditForm({ q, options, sources, isTeacher, outcomes = [], parents = {} }: {
+  q: EditableQuestion; options: TopicOption[]; sources: { id: string; name: string }[]; isTeacher: boolean;
+  outcomes?: OutcomeOpt[]; parents?: Record<string, string | null>;
+}) {
   const [state, action, pending] = useActionState<ActionResult, FormData>(updateQuestion, {});
   const [topic, setTopic] = useState(q.topic_id || '');
+  const [extra, setExtra] = useState<string[]>((q.question_topic_relations || []).filter(r => r.role !== 'primary').map(r => r.topic_id));
+  const [pick, setPick] = useState('');
+  const [outcome, setOutcome] = useState(q.outcome_id || '');
+  const label = (id: string) => options.find(o => o.id === id)?.label || 'Konu';
+  // Kazanım seçenekleri: ana konunun kendisine ve üst konularına (ünitesine) bağlı kazanımlar
+  const chain: string[] = [];
+  for (let cur: string | null | undefined = topic, i = 0; cur && i < 20; i++) { chain.push(cur); cur = parents[cur]; }
+  const outcomeOpts = outcomes.filter(o => chain.includes(o.topic_id) || o.id === outcome);
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
       <input type="hidden" name="id" value={q.id} />
       <input type="hidden" name="topic_id" value={topic} />
-      <div className="sm:col-span-2"><span className="label">Konu</span><TopicSelect options={options} value={topic} onChange={setTopic} /></div>
+      <div className="sm:col-span-2"><span className="label">Ana konu</span><TopicSelect options={options} value={topic} onChange={v => { setTopic(v); setExtra(x => x.filter(e => e !== v)); }} /></div>
+      <input type="hidden" name="yardimci" value={extra.join(',')} />
+      <input type="hidden" name="outcome_id" value={outcome} />
+      <div className="sm:col-span-2">
+        <span className="label">Yardımcı konular <span className="font-normal">(soru birden fazla konuyu gerektiriyorsa)</span></span>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {extra.length === 0 && <span className="text-xs text-slate-500">Yok</span>}
+          {extra.map(id => <span key={id} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">{label(id)}
+            <button type="button" aria-label={label(id) + ' kaldır'} onClick={() => setExtra(x => x.filter(e => e !== id))}>✕</button></span>)}
+        </div>
+        <div className="flex gap-2"><div className="min-w-0 flex-1"><TopicSelect options={options} value={pick} onChange={setPick} /></div>
+          <button type="button" className="btn-secondary shrink-0" disabled={!pick || pick === topic || extra.includes(pick)} onClick={() => { setExtra(x => [...x, pick]); setPick(''); }}>Ekle</button></div>
+      </div>
+      <div className="sm:col-span-2"><label className="label" htmlFor="e-kazanim">Kazanım</label>
+        <select id="e-kazanim" value={outcome} onChange={e => setOutcome(e.target.value)} className="input">
+          <option value="">{outcomeOpts.length ? 'Seçilmedi' : 'Bu konuya bağlı kazanım yok'}</option>
+          {outcomeOpts.map(o => <option key={o.id} value={o.id}>{o.code ? o.code + ' – ' : ''}{o.text.length > 110 ? o.text.slice(0, 110) + '…' : o.text}</option>)}
+        </select></div>
       <div><label className="label" htmlFor="e-durum">Eklenme nedeni</label><select id="e-durum" name="initial_status" defaultValue={q.initial_status} className="input"><option value="wrong">Yanlış</option><option value="blank">Boş</option></select></div>
       <div><label className="label" htmlFor="e-zorluk">Zorluk</label><select id="e-zorluk" name="difficulty" defaultValue={q.difficulty || ''} className="input"><option value="">Seçilmedi</option>{Object.entries(DIFFICULTY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
       <div><label className="label" htmlFor="e-kaynak">Kaynak</label><select id="e-kaynak" name="source_id" defaultValue={q.source_id || ''} className="input"><option value="">Seçilmedi</option>{sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>

@@ -1,4 +1,5 @@
 'use client';
+import { GRADES, gradeLabel } from '@/lib/labels';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveKey } from '@/app/ogretmen/denemeler/actions';
@@ -85,7 +86,7 @@ export function KeyEditor({ examId, questionCount, optionCount, pageCount, initi
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <span>Cevabı girilen: <b>{filled}/{questionCount}</b> · Konusu seçilen: <b>{withTopic}/{questionCount}</b></span>
         <label className="ml-auto flex items-center gap-2 text-xs">Konu listesi:
-          <select value={grade} onChange={e => setGrade(e.target.value)} className="input w-28 py-1"><option value="">Tüm sınıflar</option>{[9, 10, 11, 12].map(g => <option key={g} value={g}>{g}. sınıf</option>)}</select></label>
+          <select value={grade} onChange={e => setGrade(e.target.value)} className="input w-28 py-1"><option value="">Tüm sınıflar</option>{GRADES.map(g => <option key={g} value={g}>{gradeLabel(g)}</option>)}</select></label>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">

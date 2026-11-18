@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getSession } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase/server';
-import { getQuestion, getSources, getStudent, getTopics, signedUrlMap } from '@/lib/data';
+import { getQuestion, getSources, getStudent, getTopics, getOutcomes, signedUrlMap } from '@/lib/data';
 import { analyzeQuestion, STATUS_LABEL, RESULT_LABEL } from '@/lib/learning';
 import { topicPath } from '@/lib/topics';
 import { topicOptions } from '@/lib/topicOptions';
@@ -21,7 +21,10 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
   const sb = await supabaseServer();
   const q = await getQuestion(sb, id); // RLS: başka öğrencinin sorusu hiç gelmez
   if (!q) notFound();
-  const [topics, sources, student] = await Promise.all([getTopics(sb), getSources(sb), s.role === 'teacher' ? getStudent(sb, q.student_id) : Promise.resolve(null)]);
+  const [topics, sources, student, outcomes] = await Promise.all([getTopics(sb), getSources(sb), s.role === 'teacher' ? getStudent(sb, q.student_id) : Promise.resolve(null), getOutcomes(sb)]);
+  const extraTopics = (q.question_topic_relations || []).filter(r => r.role !== 'primary').map(r => topicPath(topics, r.topic_id)).filter(Boolean);
+  const outcome = outcomes.find(o => o.id === q.outcome_id);
+  const parents = Object.fromEntries(topics.map(t => [t.id, t.parent_id]));
   const imgs = [...q.question_images].sort((a, b) => a.sort_order - b.sort_order);
   const urls = await signedUrlMap(sb, imgs.map(i => i.path));
   const a = analyzeQuestion(q.created_at, q.question_attempts);
@@ -51,6 +54,8 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
               {q.difficulty && <span className="rounded bg-slate-100 px-2 py-0.5 dark:bg-slate-800">{DIFFICULTY_LABEL[q.difficulty]}</span>}
             </div>
             <p className="font-bold">{topicPath(topics, q.topic_id) || 'Konu seçilmedi'}</p>
+            {extraTopics.length > 0 && <p className="text-xs text-slate-500">Yardımcı konular: {extraTopics.join(' · ')}</p>}
+            {outcome && <p className="text-xs text-slate-500"><b>Kazanım:</b> {outcome.code ? outcome.code + ' – ' : ''}{outcome.text}</p>}
             <p className="text-sm text-slate-500">{[src, q.test_no && 'Test ' + q.test_no, q.page_no && 'Sayfa ' + q.page_no, q.question_no && 'Soru ' + q.question_no].filter(Boolean).join(' · ') || 'Kaynak bilgisi yok'}</p>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
               <dt className="text-slate-500">Eklenme</dt><dd>{fmtDate(q.created_at)}</dd>
@@ -84,7 +89,8 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
       </div>
 
       <details className="card"><summary className="cursor-pointer font-bold">✎ Soru bilgilerini düzenle</summary>
-        <div className="mt-4"><QuestionEditForm q={q} options={topicOptions(topics)} sources={sources} isTeacher={s.role === 'teacher'} /></div>
+        <div className="mt-4"><QuestionEditForm q={q} options={topicOptions(topics)} sources={sources} isTeacher={s.role === 'teacher'}
+          outcomes={outcomes.filter(o => o.is_active).map(o => ({ id: o.id, topic_id: o.topic_id, code: o.code, text: o.text }))} parents={parents} /></div>
       </details>
       <ArchiveButton id={q.id} archived={!!q.archived_at} />
     </div>
