@@ -20,6 +20,7 @@ Canlı: <https://matematik-akademi-alpha.vercel.app>
 | Kâğıt sınav | Öğrenci adlarıyla optik form yazdırma; kâğıttaki cevapları hızlı girme (ABCD-… yazıp Enter). Sonuçlar online çözenlerle birlikte hesaplanır. |
 | PDF Analiz Merkezi | Birden çok PDF sürükle-bırak yüklenir (aynı içerik SHA-256 ile tanınıp ikinci kez yüklenmez); her dosyaya kaynak, yayınevi, deneme no, tarih. **Analiz et**: sorular bulunur, kırpılır, kitapçığın cevap anahtarı okunur, görsel parmak iziyle benzer sorular işaretlenir; iş durumu (bekliyor/işleniyor/onay bekliyor/tamamlandı/hata) veritabanında, aynı PDF aynı anda iki kez analiz edilemez, yeniden analiz mükerrer soru eklemez. |
 | **Soru havuzu** | Öğretmen sorunun konusunu/alt konusunu, zorluğunu (1–5), türünü, şekil olup olmadığını ve doğru cevabı verir (tek tek ya da toplu) ve **onaylar** (konusuz soru onaylanamaz). Havuzda konu/alt konu, kaynak, yayınevi, zorluk, tür, şekil süzgeçleri; mükerrerler gizlenebilir; seçilen sorulardan tek tuşla online deneme. **Deneme konu analizi**: PDF'ler arası ünite ünite soru sayısı, alt konu kapsamı, soru tipi çeşitliliği, zorluk dağılımı ve uyarılar. |
+| **Kişisel öğrenme** | **Öğrenci Analizleri**: konu bazlı başarı (zorluk ağırlıklı, yeni kanıt daha değerli, az veride "Yeterli veri yok", yalnız kolay soruda güven sınırı), güven düzeyi, eğilim ve öneri. **Öğrenme Planları**: öğrenci/ünite/PDF/tür/soru sayısı seçilir; sistem her öğrenciye eksik konusuna orantılı, çözmediği, çeşitli (tür/kaynak/düzey) sorulardan **kişiye özel** set çıkarır, her soruda "Neden bu soru?" gerekçesi; öğretmen soru çıkarabilir, taslak kaydeder ya da öğrencilere atar. Öğrenci **Çalışmam**'da çözer (cevap bir kez, doğru cevap öğretmenin ayarına göre), yanlış/boşlar kendiliğinden **Soru Bankam**'a eklenir; **Konu Durumum**'da kendi durumunu görür. Cevap anahtarı öğrenciden gizlidir. Yapay zekâ ile soru üretimi henüz yok. |
 | PDF arşivi | Deneme, soru bankası, cevap anahtarı PDF'leri gizli kovada. Arşivden tek tıkla online deneme ya da **PDF'ten soru kırpma** (öğrencinin bankasına ya da yeni denemeye). |
 | Raporlar | Son 8 denemede öğrenci netleri ve değişim; **eksiklik haritası** (öğrenci × ünite doğru oranı + bankada biriken soru); öncelikli üniteler. Yazdırılabilir. |
 
@@ -32,7 +33,7 @@ Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük iste
 
 ## Kurulum
 
-1. Supabase projesi açın; SQL Editor'de **sırayla** çalıştırın: `supabase/migrations/0001_init.sql` … `0007_soru_havuzu.sql`.
+1. Supabase projesi açın; SQL Editor'de **sırayla** çalıştırın: `supabase/migrations/0001_init.sql` … `0008_ogrenme_planlari.sql`.
 2. Authentication → "Allow new users to sign up" **kapalı** (kayıt yalnızca kodla, sunucuda yapılır).
 3. Öğretmen hesabı: Authentication → Users → Add user (Auto Confirm), sonra SQL Editor'de:
    ```sql
@@ -47,7 +48,7 @@ Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük iste
 
 `profiles` (rol, yönetici) · `students` (öğretmen, sınıf) · `classes` (kayıt kodu) · `teacher_invites` ·
 `questions`, `question_images`, `question_attempts` (soru bankası) ·
-`curriculum_outcomes`, `question_topic_relations` (müfredat) · `pool_questions`, `pool_question_topics`, `pdf_analysis_jobs` (soru havuzu) · `exams`, `exam_pages`, `exam_key` (öğrenciye sonuçlar açılana kadar kapalı), `exam_assignees`, `exam_sessions`, `exam_answers` ·
+`curriculum_outcomes`, `question_topic_relations` (müfredat) · `pool_questions`, `pool_question_topics`, `pdf_analysis_jobs` (soru havuzu) · `study_plans`, `study_plan_questions` (öğrenme planları; öğrenci yalnızca RPC ile erişir) · `exams`, `exam_pages`, `exam_key` (öğrenciye sonuçlar açılana kadar kapalı), `exam_assignees`, `exam_sessions`, `exam_answers` ·
 `pdf_documents`. Kovalar: `question-images`, `exam-pages`, `pdf-library`, `question-pool` (hepsi gizli; süreli adreslerle gösterilir).
 
 ## Komutlar
@@ -56,14 +57,14 @@ Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük iste
 |---|---|
 | `npm run dev` | Geliştirme sunucusu |
 | `npm test` | Öğrenme durumu, puanlama (net, iptal, çeldirici, konu analizi), deneme aşaması, filtre ve kullanıcı adı testleri |
-| `npm run rls` | **Gerçek Supabase'e karşı 66 güvenlik kontrolü** (geçici hesaplar açar, sonunda siler) |
+| `npm run rls` | **Gerçek Supabase'e karşı 92 güvenlik kontrolü** (geçici hesaplar açar, sonunda siler) |
 | `npm run check` | Tür denetimi + lint + testler + üretim derlemesi |
 | `node scripts/e2e-accounts.mjs create <dosya> / delete` | Elle deneme için geçici öğretmen + öğrenci hesabı |
 
 ## Test durumu (18 Kasım 2026)
 
-- ✅ Tür denetimi, lint, 26 birim testi, üretim derlemesi.
-- ✅ `npm run rls` 66/66 (kazanım, yardımcı konu, soru havuzu ve analiz işi yalıtımı dahil): öğrenciler ve öğretmenler arası yalıtım; öğrenci cevap anahtarını deneme bitmeden göremez,
+- ✅ Tür denetimi, lint, 30 birim testi, üretim derlemesi.
+- ✅ `npm run rls` 92/92 (kazanım, yardımcı konu, soru havuzu, analiz işi ve öğrenme planı yalıtımı dahil; öğrenci plan sorularının cevap anahtarını okuyamaz, çifte cevap veremez): öğrenciler ve öğretmenler arası yalıtım; öğrenci cevap anahtarını deneme bitmeden göremez,
   süresini uzatamaz, cevap tablosuna doğrudan yazamaz, teslimden sonra cevap değiştiremez; başka öğretmen sonuçları,
   kâğıt girişini, PDF arşivini göremez; öğretmen kendini yönetici yapamaz.
 - ✅ Tarayıcıda uçtan uca: PDF'ten deneme → cevap anahtarı → canlı başlatma → öğrenci katılıp çözme → canlı izleme →

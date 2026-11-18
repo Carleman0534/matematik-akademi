@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { IMAGE_BUCKET, EXAM_PAGE_BUCKET } from '@/lib/env';
+import { IMAGE_BUCKET, EXAM_PAGE_BUCKET, POOL_BUCKET } from '@/lib/env';
 import { analyzeQuestion, summarize, type Attempt, type QuestionAnalysis, type BankSummary } from '@/lib/learning';
 import { descendantIds, topicPath, type Topic } from '@/lib/topics';
 import { matchesComputed, sanitizeSearch, type BankFilters } from '@/lib/filters';
@@ -50,11 +50,13 @@ export async function getSources(sb: SupabaseClient): Promise<Source[]> {
 // Gizli kovadaki görseller için süreli (1 saat) adresler. "exam-pages:<yol>" biçimindeki yollar deneme sayfası
 // kovasından okunur (denemeden soru bankasına aktarılan sorular, sayfa görselini kopyalamadan kullanır).
 export const EXAM_PAGE_PREFIX = 'exam-pages:';
+export const POOL_PREFIX = 'question-pool:';
 export async function signedUrlMap(sb: SupabaseClient, paths: string[], seconds = 3600): Promise<Map<string, string>> {
   const list = [...new Set(paths.filter(Boolean))];
   const out = new Map<string, string>();
   const groups: [string, string[], (p: string) => string][] = [
-    [IMAGE_BUCKET, list.filter(p => !p.startsWith(EXAM_PAGE_PREFIX)), p => p],
+    [IMAGE_BUCKET, list.filter(p => !p.startsWith(EXAM_PAGE_PREFIX) && !p.startsWith(POOL_PREFIX)), p => p],
+    [POOL_BUCKET, list.filter(p => p.startsWith(POOL_PREFIX)).map(p => p.slice(POOL_PREFIX.length)), p => POOL_PREFIX + p],
     [EXAM_PAGE_BUCKET, list.filter(p => p.startsWith(EXAM_PAGE_PREFIX)).map(p => p.slice(EXAM_PAGE_PREFIX.length)), p => EXAM_PAGE_PREFIX + p],
   ];
   for (const [bucket, items, key] of groups) {

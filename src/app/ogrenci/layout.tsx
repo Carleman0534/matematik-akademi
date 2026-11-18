@@ -3,9 +3,11 @@ import { requireStudent } from '@/lib/auth';
 
 const NAV: NavItem[] = [
   { href: '/ogrenci', label: 'Ana Sayfa', icon: '🏠', mobile: true },
+  { href: '/ogrenci/calisma', label: 'Çalışmam', icon: '🎯', mobile: true },
+  { href: '/ogrenci/konu-durumum', label: 'Konu Durumum', icon: '📊' },
   { href: '/ogrenci/denemeler', label: 'Denemelerim', icon: '📝', mobile: true },
   { href: '/ogrenci/soru-bankam', label: 'Soru Bankam', icon: '🗂️', mobile: true },
-  { href: '/ogrenci/soru-ekle', label: 'Soru Ekle', icon: '📷', mobile: true },
+  { href: '/ogrenci/soru-ekle', label: 'Soru Ekle', icon: '📷' },
   { href: '/ogrenci/tekrar', label: 'Tekrar Et', icon: '🔁', mobile: true },
 ];
 
