@@ -16,14 +16,26 @@ const anonClient = () => createClient(URL_, ANON, { auth: { persistSession: fals
 const tag = 'rlstest' + crypto.randomBytes(3).toString('hex');
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log((ok ? '  ✓ ' : '  ✗ ') + name + (ok || !detail ? '' : '  → ' + detail)); };
-const made = { users: [], students: [], files: [] };
+const made = { users: [], students: [], files: [], exams: [], docs: [] };
 
-async function makeStudent(suffix) {
+async function makeTeacher(suffix) {
+  const email = `${tag}.${suffix}@ogretmen.matematikakademi.app`, password = crypto.randomBytes(18).toString('base64url');
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: 'RLS Öğretmen ' + suffix } });
+  if (error) throw new Error('öğretmen açılamadı: ' + error.message);
+  made.users.push(data.user.id);
+  await admin.from('profiles').update({ role: 'teacher', username: `${tag}.${suffix}` }).eq('id', data.user.id);
+  const c = anonClient();
+  const { error: e3 } = await c.auth.signInWithPassword({ email, password });
+  if (e3) throw new Error('öğretmen girişi yapılamadı: ' + e3.message);
+  return { c, userId: data.user.id };
+}
+
+async function makeStudent(suffix, teacherId = null) {
   const username = `${tag}.${suffix}`, password = crypto.randomBytes(18).toString('base64url');
   const { data, error } = await admin.auth.admin.createUser({ email: `${username}@${DOMAIN}`, password, email_confirm: true, user_metadata: { full_name: 'RLS Test ' + suffix, username } });
   if (error) throw new Error('kullanıcı açılamadı: ' + error.message);
   made.users.push(data.user.id);
-  const { data: st, error: e2 } = await admin.from('students').insert({ profile_id: data.user.id, full_name: 'RLS Test ' + suffix }).select('id').single();
+  const { data: st, error: e2 } = await admin.from('students').insert({ profile_id: data.user.id, full_name: 'RLS Test ' + suffix, teacher_id: teacherId }).select('id').single();
   if (e2) throw new Error('öğrenci kaydı açılamadı: ' + e2.message);
   made.students.push(st.id);
   const c = anonClient();
@@ -96,6 +108,67 @@ try {
   const anonQ = await anonClient().from('questions').select('id');
   check('Giriş yapmamış biri hiçbir soru göremiyor', !anonQ.error && anonQ.data.length === 0);
 
+  console.log('Birden çok öğretmen ve denemeler…');
+  const T1 = await makeTeacher('t1'), T2 = await makeTeacher('t2');
+  const S1 = await makeStudent('s1', T1.userId), S2 = await makeStudent('s2', T2.userId);
+  const t2st = await T2.c.from('students').select('id').eq('id', S1.studentId);
+  check('Öğretmen başka öğretmenin öğrencisini göremiyor', !t2st.error && t2st.data.length === 0);
+  const t2upd = await T2.c.from('students').update({ teacher_id: T2.userId }).eq('id', S1.studentId).select('id');
+  check('Öğretmen başka öğretmenin öğrencisini kendine alamıyor', !!t2upd.error || t2upd.data.length === 0);
+  await T2.c.from('profiles').update({ is_admin: true }).eq('id', T2.userId);
+  const { data: t2p } = await admin.from('profiles').select('is_admin').eq('id', T2.userId).single();
+  check('Öğretmen kendini yönetici yapamıyor', t2p?.is_admin === false);
+
+  const ex = await T1.c.from('exams').insert({ teacher_id: T1.userId, title: tag + ' deneme', mode: 'assignment', question_count: 3, duration_min: 30,
+    status: 'published', closes_at: new Date(Date.now() + 3600e3).toISOString(), results_mode: 'after_close' }).select('id').single();
+  check('Öğretmen deneme oluşturabiliyor', !ex.error, ex.error?.message);
+  const eid = ex.data?.id;
+  if (eid) made.exams.push(eid);
+  const keyIns = await T1.c.from('exam_key').insert([{ exam_id: eid, question_no: 1, correct: 'A' }, { exam_id: eid, question_no: 2, correct: 'B' }, { exam_id: eid, question_no: 3, correct: 'C' }]);
+  check('Öğretmen cevap anahtarı girebiliyor', !keyIns.error, keyIns.error?.message);
+  const s2see = await S2.c.from('exams').select('id').eq('id', eid);
+  check('Başka öğretmenin öğrencisi denemeyi göremiyor', !s2see.error && s2see.data.length === 0);
+  const s1see = await S1.c.from('exams').select('id').eq('id', eid);
+  check('Kendi öğrencisi yayımlanan denemeyi görüyor', !s1see.error && s1see.data.length === 1);
+  const keyEarly = await S1.c.from('exam_key').select('correct').eq('exam_id', eid);
+  check('Öğrenci deneme bitmeden cevap anahtarını göremiyor', !keyEarly.error && keyEarly.data.length === 0);
+  const st = await S1.c.rpc('start_exam', { eid });
+  check('Öğrenci denemeye başlayabiliyor', !st.error && !!st.data, st.error?.message);
+  const sv = await S1.c.rpc('save_answer', { p_session: st.data, p_q: 1, p_answer: 'A' });
+  check('Öğrenci cevap kaydedebiliyor', !sv.error, sv.error?.message);
+  const direct = await S1.c.from('exam_answers').insert({ session_id: st.data, question_no: 2, answer: 'B' }).select('session_id');
+  check('Öğrenci cevap tablosuna doğrudan yazamıyor', !!direct.error);
+  const deadl = await S1.c.from('exam_sessions').update({ deadline: new Date(Date.now() + 864e5).toISOString() }).eq('id', st.data).select('id');
+  check('Öğrenci süresini uzatamıyor', !!deadl.error || deadl.data.length === 0);
+  const s2save = await S2.c.rpc('save_answer', { p_session: st.data, p_q: 2, p_answer: 'B' });
+  check('Başka öğrenci bu oturuma cevap yazamıyor', !!s2save.error);
+  const mtx2 = await T2.c.rpc('exam_answer_matrix', { eid });
+  check('Başka öğretmen deneme sonuçlarını okuyamıyor', !!mtx2.error);
+  const paper2 = await T2.c.rpc('record_paper_answers', { eid, sid: S1.studentId, p_answers: 'ABC' });
+  check('Başka öğretmen kâğıt cevabı giremiyor', !!paper2.error);
+  await S1.c.rpc('submit_exam', { p_session: st.data });
+  const late = await S1.c.rpc('save_answer', { p_session: st.data, p_q: 3, p_answer: 'C' });
+  check('Teslimden sonra cevap değiştirilemiyor', !!late.error);
+  const mtx1 = await T1.c.rpc('exam_answer_matrix', { eid });
+  check('Öğretmen kendi denemesinin cevaplarını görüyor', !mtx1.error && mtx1.data?.[0]?.answers === 'A--', JSON.stringify(mtx1.data?.[0]?.answers ?? mtx1.error?.message));
+  await T1.c.from('exams').update({ status: 'closed' }).eq('id', eid);
+  const keyLate = await S1.c.from('exam_key').select('correct').eq('exam_id', eid);
+  check('Deneme bitince öğrenci cevap anahtarını görüyor', !keyLate.error && keyLate.data.length === 3);
+  const tr = await T1.c.rpc('transfer_exam_wrongs', { eid });
+  check('Yanlış/boşlar soru bankasına aktarılıyor (2 soru)', !tr.error && tr.data === 2, tr.error?.message || String(tr.data));
+  const paper1 = await T1.c.rpc('record_paper_answers', { eid, sid: S1.studentId, p_answers: 'AB-' });
+  check('Öğretmen kendi öğrencisi için kâğıt cevabı girebiliyor', !paper1.error, paper1.error?.message);
+
+  const doc = await T1.c.from('pdf_documents').insert({ teacher_id: T1.userId, title: tag, path: `${T1.userId}/${tag}.pdf`, file_name: 'x.pdf' }).select('id').single();
+  check('Öğretmen PDF arşivine kayıt ekleyebiliyor', !doc.error, doc.error?.message);
+  if (doc.data) made.docs.push(doc.data.id);
+  const doc2 = await T2.c.from('pdf_documents').select('id').eq('id', doc.data?.id);
+  check('Başka öğretmen PDF arşivini göremiyor', !doc2.error && doc2.data.length === 0);
+  const doc3 = await S1.c.from('pdf_documents').select('id');
+  check('Öğrenci PDF arşivini göremiyor', !doc3.error && doc3.data.length === 0);
+  const up2 = await T2.c.storage.from('pdf-library').upload(`${T1.userId}/${tag}.pdf`, Buffer.from('%PDF-1.4'), { contentType: 'application/pdf' });
+  check('Öğretmen başkasının PDF klasörüne dosya yükleyemiyor', !!up2.error);
+
   console.log('Pasifleştirme…');
   await admin.from('students').update({ is_active: false }).eq('id', A.studentId);
   const pas = await A.c.from('questions').select('id');
@@ -105,6 +178,9 @@ try {
 } finally {
   console.log('Geçici veriler siliniyor…');
   if (made.files.length) await admin.storage.from('question-images').remove(made.files);
+  if (made.exams.length) await admin.from('exams').delete().in('id', made.exams);
+  if (made.docs.length) await admin.from('pdf_documents').delete().in('id', made.docs);
+  if (made.students.length) await admin.from('questions').delete().in('student_id', made.students);
   if (made.students.length) await admin.from('students').delete().in('id', made.students);
   for (const u of made.users) await admin.auth.admin.deleteUser(u);
   const left = await admin.from('profiles').select('id').like('username', tag + '%');

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import Link from 'next/link';
 import {
   FileText,
@@ -12,21 +14,18 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Move,
   Download,
   BookOpen,
   UserCheck,
-  Check,
   X,
   AlertCircle,
-  Clock,
   Eye,
   RefreshCw,
-  Zap,
-  Grid
+  Zap
 } from 'lucide-react';
 import type { TopicOption } from '@/lib/topicOptions';
+import { importToStudentBank, createExamFromCrops } from './extractorSave';
 
 export interface CropBox {
   id: string;
@@ -78,16 +77,15 @@ interface Props {
 export default function PdfQuestionExtractor({
   students,
   topicOptions,
-  sources,
   pdfDocs = [],
   initialStudentId = '',
 }: Props) {
   // Kaynak & PDF State
   const [activeTab, setActiveTab] = useState<'upload' | 'archive'>('upload');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [, setSelectedFile] = useState<File | null>(null);
   const [pdfTitle, setPdfTitle] = useState('');
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
-  const [pdfDoc, setPdfDoc] = useState<any | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageThumbnails, setPageThumbnails] = useState<{ page: number; thumb: string }[]>([]);
@@ -95,7 +93,7 @@ export default function PdfQuestionExtractor({
   // Tuval & Kırpma State
   const [cropBoxes, setCropBoxes] = useState<CropBox[]>([]);
   const [activeBoxId, setActiveBoxId] = useState<string | null>(null);
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 800, height: 1100 });
+  const [, setCanvasDimensions] = useState({ width: 800, height: 1100 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
 
@@ -106,7 +104,7 @@ export default function PdfQuestionExtractor({
   // Toplu Ayarlar
   const [commonTopicId, setCommonTopicId] = useState('');
   const [commonStatus, setCommonStatus] = useState<'wrong' | 'blank'>('wrong');
-  const [commonDifficulty, setCommonDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [commonDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   // Aktarım Hedefleri State
   const [exportTarget, setExportTarget] = useState<'student' | 'exam'>('student');
@@ -122,15 +120,14 @@ export default function PdfQuestionExtractor({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  const router = useRouter();
+
   // PDF.JS Kütüphanesini Dinamik Yükle
   const loadPdfJs = async () => {
     const pdfjs = await import('pdfjs-dist');
     if (typeof window !== 'undefined') {
-      try {
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-      } catch {
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version || '6.5.438'}/pdf.worker.min.mjs`;
-      }
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+
     }
     return pdfjs;
   };
@@ -175,7 +172,8 @@ export default function PdfQuestionExtractor({
       // İlk sayfayı çiz ve varsayılan TYT 2 sütun şablonunu uygula
       await renderPage(doc, 1);
       applyPreset('tyt_2col_4q', 1);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error;
       console.error('PDF yükleme hatası:', err);
       setErrorMessage(`PDF dosyası işlenemedi: ${err.message || 'Bilinmeyen hata'}`);
     } finally {
@@ -198,14 +196,15 @@ export default function PdfQuestionExtractor({
       const blob = await res.blob();
       const file = new File([blob], docOption.file_name || 'arsiv.pdf', { type: 'application/pdf' });
       await handlePdfFile(file);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error;
       setErrorMessage(`Arşiv PDF'i açılamadı: ${err.message}`);
       setIsLoadingPdf(false);
     }
   };
 
   // Belirli bir sayfayı ana tuvale çiz
-  const renderPage = async (doc: any, pageNumber: number) => {
+  const renderPage = async (doc: PDFDocumentProxy, pageNumber: number) => {
     if (!doc || !canvasRef.current) return;
     try {
       const page = await doc.getPage(pageNumber);
@@ -317,7 +316,7 @@ export default function PdfQuestionExtractor({
         // Tek sütun 3 soru şablonunu uyarla
         applyPreset('1col_3q', pageNum);
       }
-    } catch (e) {
+    } catch {
       applyPreset('tyt_2col_4q', pageNum);
     }
   };
@@ -421,7 +420,7 @@ export default function PdfQuestionExtractor({
         cropBox: { ...box },
         imageDataUrl: dataUrl,
         correctAnswer: null,
-        topicId: commonTopicId || (topicOptions[0]?.id ?? ''),
+        topicId: commonTopicId || '',
         difficulty: commonDifficulty,
         initialStatus: commonStatus,
         teacherNote: '',
@@ -481,7 +480,7 @@ export default function PdfQuestionExtractor({
             cropBox: { ...box },
             imageDataUrl: dataUrl,
             correctAnswer: null,
-            topicId: commonTopicId || (topicOptions[0]?.id ?? ''),
+            topicId: commonTopicId || '',
             difficulty: commonDifficulty,
             initialStatus: commonStatus,
             teacherNote: '',
@@ -493,7 +492,8 @@ export default function PdfQuestionExtractor({
 
       setExtractedQuestions(prev => [...prev, ...allExtracted]);
       setSuccessMessage(`Tüm ${totalPages} sayfa başarıyla tarandı ve toplam ${allExtracted.length} soru ayıklandı!`);
-    } catch (err: any) {
+    } catch (e) {
+      const err = e as Error;
       console.error('Toplu tarama hatası:', err);
       setErrorMessage(`Toplu tarama sırasında hata oluştu: ${err.message}`);
     } finally {
@@ -511,15 +511,6 @@ export default function PdfQuestionExtractor({
     setExtractedQuestions(prev => prev.filter(q => q.id !== id));
   };
 
-  // Tüm sorulara tek tıkla ortak konu / zorluk ata
-  const applyCommonTopicToAll = () => {
-    if (!commonTopicId) return;
-    setExtractedQuestions(prev => prev.map(q => ({ ...q, topicId: commonTopicId })));
-  };
-
-  const applyCommonStatusToAll = () => {
-    setExtractedQuestions(prev => prev.map(q => ({ ...q, initialStatus: commonStatus })));
-  };
 
   // Soruları İndir
   const handleDownloadAll = () => {
@@ -549,39 +540,20 @@ export default function PdfQuestionExtractor({
     setSubmitProgress({ current: 0, total: extractedQuestions.length });
 
     try {
-      const payload = {
-        studentId: targetStudentId,
-        sourceName: sourceName || pdfTitle || 'PDF İçe Aktarım',
-        questions: extractedQuestions.map(q => ({
-          questionNo: String(q.questionNo),
-          topicId: q.topicId || null,
-          initialStatus: q.initialStatus,
-          difficulty: q.difficulty,
-          correctAnswer: q.correctAnswer,
-          teacherNote: q.teacherNote,
-          imageBase64: q.imageDataUrl,
-          width: q.width,
-          height: q.height,
-        })),
-      };
-
-      const res = await fetch('/api/questions/bulk-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Sorular aktarılamadı.');
-      }
-
+      const total = extractedQuestions.length;
+      const res = await importToStudentBank(targetStudentId, sourceName || pdfTitle || 'PDF İçe Aktarım', extractedQuestions,
+        done => setSubmitProgress({ current: done, total }));
       const targetStudent = students.find(s => s.id === targetStudentId);
-      setSuccessMessage(
-        `🎉 ${data.createdCount} soru başarıyla ${targetStudent?.full_name || 'öğrenci'}nin soru bankasına eklendi!`
-      );
-      setExtractedQuestions([]);
-    } catch (err: any) {
+      if (res.created) {
+        setSuccessMessage(`🎉 ${res.created} soru ${targetStudent?.full_name || 'öğrencinin'} soru bankasına eklendi.`);
+      }
+      if (res.errors.length) {
+        setErrorMessage(`${res.errors.length} soru eklenemedi: ${res.errors.slice(0, 3).join(' · ')}`);
+      } else {
+        setExtractedQuestions([]);
+      }
+    } catch (e) {
+      const err = e as Error;
       console.error('Import error:', err);
       setErrorMessage(err.message || 'Sorular aktarılırken bir hata oluştu.');
     } finally {
@@ -606,42 +578,21 @@ export default function PdfQuestionExtractor({
     setSuccessMessage(null);
 
     try {
-      const payload = {
-        title: examTitle.trim(),
-        durationMin: parseInt(examDuration) || 80,
-        mode: 'assignment',
-        penaltyDivisor: 4,
-        questions: extractedQuestions.map(q => ({
-          questionNo: q.questionNo,
-          correctAnswer: q.correctAnswer,
-          topicId: q.topicId || null,
-          imageBase64: q.imageDataUrl,
-          width: q.width,
-          height: q.height,
-        })),
-      };
-
-      const res = await fetch('/api/exams/from-extracted', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Deneme oluşturulamadı.');
-      }
-
-      setSuccessMessage(`🎉 ${data.questionCount} soruluk deneme sınavı başarıyla oluşturuldu!`);
-      // 1.5 sn sonra deneme detay sayfasına yönlendir
-      setTimeout(() => {
-        window.location.href = data.redirectUrl || '/ogretmen/denemeler';
-      }, 1200);
-    } catch (err: any) {
+      const total = extractedQuestions.length;
+      setSubmitProgress({ current: 0, total });
+      const res = await createExamFromCrops(examTitle.trim(), Math.max(1, Math.min(600, parseInt(examDuration) || 80)), extractedQuestions,
+        done => setSubmitProgress({ current: done, total }));
+      if (res.error && !res.id) throw new Error(res.error);
+      if (res.error) setErrorMessage(res.error + ' Deneme taslak olarak oluşturuldu; deneme sayfasından tamamlayabilirsiniz.');
+      else setSuccessMessage(`🎉 ${total} soruluk deneme taslak olarak oluşturuldu. Ayarları kontrol edip yayımlayın.`);
+      setTimeout(() => router.push(`/ogretmen/denemeler/${res.id}`), 1200);
+    } catch (e) {
+      const err = e as Error;
       console.error('Exam creation error:', err);
       setErrorMessage(err.message || 'Deneme oluşturulurken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);
+      setSubmitProgress(null);
     }
   };
 
@@ -744,7 +695,7 @@ export default function PdfQuestionExtractor({
                     PDF Deneme veya Test Dosyasını Seçin ya da Buraya Sürükleyin
                   </p>
                   <p className="text-xs text-slate-500">
-                    ÖSYM TYT / AYT, MEB veya Yayın evi soru bankası PDF'leri (Maksimum 60 MB)
+                    ÖSYM TYT / AYT, MEB veya Yayın evi soru bankası PDF&rsquo;leri (Maksimum 60 MB)
                   </p>
                 </div>
                 <span className="btn btn-primary text-xs px-4 py-2 mt-2">
@@ -794,7 +745,7 @@ export default function PdfQuestionExtractor({
                         </div>
                       </div>
                       <button className="btn btn-primary text-xs w-full mt-3 flex items-center justify-center gap-1.5">
-                        <Zap className="h-3.5 w-3.5" /> Bu PDF'i Ayıkla
+                        <Zap className="h-3.5 w-3.5" /> Bu PDF&rsquo;i Ayıkla
                       </button>
                     </div>
                   ))}
@@ -1102,7 +1053,7 @@ export default function PdfQuestionExtractor({
                         Henüz soru ayıklanmadı
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        Soldaki sayfadan "Bu Sayfadaki Soruları Ekle" veya "Tüm Sayfaları Otomatik Tara" butonuna basın.
+                        Soldaki sayfadan &ldquo;Bu Sayfadaki Soruları Ekle&rdquo; veya &ldquo;Tüm Sayfaları Otomatik Tara&rdquo; düğmesine basın.
                       </p>
                     </div>
                   ) : (
@@ -1271,7 +1222,7 @@ export default function PdfQuestionExtractor({
                       >
                         {isSubmitting ? (
                           <>
-                            <RefreshCw className="h-4 w-4 animate-spin" /> Sorular Aktarılıyor...
+                            <RefreshCw className="h-4 w-4 animate-spin" /> Sorular aktarılıyor{submitProgress ? ` (${submitProgress.current}/${submitProgress.total})` : '…'}
                           </>
                         ) : (
                           <>
@@ -1313,7 +1264,7 @@ export default function PdfQuestionExtractor({
                       >
                         {isSubmitting ? (
                           <>
-                            <RefreshCw className="h-4 w-4 animate-spin" /> Deneme Oluşturuluyor...
+                            <RefreshCw className="h-4 w-4 animate-spin" /> Deneme oluşturuluyor{submitProgress ? ` (${submitProgress.current}/${submitProgress.total})` : '…'}
                           </>
                         ) : (
                           <>

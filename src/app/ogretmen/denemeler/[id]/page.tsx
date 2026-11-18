@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { requireTeacher } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase/server';
-import { getExam, getPages, getKey, eligibleStudents } from '@/lib/examData';
+import { getExam, getPages, getKey, eligibleStudents, getAssignees } from '@/lib/examData';
+import { AssigneePicker } from '@/components/exams/AssigneePicker';
 import { getClasses, getTopics } from '@/lib/data';
 import { topicOptions } from '@/lib/topicOptions';
 import { examPhase, PHASE_LABEL, MODE_LABEL, RESULTS_LABEL } from '@/lib/exams';
@@ -23,10 +24,14 @@ export default async function ExamPrepPage({ params }: { params: Promise<{ id: s
   const sb = await supabaseServer();
   const exam = await getExam(sb, id);
   if (!exam) notFound();
-  const [pages, key, topics, classes, students, { count: sessions }] = await Promise.all([
+  let scopeQ = sb.from('students').select('id, full_name').eq('teacher_id', exam.teacher_id).eq('is_active', true).order('full_name');
+  if (exam.class_id) scopeQ = scopeQ.eq('class_id', exam.class_id);
+  const [pages, key, topics, classes, students, { count: sessions }, picked, { data: scopeData }] = await Promise.all([
     getPages(sb, id), getKey(sb, id), getTopics(sb), getClasses(sb, exam.teacher_id), eligibleStudents(sb, exam),
     sb.from('exam_sessions').select('id', { count: 'exact', head: true }).eq('exam_id', id),
+    getAssignees(sb, id), scopeQ,
   ]);
+  const scope = (scopeData || []) as { id: string; full_name: string }[];
   const ph = examPhase(exam);
   const keyed = [...key.values()].filter(k => k.correct).length;
   const steps = [
@@ -57,6 +62,20 @@ export default async function ExamPrepPage({ params }: { params: Promise<{ id: s
         {students.length === 0 && <p className="text-sm text-amber-700 dark:text-amber-300">Bu denemeye atanmış aktif öğrenci yok. <Link href="/ogretmen/siniflar" className="font-semibold underline">Sınıf kodu</Link> paylaşın ya da öğrenci ekleyin.</p>}
         <ExamControls id={id} phase={ph} mode={exam.mode} sessions={sessions || 0} />
         <p className="text-xs text-slate-500">Sonuçlar öğrenciye: {RESULTS_LABEL[exam.results_mode]} · Yanlışlar: {exam.penalty_divisor ? `${exam.penalty_divisor} yanlış 1 doğruyu götürür` : 'doğruyu götürmez'}</p>
+      </section>
+
+      <section className="card space-y-3">
+        <h2 className="font-bold">Kimler çözecek?</h2>
+        <AssigneePicker examId={id} students={scope} picked={picked} scopeLabel={className} />
+      </section>
+
+      <section className="card space-y-2">
+        <h2 className="font-bold">Kâğıt üzerinde mi çözülecek?</h2>
+        <p className="text-sm text-slate-500">Optik formu yazdırıp sınıfta dağıtın; sonra her öğrencinin işaretlediklerini hızlıca girin. Sonuçlar ve analiz online çözenlerle birlikte hesaplanır.</p>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/ogretmen/denemeler/${id}/optik-yazdir`} className="btn-secondary">🖨️ Optik formu yazdır</Link>
+          <Link href={`/ogretmen/denemeler/${id}/optik-giris`} className="btn-secondary">⌨️ Kâğıt cevaplarını gir</Link>
+        </div>
       </section>
 
       <section className="card space-y-3">

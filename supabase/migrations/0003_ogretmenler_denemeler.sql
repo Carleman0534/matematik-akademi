@@ -376,7 +376,7 @@ create policy profiles_update on public.profiles for update to authenticated
 create policy students_teacher on public.students for all to authenticated
   using (public.is_admin() or (public.is_teacher() and teacher_id = auth.uid()))
   with check (public.is_admin() or (public.is_teacher() and teacher_id = auth.uid()
-    and (class_id is null or exists (select 1 from public.classes c where c.id = students.class_id and c.teacher_id = auth.uid())))));
+    and (class_id is null or exists (select 1 from public.classes c where c.id = students.class_id and c.teacher_id = auth.uid()))));
 create policy students_self_select on public.students for select to authenticated using (profile_id = auth.uid());
 
 -- sorular / görseller / geçmiş: öğretmen yalnızca kendi öğrencilerininkini

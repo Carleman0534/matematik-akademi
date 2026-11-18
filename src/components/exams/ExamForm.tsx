@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createExam, updateExam, type ExamInput } from '@/app/ogretmen/denemeler/actions';
 import { uploadExamFiles } from './uploadPages';
-import { checkExamFile } from '@/lib/pdfPages';
+import { checkExamFile, fetchPdfFile } from '@/lib/pdfPages';
 
 // datetime-local alanı için yerel saat (tarayıcı saat dilimi)
 const toLocalInput = (iso: string | null | undefined) => {
@@ -19,7 +19,7 @@ export interface ExamFormValues {
   opens_at: string | null; closes_at: string | null; results_mode: 'after_close' | 'after_submit' | 'never';
 }
 
-export function ExamForm({ classes, initial, locked }: { classes: { id: string; name: string }[]; initial?: ExamFormValues; locked?: boolean }) {
+export function ExamForm({ classes, initial, locked, pdf }: { classes: { id: string; name: string }[]; initial?: ExamFormValues; locked?: boolean; pdf?: { id: string; title: string; url: string | null; file_name: string } }) {
   const router = useRouter();
   const [mode, setMode] = useState<'live' | 'assignment'>(initial?.mode || 'live');
   const [files, setFiles] = useState<File[]>([]);
@@ -50,10 +50,15 @@ export function ExamForm({ classes, initial, locked }: { classes: { id: string; 
         if (r.error) setError(r.error); else { setOk(r.ok || ''); router.refresh(); }
         return;
       }
-      const r = await createExam(input);
+      let toUpload = files;
+      if (!toUpload.length && pdf?.url) {
+        setBusy('PDF arşivden alınıyor…');
+        toUpload = [await fetchPdfFile(pdf.url, pdf.file_name)];
+      }
+      const r = await createExam({ ...input, pdf_id: pdf?.id || '' });
       if (r.error || !r.id) { setError(r.error || 'Oluşturulamadı.'); return; }
-      if (files.length) {
-        const upErr = await uploadExamFiles(r.id, files, setBusy);
+      if (toUpload.length) {
+        const upErr = await uploadExamFiles(r.id, toUpload, setBusy);
         if (upErr) { setError(upErr + ' Deneme oluşturuldu; sayfaları deneme sayfasından yeniden yükleyebilirsiniz.'); router.push('/ogretmen/denemeler/' + r.id); return; }
       }
       router.push('/ogretmen/denemeler/' + r.id);
@@ -67,7 +72,7 @@ export function ExamForm({ classes, initial, locked }: { classes: { id: string; 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2"><label className="label" htmlFor="title">Deneme adı *</label><input id="title" name="title" className="input" required maxLength={160} defaultValue={initial?.title} placeholder="ör. 11. Sınıf Matematik Deneme 3" /></div>
+        <div className="sm:col-span-2"><label className="label" htmlFor="title">Deneme adı *</label><input id="title" name="title" className="input" required maxLength={160} defaultValue={initial?.title ?? pdf?.title}placeholder="ör. 11. Sınıf Matematik Deneme 3" /></div>
 
         <fieldset className="sm:col-span-2" disabled={locked}>
           <legend className="label">Nasıl yapılacak?</legend>
@@ -106,6 +111,11 @@ export function ExamForm({ classes, initial, locked }: { classes: { id: string; 
         )}
         <div className="sm:col-span-2"><label className="label" htmlFor="instructions">Öğrencilere açıklama</label><textarea id="instructions" name="instructions" rows={2} className="input" maxLength={2000} defaultValue={initial?.instructions || ''} placeholder="ör. Hesap makinesi kullanmayın. Her soru için tek şık işaretleyin." /></div>
 
+        {!editing && pdf && (
+          <p className="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-900 sm:col-span-2 dark:bg-indigo-950/50 dark:text-indigo-200">
+            📄 Sayfalar arşivdeki <b>{pdf.title}</b> PDF&rsquo;inden alınacak. Başka dosya seçersen onun yerine o kullanılır.
+          </p>
+        )}
         {!editing && (
           <div className="sm:col-span-2">
             <label className="label" htmlFor="files">Soru kitapçığı (PDF ya da fotoğraflar)</label>

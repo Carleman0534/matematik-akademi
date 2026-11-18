@@ -22,9 +22,9 @@ export default async function TeacherAddPage({ params }: { params: Promise<{ id:
         </div>
         <Link
           href={`/ogretmen/pdf-soru-ayikla?studentId=${id}`}
-          className="btn btn-primary text-xs py-2 px-3 flex items-center gap-1.5 shadow bg-gradient-to-r from-indigo-600 to-purple-600 border-0 self-start sm:self-auto"
+          className="btn-secondary self-start px-3 py-2 text-xs sm:self-auto"
         >
-          <span>✂️ PDF'den Otomatik Soru Ayıkla ({s.full_name} için)</span>
+          <span>✂️ PDF&rsquo;den Soru Ayıkla ({s.full_name} için)</span>
         </Link>
       </div>
       <AddQuestionsForm studentId={id} studentName={s.full_name} options={topicOptions(topics)} sources={sources} bankHref={'/ogretmen/ogrenciler/' + id} isTeacher />

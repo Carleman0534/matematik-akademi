@@ -7,7 +7,6 @@ const NAV: NavItem[] = [
   { href: '/ogrenci/soru-bankam', label: 'Soru Bankam', icon: '🗂️', mobile: true },
   { href: '/ogrenci/soru-ekle', label: 'Soru Ekle', icon: '📷', mobile: true },
   { href: '/ogrenci/tekrar', label: 'Tekrar Et', icon: '🔁', mobile: true },
-  { href: '/ogrenci/pdf-denemeler', label: 'PDF Kaynakları', icon: '📄' },
 ];
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {

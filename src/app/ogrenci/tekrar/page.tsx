@@ -4,7 +4,6 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { fetchBank, getSources, getTopics, signedUrlMap } from '@/lib/data';
 import { parseFilters } from '@/lib/filters';
 import { ReviewSession, type ReviewItem } from './ReviewSession';
-import { FeynRetentionDashboard } from '@/components/review/FeynRetentionDashboard';
 
 export const metadata: Metadata = { title: 'Tekrar Et' };
 export const dynamic = 'force-dynamic';
@@ -25,16 +24,12 @@ export default async function ReviewPage() {
     correct: x.q.correct_answer, solution: x.q.solution, teacherNote: x.q.teacher_note, wrongCount: x.a.wrongCount + x.a.blankCount,
   }));
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Feyn Stili Unutma Eğrisi & Akıllı Tekrar Özeti */}
-      <FeynRetentionDashboard dueCount={list.length || 23} newCount={17} hardCount={8} />
-
-      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-        <h2 className="text-xl font-black">Bugünkü Tekrar Seansı</h2>
-        {list.length === 0
-          ? <div className="card text-center text-sm text-slate-500 py-8">Bugün tekrar zamanı gelen soru yok. Harika gidiyorsun! 🎉</div>
-          : <ReviewSession items={list} />}
-      </div>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <h1 className="text-2xl font-black">Bugünkü tekrar</h1>
+      {list.length > 0 && <p className="text-sm text-slate-500">Tekrar zamanı gelen {items.length} soru var{items.length > list.length ? `; bugün en acil ${list.length} tanesi` : ''}.</p>}
+      {list.length === 0
+        ? <div className="card py-8 text-center text-sm text-slate-500">Bugün tekrar zamanı gelen soru yok. Harika gidiyorsun! 🎉</div>
+        : <ReviewSession items={list} />}
     </div>
   );
 }
