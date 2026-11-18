@@ -16,7 +16,8 @@ import {
   Layers,
   BookOpen,
   FolderArchive,
-  AlertTriangle
+  AlertTriangle,
+  Scissors
 } from 'lucide-react';
 
 export default function PdfArsiviPage() {
@@ -170,7 +171,15 @@ export default function PdfArsiviPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/ogretmen/pdf-soru-ayikla"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm"
+          >
+            <Scissors className="w-4 h-4" />
+            <span>⚡ PDF'den Soru Ayıkla</span>
+          </Link>
+
           <Link
             href="/ogretmen/denemeler/toplu-ata"
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm"

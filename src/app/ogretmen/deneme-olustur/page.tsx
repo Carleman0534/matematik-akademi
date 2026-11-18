@@ -23,6 +23,12 @@ export default function DenemeOlusturPage() {
 
         <div className="flex items-center gap-2">
           <Link
+            href="/ogretmen/pdf-soru-ayikla"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-2xl shadow-sm transition flex items-center gap-1.5"
+          >
+            <span>⚡ PDF'den Soru Ayıkla</span>
+          </Link>
+          <Link
             href="/ogretmen/denemeler/toplu-ata"
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl shadow-sm transition flex items-center gap-1.5"
           >
@@ -32,9 +38,39 @@ export default function DenemeOlusturPage() {
         </div>
       </div>
 
-      {/* 3 Ana Deneme Oluşturma Yolu */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* 1. PDF'den Toplu Deneme Ata */}
+      {/* 4 Ana Deneme Oluşturma Yolu */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* 1. PDF Soru Ayıklayıcı ile Otomatik Deneme */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-indigo-400 dark:border-indigo-600 p-6 shadow-sm flex flex-col justify-between hover:border-indigo-500 transition space-y-4 relative overflow-hidden">
+          <div className="absolute top-3 right-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+            YENİ & AKILLI
+          </div>
+          <div className="space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center">
+              <span className="text-xl">✂️</span>
+            </div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              1. PDF'den Soru Ayıkla & Deneme Yap
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Dışarıdan yüklediğiniz test PDF'indeki soruları sayfa sayfa otomatik kırpın, cevap anahtarını işaretleyip anında yeni bir deneme şablonuna dönüştürün.
+            </p>
+            <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+              <div className="flex items-center gap-1.5">✓ TYT/AYT 2 sütun otomatik algılama</div>
+              <div className="flex items-center gap-1.5">✓ Hızlı A-B-C-D-E cevap işaretleme</div>
+              <div className="flex items-center gap-1.5">✓ Doğrudan deneme veya soru bankasına</div>
+            </div>
+          </div>
+
+          <Link
+            href="/ogretmen/pdf-soru-ayikla"
+            className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-2xl text-center block shadow-sm transition"
+          >
+            ⚡ PDF Ayıklayıcıyı Aç →
+          </Link>
+        </div>
+
+        {/* 2. PDF'den Toplu Deneme Ata */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between hover:border-indigo-400 transition space-y-4">
           <div className="space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center">

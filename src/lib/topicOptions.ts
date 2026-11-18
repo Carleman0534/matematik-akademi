@@ -1,7 +1,9 @@
 import { buildTree, type Topic, type TopicNode } from './topics.ts';
 
 // Seçim kutusu seçenekleri: her konunun ait olduğu ünitenin sınıf düzeyi (rootGrade) ile
-export function topicOptions(flat: Topic[]) {
+export type TopicOption = { id: string; label: string; depth: number; grade: number | null; rootGrade: number | null };
+
+export function topicOptions(flat: Topic[]): TopicOption[] {
   const out: { id: string; label: string; depth: number; grade: number | null; rootGrade: number | null }[] = [];
   const walk = (list: TopicNode[], rootGrade: number | null) => list.forEach(n => {
     const g = n.depth === 0 ? n.grade_level : rootGrade;

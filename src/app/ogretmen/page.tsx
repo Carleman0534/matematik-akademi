@@ -28,7 +28,23 @@ export default async function TeacherDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-black">Genel Bakış</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-2xl font-black">Genel Bakış</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/ogretmen/pdf-soru-ayikla"
+            className="btn btn-primary text-xs py-2 px-3 flex items-center gap-1.5 shadow bg-gradient-to-r from-indigo-600 to-purple-600 border-0"
+          >
+            <span>✂️ PDF'den Soru Ayıkla</span>
+          </Link>
+          <Link
+            href="/ogretmen/deneme-olustur"
+            className="btn btn-outline text-xs py-2 px-3 flex items-center gap-1.5"
+          >
+            <span>📝 Deneme Oluştur</span>
+          </Link>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Aktif öğrenci" value={active.length} sub={`toplam ${students.length}`} />
         <Stat label="Toplam soru" value={a.total} sub={`${a.wrong} yanlış · ${a.blank} boş`} />

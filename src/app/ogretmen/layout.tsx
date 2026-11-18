@@ -5,6 +5,7 @@ const NAV: NavItem[] = [
   { href: '/ogretmen', label: 'Genel Bakış', icon: '📊', mobile: true },
   { href: '/ogretmen/ogrenciler', label: 'Öğrencilerim', icon: '👥', mobile: true },
   { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi', icon: '📁', mobile: true },
+  { href: '/ogretmen/pdf-soru-ayikla', label: 'PDF Soru Ayıkla', icon: '✂️', mobile: true },
   { href: '/ogretmen/deneme-olustur', label: 'Deneme Oluştur', icon: '📝', mobile: true },
   { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
   { href: '/ogretmen/denemeler/canli', label: 'Devam Eden Sınavlar', icon: '⏱️' },
