@@ -224,3 +224,35 @@ test('pasif konu ve altındakiler seçim listesinden çıkar; ünite ve üst kon
   assert.deepEqual(ancestorIds(flat, 'b1'), ['b1', 'b', 'u']);
   assert.equal(gradeLabel(8), '8. sınıf (LGS)'); assert.equal(gradeLabel(10), '10. sınıf');
 });
+
+// ============ Soru havuzu: benzerlik ve konu analizi ============
+import { dhashHex, hamming, findDuplicates, analyzeUnits } from './pool.ts';
+
+test('görsel parmak izi ve benzer soru bulma', () => {
+  const g = Array.from({ length: 17 * 16 }, (_, i) => (i * 37) % 251);
+  const h1 = dhashHex(g);
+  assert.match(h1, /^[0-9a-f]{64}$/);
+  const g2 = g.map((v, i) => (i === 5 ? v + 200 : v));            // küçük fark
+  const g3 = g.map(v => 255 - v);                                 // tamamen farklı
+  assert.ok(hamming(h1, dhashHex(g2)) <= 2);
+  assert.ok(hamming(h1, dhashHex(g3)) > 100);
+  const d = findDuplicates([{ id: 'yeni1', hash: dhashHex(g2) }, { id: 'yeni2', hash: dhashHex(g3) }], [{ id: 'eski', hash: h1 }]);
+  assert.equal(d.get('yeni1'), 'eski'); assert.equal(d.has('yeni2'), false);
+});
+
+test('konu analizi: kaynak dağılımı, alt konu kapsamı ve uyarılar', () => {
+  const topics = [
+    { id: 'U1', name: 'Çarpanlar ve Katlar', parent_id: null }, { id: 'ebob', name: 'EBOB', parent_id: 'U1' }, { id: 'ekok', name: 'EKOK', parent_id: 'U1' },
+    { id: 'U2', name: 'Üçgenler', parent_id: null }, { id: 'pis', name: 'Pisagor bağıntısı', parent_id: 'U2' },
+  ];
+  const r = (id: string, pdf: string, topic: string, type: string | null, extra: Partial<{ dup: string; diff: number; vis: boolean }> = {}) =>
+    ({ id, pdf_id: pdf, topic_id: topic, question_type: type, difficulty: extra.diff ?? 3, has_visual: extra.vis ?? false, duplicate_of: extra.dup ?? null });
+  const rows = [r('1', 'p1', 'ebob', 'problem'), r('2', 'p1', 'ebob', 'problem'), r('3', 'p2', 'ebob', 'temel_islem'), r('4', 'p2', 'U1', 'problem'),
+    r('5', 'p2', 'ebob', 'problem'), r('6', 'p2', 'ebob', 'problem', { dup: '5' }), r('7', 'p1', 'pis', 'problem')];
+  const [u1, u2] = analyzeUnits(rows, topics.filter(t => !t.parent_id), topics);
+  assert.equal(u1.total, 6); assert.equal(u1.unique, 5); assert.equal(u1.bySource.get('p2'), 4);
+  assert.deepEqual(u1.subtopics.map(s => s.count), [5, 0]);                   // EKOK'ta hiç soru yok
+  assert.ok(u1.warnings.some(w => w.includes('soru tipleri sınırlı')));
+  assert.ok(u1.warnings.some(w => w.includes('EKOK')));
+  assert.ok(u2.warnings.some(w => w.includes('az')) && u2.warnings.some(w => w.includes('Görsel')));
+});

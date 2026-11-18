@@ -11,12 +11,13 @@ export interface PdfDoc {
   id: string; teacher_id: string; title: string; doc_type: DocType; grade_level: string | null; topic_id: string | null;
   publisher: string | null; description: string | null; path: string; file_name: string; size_bytes: number | null;
   page_count: number | null; is_archived: boolean; created_at: string; url: string | null;
+  exam_no: string | null; published_on: string | null; option_count: number; analysis_status: string; analyzed_at: string | null; question_count: number | null;
 }
 
 // Öğretmenin PDF'leri ve süreli (1 saat) açma adresleri. Dosyalar gizli kovada; adres paylaşılsa bile süresi dolar.
 export async function listPdfDocs(sb: SupabaseClient, teacherId: string, archived = false): Promise<PdfDoc[]> {
   const { data } = await sb.from('pdf_documents')
-    .select('id, teacher_id, title, doc_type, grade_level, topic_id, publisher, description, path, file_name, size_bytes, page_count, is_archived, created_at')
+    .select('id, teacher_id, title, doc_type, grade_level, topic_id, publisher, description, path, file_name, size_bytes, page_count, is_archived, created_at, exam_no, published_on, option_count, analysis_status, analyzed_at, question_count')
     .eq('teacher_id', teacherId).eq('is_archived', archived).order('created_at', { ascending: false });
   const docs = (data || []) as Omit<PdfDoc, 'url'>[];
   const urls = new Map<string, string>();

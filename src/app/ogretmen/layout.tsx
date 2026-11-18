@@ -5,11 +5,12 @@ const NAV: NavItem[] = [
   { href: '/ogretmen', label: 'Genel Bakış', icon: '📊', mobile: true },
   { href: '/ogretmen/ogrenciler', label: 'Öğrencilerim', icon: '👥', mobile: true },
   { href: '/ogretmen/denemeler', label: 'Denemeler', icon: '📝', mobile: true },
-  { href: '/ogretmen/raporlar', label: 'Raporlar', icon: '📈', mobile: true },
-  { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi', icon: '📁', mobile: true },
+  { href: '/ogretmen/soru-havuzu', label: 'Soru Havuzu', icon: '🧩', mobile: true },
+  { href: '/ogretmen/pdf-arsivi', label: 'PDF Analiz Merkezi', icon: '📁', mobile: true },
+  { href: '/ogretmen/raporlar', label: 'Raporlar', icon: '📈' },
   { href: '/ogretmen/pdf-soru-ayikla', label: 'PDF Soru Ayıkla', icon: '✂️' },
   { href: '/ogretmen/siniflar', label: 'Sınıflar', icon: '🏫' },
-  { href: '/ogretmen/konular', label: 'Konular', icon: '🗂️' },
+  { href: '/ogretmen/konular', label: 'LGS Müfredatı / Konular', icon: '🗂️' },
 ];
 const ADMIN_NAV: NavItem[] = [{ href: '/ogretmen/ogretmenler', label: 'Öğretmenler', icon: '🔑' }];
 

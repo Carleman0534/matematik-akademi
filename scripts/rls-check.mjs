@@ -184,6 +184,33 @@ try {
   const relT2 = await T2.c.from('question_topic_relations').select('question_id').eq('question_id', qid);
   check('Başka öğretmen bu sorunun konularını göremiyor', !relT2.error && relT2.data.length === 0);
 
+  console.log('Soru havuzu ve analiz işleri…');
+  const pdoc = await T1.c.from('pdf_documents').insert({ teacher_id: T1.userId, title: tag + ' havuz', path: `${T1.userId}/${tag}-h.pdf`, file_name: 'h.pdf' }).select('id').single();
+  if (pdoc.data) made.docs.push(pdoc.data.id);
+  const job1 = await T1.c.from('pdf_analysis_jobs').insert({ pdf_id: pdoc.data?.id, teacher_id: T1.userId, status: 'processing' }).select('id').single();
+  check('Öğretmen kendi PDF\'i için analiz işi başlatabiliyor', !job1.error, job1.error?.message);
+  const job2 = await T1.c.from('pdf_analysis_jobs').insert({ pdf_id: pdoc.data?.id, teacher_id: T1.userId, status: 'processing' }).select('id');
+  check('Aynı PDF için ikinci eşzamanlı analiz işi açılamıyor', !!job2.error);
+  const jobT2 = await T2.c.from('pdf_analysis_jobs').insert({ pdf_id: pdoc.data?.id, teacher_id: T2.userId, status: 'processing' }).select('id');
+  check('Başka öğretmen bu PDF için analiz işi açamıyor', !!jobT2.error);
+  const pimg = `${T1.userId}/${tag}.jpg`;
+  const pup = await T1.c.storage.from('question-pool').upload(pimg, PNG, { contentType: 'image/png' });
+  check('Öğretmen havuz klasörüne görsel yükleyebiliyor', !pup.error, pup.error?.message);
+  const pq = await T1.c.from('pool_questions').insert({ teacher_id: T1.userId, pdf_id: pdoc.data?.id, image_path: pimg, question_no: 1, page_no: 1 }).select('id').single();
+  check('Öğretmen havuza soru ekleyebiliyor', !pq.error, pq.error?.message);
+  const pqT2 = await T2.c.from('pool_questions').select('id').eq('id', pq.data?.id);
+  check('Başka öğretmen havuz sorusunu göremiyor', !pqT2.error && pqT2.data.length === 0);
+  const pqS = await S1.c.from('pool_questions').select('id');
+  check('Öğrenci soru havuzunu göremiyor', !pqS.error && pqS.data.length === 0);
+  const pqDup = await T1.c.from('pool_questions').insert({ teacher_id: T1.userId, pdf_id: pdoc.data?.id, image_path: pimg, question_no: 1, page_no: 1 }).select('id');
+  check('Aynı PDF\'te aynı soru ikinci kez eklenemiyor', !!pqDup.error);
+  const pimgT2 = await T2.c.storage.from('question-pool').download(pimg);
+  check('Başka öğretmen havuz görselini indiremiyor', !!pimgT2.error);
+  const pqtT2 = await T2.c.from('pool_question_topics').insert({ question_id: pq.data?.id, topic_id: anyTopic.id }).select('question_id');
+  check('Başka öğretmen havuz sorusuna konu ekleyemiyor', !!pqtT2.error);
+  await admin.storage.from('question-pool').remove([pimg]);
+  if (pq.data) await admin.from('pool_questions').delete().eq('id', pq.data.id);
+
   console.log('Pasifleştirme…');
   await admin.from('students').update({ is_active: false }).eq('id', A.studentId);
   const pas = await A.c.from('questions').select('id');

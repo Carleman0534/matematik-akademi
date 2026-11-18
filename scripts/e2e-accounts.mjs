@@ -36,6 +36,10 @@ if (cmd === 'create') {
       if (files?.length) await admin.storage.from('exam-pages').remove(files.map(f => `${e.id}/${f.name}`));
     }
     await admin.from('exams').delete().eq('teacher_id', t.id);
+    // Soru havuzu görselleri (depo dosyaları hesap silinince kendiliğinden gitmez)
+    const { data: pool } = await admin.storage.from('question-pool').list(t.id, { limit: 1000 });
+    if (pool?.length) await admin.storage.from('question-pool').remove(pool.map(f => `${t.id}/${f.name}`));
+    await admin.from('pool_questions').delete().eq('teacher_id', t.id);
     const { data: docs } = await admin.from('pdf_documents').select('path').eq('teacher_id', t.id);
     if (docs?.length) await admin.storage.from('pdf-library').remove(docs.map(d => d.path));
     await admin.from('pdf_documents').delete().eq('teacher_id', t.id);

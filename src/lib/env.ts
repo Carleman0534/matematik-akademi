@@ -6,6 +6,7 @@ export const STUDENT_EMAIL_DOMAIN = process.env.STUDENT_EMAIL_DOMAIN || DEFAULT_
 export const IMAGE_BUCKET = 'question-images';
 export const EXAM_PAGE_BUCKET = 'exam-pages';
 export const PDF_BUCKET = 'pdf-library';
+export const POOL_BUCKET = 'question-pool';
 
 // .env.local doldurulmadan açılırsa çökmek yerine kurulum ekranı gösterilir
 export const isConfigured = (): boolean => /^https:\/\/.+/.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 20;
