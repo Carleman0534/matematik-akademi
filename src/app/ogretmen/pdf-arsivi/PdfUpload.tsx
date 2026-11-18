@@ -5,13 +5,14 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { PDF_BUCKET } from '@/lib/env';
 import { countPdfPages } from '@/lib/pdfPages';
 import { addPdfDoc, findByHash } from './actions';
+import { analyzePdf } from '@/lib/pdfAnalyze';
 
 const TYPES: [string, string][] = [['deneme', 'Deneme'], ['soru_bankasi', 'Soru bankası'], ['cevap_anahtari', 'Cevap anahtarı'], ['cozum', 'Çözüm'], ['calisma_foyu', 'Çalışma föyü'], ['diger', 'Diğer']];
 const MAX = 50 * 1024 * 1024;
 
 interface Item {
   key: string; file: File; title: string; exam_no: string; published_on: string;
-  state: 'hazir' | 'kontrol' | 'yukleniyor' | 'tamam' | 'mukerrer' | 'hata'; note: string;
+  state: 'hazir' | 'kontrol' | 'yukleniyor' | 'ayiklaniyor' | 'tamam' | 'mukerrer' | 'hata'; note: string;
 }
 
 async function sha256(file: File): Promise<string> {
@@ -19,7 +20,7 @@ async function sha256(file: File): Promise<string> {
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const STATE_LABEL: Record<Item['state'], string> = { hazir: 'Sırada', kontrol: 'Kontrol ediliyor…', yukleniyor: 'Yükleniyor…', tamam: '✓ Yüklendi', mukerrer: 'Zaten arşivde', hata: 'Hata' };
+const STATE_LABEL: Record<Item['state'], string> = { hazir: 'Sırada', kontrol: 'Kontrol ediliyor…', yukleniyor: 'Yükleniyor…', ayiklaniyor: 'Sorular ayıklanıyor…', tamam: '✓ Yüklendi', mukerrer: 'Zaten arşivde', hata: 'Hata' };
 
 // Çoklu PDF yükleme: sürükle-bırak, her dosyaya başlık/deneme no/tarih, ortak yayınevi/tür/şık sayısı; aynı dosya ikinci kez yüklenmez
 export function PdfUpload({ userId }: { userId: string }) {
@@ -28,6 +29,7 @@ export function PdfUpload({ userId }: { userId: string }) {
   const [common, setCommon] = useState({ publisher: '', doc_type: 'deneme', grade_level: 'LGS', option_count: 4, description: '' });
   const [drag, setDrag] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [auto, setAuto] = useState(true);
   const [err, setErr] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -62,7 +64,16 @@ export function PdfUpload({ userId }: { userId: string }) {
           doc_type: common.doc_type, grade_level: common.grade_level, publisher: common.publisher, description: common.description, topic_id: '',
           exam_no: it.exam_no, published_on: it.published_on, option_count: common.option_count,
         });
-        patch(it.key, r.error ? { state: 'hata', note: r.error } : { state: 'tamam', note: pages ? `${pages} sayfa` : '' });
+        if (r.error || !r.id) { patch(it.key, { state: 'hata', note: r.error || 'Kaydedilemedi.' }); continue; }
+        if (!auto) { patch(it.key, { state: 'tamam', note: pages ? `${pages} sayfa` : '' }); continue; }
+        // Yüklenir yüklenmez soruları otomatik ayıkla (havuza "onay bekliyor" olarak girer)
+        patch(it.key, { state: 'ayiklaniyor', note: 'Başlıyor…' });
+        const { data: sg } = await sb.storage.from(PDF_BUCKET).createSignedUrl(path, 3600);
+        if (!sg?.signedUrl) { patch(it.key, { state: 'tamam', note: 'Yüklendi; otomatik ayıklama başlatılamadı, listeden “Analiz et”e basın.' }); continue; }
+        const a = await analyzePdf({ id: r.id, title: it.title, url: sg.signedUrl, option_count: common.option_count }, userId, m => patch(it.key, { note: m }));
+        patch(it.key, a.error
+          ? { state: 'tamam', note: `Yüklendi; ayıklama başarısız: ${a.error} Listeden “Yeniden analiz et” deneyin.` }
+          : { state: 'tamam', note: `${a.detected} soru bulundu, ${a.saved} yeni soru havuza eklendi` });
       } catch (e) { patch(it.key, { state: 'hata', note: (e as Error).message }); }
     }
     setBusy(false);
@@ -112,7 +123,8 @@ export function PdfUpload({ userId }: { userId: string }) {
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" className="btn-primary" disabled={busy || !waiting} onClick={uploadAll}>{busy ? 'Yükleniyor…' : `${waiting} PDF'i arşive yükle`}</button>
             {!busy && items.some(i => i.state === 'tamam') && <button type="button" className="text-sm text-slate-500 hover:underline" onClick={() => setItems(p => p.filter(i => i.state !== 'tamam' && i.state !== 'mukerrer'))}>Yüklenenleri listeden temizle</button>}
-            <span className="text-xs text-slate-500">Yükledikten sonra aşağıdan &ldquo;Analiz et&rdquo; ile soruları havuza çıkarın.</span>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={auto} disabled={busy} onChange={e => setAuto(e.target.checked)} className="h-4 w-4 accent-indigo-600" />Yüklenince soruları otomatik ayıkla</label>
+            <span className="text-xs text-slate-500">{auto ? 'Ayıklama bitene kadar sayfayı kapatmayın; sorular havuzda “onay bekliyor” olarak görünür.' : 'Sonra aşağıdan “Analiz et” ile soruları havuza çıkarabilirsiniz.'}</span>
           </div>
         </>
       )}

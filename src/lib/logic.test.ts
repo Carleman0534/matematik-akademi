@@ -176,6 +176,19 @@ test('soru numaraları: büyük yazılı numaralar alınır, uyarı listesi ve c
   assert.equal(findQuestionMarkers(keyPage, W, H).length, 0);
 });
 
+test('sade dizilmiş test: numara gövdeyle aynı boyutta olsa da şıklı ardışık sorular bulunur; şıksız liste bulunmaz', () => {
+  const plain = [t('LGS MATEMATİK DENEMESİ', 40, 40, 12, 200)];
+  [1, 2, 3, 4].forEach((n, i) => {
+    const y = 100 + i * 170;
+    plain.push(t(`${n}.`, 40, y, 12, 10), t('12 ve 18 sayılarının EBOB değeri kaçtır?', 65, y, 12, 220));
+    ['A) 2', 'B) 3', 'C) 6', 'D) 9'].forEach((o, j) => plain.push(t(o, 65, y + 22 + j * 18, 12, 30)));
+  });
+  assert.deepEqual(findQuestionMarkers(plain, W, H).map(m => m.n), [1, 2, 3, 4]);
+  const list = [t('Sınav kuralları', 40, 40, 12, 100), t('1.', 40, 100, 12, 10), t('Telefon getirmek yasaktır kuralıdır', 65, 100, 12, 200),
+    t('2.', 40, 130, 12, 10), t('Kalem ve silgi getirmeniz gerekir', 65, 130, 12, 200), t('3.', 40, 160, 12, 10), t('Sınav süresi bitince kâğıtlar toplanır', 65, 160, 12, 200)];
+  assert.equal(findQuestionMarkers(list, W, H).length, 0);
+});
+
 test('bölüm, alt bilgi ve iki sütunlu kutular', () => {
   assert.equal(detectSection([t('FEN BİLİMLERİ', 100, 60, 11)], H), 'Fen Bilimleri');
   assert.equal(detectSection([t('MATEMATİK', 100, 400, 11)], H), null); // sayfa ortasında değil, başlıkta aranır

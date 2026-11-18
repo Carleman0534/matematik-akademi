@@ -2,7 +2,7 @@
 // Tarayıcıda PDF'ten soru bulma: pdf.js metin katmanı + çizilmiş sayfanın pikselleri (kurallar: questionDetect.ts)
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import {
-  findQuestionMarkers, detectSection, findFooterTop, layoutBoxes, lastInkRow, segmentByGaps, parseAnswerKey,
+  findQuestionMarkers, detectSection, findFooterTop, layoutBoxes, lastInkRow, segmentByGaps, parseAnswerKey, isAnswerKeyPage,
   type TItem, type Letter,
 } from './questionDetect.ts';
 
@@ -51,6 +51,15 @@ export async function scanDocument(doc: PDFDocumentProxy, onProgress?: (p: numbe
   return { hasText: withQ.length > 0, answerKey, pages, firstQuestionPage: withQ[0] || 1, sections: [...secCount].map(([name, count]) => ({ name, count })) };
 }
 
+// Cevap anahtarında bölüm adı yoksa ("|5") ya da tek bölümlüyse, sayfa başlığında bölüm adı geçse bile eşleşir
+export function lookupKey(key: Map<string, Letter>, section: string | null, n: number): Letter | null {
+  const exact = key.get(`${section || ''}|${n}`) ?? key.get(`|${n}`);
+  if (exact) return exact;
+  const sections = new Set([...key.keys()].map(k => k.slice(0, k.lastIndexOf('|'))));
+  if (sections.size === 1) return key.get(`${[...sections][0]}|${n}`) ?? null;
+  return null;
+}
+
 // Koyu piksel = yazı / şekil çizgisi (açık pembe filigran, açık renkli zeminler sayılmaz)
 function rowInk(ctx: CanvasRenderingContext2D, x0: number, x1: number, y0: number, y1: number): Uint16Array {
   const w = Math.max(1, Math.floor(x1 - x0)), h = Math.max(1, Math.floor(y1 - y0));
@@ -90,12 +99,13 @@ export async function detectPageBoxes(page: PDFPageProxy, canvas: HTMLCanvasElem
       if (last < 0) continue; // tamamen boş
       const pad = canvas.height * 0.012;
       px.h = Math.min(px.h, last + pad);
-      out.push({ n: b.n, section, correct: scan.answerKey.get(`${section || ''}|${b.n}`) ?? null, ...pct(px) });
+      out.push({ n: b.n, section, correct: lookupKey(scan.answerKey, section, b.n), ...pct(px) });
     }
     return out;
   }
 
   // Metin katmanı yok (taranmış): üst/alt bilgi dışını, sütunlara ve aralarındaki boşluklara göre böl
+  if (isAnswerKeyPage(items)) return [];   // cevap anahtarı sayfası soru değildir
   const cw = canvas.width, ch = canvas.height;
   const y0 = ch * 0.06, y1 = ch * 0.93;
   const midRows = rowInk(ctx, cw * 0.48, cw * 0.52, y0, y1);

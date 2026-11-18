@@ -23,10 +23,32 @@ export const isAnswerKeyPage = (items: TItem[]) => items.some(i => /CEVAP ANAHTA
 // Gövde metninin tipik yüksekliği (en az 3 harfli parçalar)
 export const bodyHeight = (items: TItem[]) => median(items.filter(i => /\p{L}{3,}/u.test(i.str)).map(i => i.h));
 
+const OPTION_RE = /^\(?[A-E]\s*[).]/;
+
+// Soru numarası gövdeden büyük/kalın değilse (sade dizilmiş testler) şu koşullarla kabul edilir: numaralar 1,2,3… diye
+// ardışık gidiyor ve sayfada bunların en az ~2 katı kadar şık işareti (A) B) …) var. Kapaktaki uyarı listelerinde şık olmaz.
+function relaxedMarkers(items: TItem[], pageW: number, pageH: number, body: number): Marker[] {
+  const cand = collectMarkers(items, pageW, pageH, body * 0.9);
+  if (cand.length < 2) return [];
+  const opts = items.filter(i => OPTION_RE.test(i.str.trim())).length;
+  if (opts < cand.length * 1.5) return [];
+  const nums = cand.map(c => c.n).sort((a, b) => a - b);
+  let steps = 0;
+  for (let i = 1; i < nums.length; i++) if (nums[i] - nums[i - 1] === 1) steps++;
+  return steps >= (nums.length - 1) * 0.7 ? cand : [];
+}
+
 export function findQuestionMarkers(items: TItem[], pageW: number, pageH: number): Marker[] {
   if (isAnswerKeyPage(items)) return [];
   const body = bodyHeight(items);
   if (!body) return [];
+  const strict = collectMarkers(items, pageW, pageH, body * 1.12);
+  if (strict.length >= 2) return strict;
+  const relaxed = relaxedMarkers(items, pageW, pageH, body);
+  return relaxed.length > strict.length ? relaxed : strict;
+}
+
+function collectMarkers(items: TItem[], pageW: number, pageH: number, minH: number): Marker[] {
   const out: Marker[] = [];
   for (const it of items) {
     const s = it.str.trim();
@@ -36,7 +58,7 @@ export function findQuestionMarkers(items: TItem[], pageW: number, pageH: number
     if (!m) continue;
     const n = parseInt(m[1], 10);
     if (n < 1 || n > 200) continue;
-    if (it.h < body * 1.12) continue;                  // soru numarası gövdeden büyük
+    if (it.h < minH) continue;                         // soru numarası gövdeden büyük
     if (it.y < pageH * 0.06 || it.y > pageH * 0.94) continue; // üst/alt bilgi alanı
     // Sağında aynı satırda soru metni olmalı (tek başına sayı değil)
     const cy = it.y + it.h / 2;
