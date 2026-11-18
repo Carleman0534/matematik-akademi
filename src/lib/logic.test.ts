@@ -189,6 +189,43 @@ test('sade dizilmiş test: numara gövdeyle aynı boyutta olsa da şıklı ardı
   assert.equal(findQuestionMarkers(list, W, H).length, 0);
 });
 
+import { guessTopic, resolveTopicId, selectMathPages, fold, type TopicRow } from './topicGuess.ts';
+
+test('konu tahmini: açık işaretli sorularda ünite/alt konu, belirsizde ve şekil-yalnızda konusuz', () => {
+  assert.equal(fold('Kareköklü İfadeler'), 'KAREKOKLU IFADELER');
+  const g1 = guessTopic('12 ve 18 sayılarının EBOB değeri kaçtır? A) 2 B) 3 C) 6 D) 9');
+  assert.deepEqual([g1?.unit, g1?.sub], ['Çarpanlar ve Katlar', 'EBOB']);
+  const g2 = guessTopic('Dik üçgende hipotenüs uzunluğu kaç santimetredir? Pisagor bağıntısından bulunuz.');
+  assert.deepEqual([g2?.unit, g2?.sub], ['Üçgenler', 'Pisagor bağıntısı']);
+  assert.equal(guessTopic('Şekildeki silindirin hacmi kaç santimetreküptür? Taban yarıçapı 3 cm.')?.unit, 'Geometrik Cisimler');
+  assert.equal(guessTopic('Bir torbada 3 kırmızı 5 mavi top vardır. Rastgele çekilen topun mavi olma olasılığı kaçtır?')?.unit, 'Basit Olayların Olma Olasılığı');
+  assert.equal(guessTopic('Bir üçgenin kenar uzunlukları aşağıdakilerden hangisi olamaz?')?.unit, 'Üçgenler');
+  assert.equal(guessTopic('Aşağıdaki şekilde verilen bilgilere göre x kaç derecedir? Bir kenar boyunca gidilir.'), null); // zayıf işaretler yetmez
+  assert.equal(guessTopic('A) 2 B) 3'), null);                                                          // metin yok
+  assert.equal(guessTopic('Ayşe her gün biraz kitap okuyor ve bunu defterine yazıyor, sonra annesine anlatıyor.'), null);
+});
+
+test('tahmin veritabanı konusuna çevrilir; ünite yoksa konusuz', () => {
+  const topics: TopicRow[] = [
+    { id: 'u1', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 8 }, { id: 's1', parent_id: 'u1', name: 'EBOB', grade_level: 8 },
+    { id: 'u9', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 9 },
+  ];
+  assert.equal(resolveTopicId({ unit: 'Çarpanlar ve Katlar', sub: 'EBOB', score: 6 }, topics), 's1');
+  assert.equal(resolveTopicId({ unit: 'Çarpanlar ve Katlar', sub: 'EKOK', score: 6 }, topics), 'u1'); // alt konu yoksa ünite
+  assert.equal(resolveTopicId({ unit: 'Üçgenler', sub: null, score: 5 }, topics), null);              // ünite veritabanında yok
+  assert.equal(resolveTopicId(null, topics), null);
+});
+
+test('çok dersli kitapçık: yalnızca matematik sayfaları alınır', () => {
+  const pages = new Map<number, string | null>([[1, null], [2, 'Türkçe'], [3, 'Matematik'], [4, 'Matematik'], [5, 'Fen Bilimleri'], [6, 'Fen Bilimleri']]);
+  const r = selectMathPages(pages);
+  assert.deepEqual([...r.keep], [3, 4]); assert.equal(r.hasMath, true);
+  const fen = selectMathPages(new Map<number, string | null>([[1, 'Fen Bilimleri'], [2, 'Fen Bilimleri']]));
+  assert.equal(fen.keep.size, 0); assert.equal(fen.hasMath, false);
+  const single = selectMathPages(new Map<number, string | null>([[1, null], [2, null]]));
+  assert.equal(single.keep.size, 2);   // bölüm başlığı yoksa (tek dersli PDF) hepsi alınır
+});
+
 test('bölüm, alt bilgi ve iki sütunlu kutular', () => {
   assert.equal(detectSection([t('FEN BİLİMLERİ', 100, 60, 11)], H), 'Fen Bilimleri');
   assert.equal(detectSection([t('MATEMATİK', 100, 400, 11)], H), null); // sayfa ortasında değil, başlıkta aranır

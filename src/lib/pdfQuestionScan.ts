@@ -6,7 +6,7 @@ import {
   type TItem, type Letter,
 } from './questionDetect.ts';
 
-export interface FoundBox { n: number; section: string | null; correct: Letter | null; x: number; y: number; width: number; height: number } // yüzde
+export interface FoundBox { n: number; section: string | null; text?: string; correct: Letter | null; x: number; y: number; width: number; height: number } // yüzde
 export interface DocScan {
   hasText: boolean;                        // en az bir sayfada soru numarası bulundu
   answerKey: Map<string, Letter>;
@@ -99,7 +99,9 @@ export async function detectPageBoxes(page: PDFPageProxy, canvas: HTMLCanvasElem
       if (last < 0) continue; // tamamen boş
       const pad = canvas.height * 0.012;
       px.h = Math.min(px.h, last + pad);
-      out.push({ n: b.n, section, correct: lookupKey(scan.answerKey, section, b.n), ...pct(px) });
+      const text = items.filter(i => i.x >= b.x - 2 && i.x < b.x + b.w && i.y >= b.y - 2 && i.y < b.y + b.h)
+        .sort((p, q) => Math.round(p.y / 4) - Math.round(q.y / 4) || p.x - q.x).map(i => i.str).join(' ');
+      out.push({ n: b.n, section, text, correct: lookupKey(scan.answerKey, section, b.n), ...pct(px) });
     }
     return out;
   }

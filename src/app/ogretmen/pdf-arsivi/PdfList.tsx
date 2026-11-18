@@ -31,7 +31,7 @@ export function PdfList({ docs, userId, archived }: { docs: ListDoc[]; userId: s
     for (const d of list) {
       setRunning(d.id);
       const r = await analyzePdf({ id: d.id, title: d.title, url: d.url!, option_count: d.option_count }, userId, m => setProgress(`${d.title}: ${m}`));
-      setLog(l => [...l, r.error ? `✗ ${d.title}: ${r.error}` : `✓ ${d.title}: ${r.detected} soru bulundu, ${r.saved} yeni soru havuza eklendi`]);
+      setLog(l => [...l, r.error ? `✗ ${d.title}: ${r.error}` : `✓ ${d.title}: ${r.detected} soru bulundu, ${r.saved} yeni soru havuza eklendi${r.note ? ' · ' + r.note : ''}`]);
       router.refresh();
     }
     setRunning(null); setProgress(''); setSel(new Set());

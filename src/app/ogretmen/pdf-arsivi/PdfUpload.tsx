@@ -73,7 +73,7 @@ export function PdfUpload({ userId }: { userId: string }) {
         const a = await analyzePdf({ id: r.id, title: it.title, url: sg.signedUrl, option_count: common.option_count }, userId, m => patch(it.key, { note: m }));
         patch(it.key, a.error
           ? { state: 'tamam', note: `Yüklendi; ayıklama başarısız: ${a.error} Listeden “Yeniden analiz et” deneyin.` }
-          : { state: 'tamam', note: `${a.detected} soru bulundu, ${a.saved} yeni soru havuza eklendi` });
+          : { state: 'tamam', note: `${a.detected} soru bulundu, ${a.saved} yeni soru havuza eklendi${a.note ? '. ' + a.note : ''}` });
       } catch (e) { patch(it.key, { state: 'hata', note: (e as Error).message }); }
     }
     setBusy(false);

@@ -95,7 +95,7 @@ export async function startAnalysis(pdfId: string): Promise<PdfResult> {
 }
 
 export interface PoolInput {
-  page_no: number; question_no: number; section: string; image_path: string; width: number; height: number;
+  topic_id?: string | null; page_no: number; question_no: number; section: string; image_path: string; width: number; height: number;
   correct: string | null; option_count: number; detect_method: 'text' | 'gaps'; confidence: number; image_hash: string | null;
 }
 
@@ -112,6 +112,7 @@ export async function savePoolBatch(jobId: string, pdfId: string, sourceLabel: s
   if (!fresh.length) return { saved: 0, skipped };
   const { error } = await sb.from('pool_questions').insert(fresh.map(r => ({
     teacher_id: s.userId, pdf_id: pdfId, job_id: jobId, source_label: sourceLabel.slice(0, 200),
+    topic_id: r.topic_id && isUuid(r.topic_id) ? r.topic_id : null,
     page_no: r.page_no, question_no: r.question_no, section: (r.section || '').slice(0, 60), image_path: r.image_path,
     width: Math.round(r.width) || null, height: Math.round(r.height) || null,
     correct: r.correct && /^[A-E]$/.test(r.correct) ? r.correct : null, option_count: r.option_count === 5 ? 5 : 4,

@@ -5,6 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { POOL_BUCKET } from '@/lib/env';
 import { scanDocument, detectPageBoxes } from '@/lib/pdfQuestionScan';
 import { dhashHex } from '@/lib/pool';
+import { guessTopic, resolveTopicId, selectMathPages, type TopicRow } from '@/lib/topicGuess';
 import { startAnalysis, savePoolBatch, finishAnalysis, removePoolImages, type PoolInput } from '@/app/ogretmen/pdf-arsivi/actions';
 
 export interface AnalyzeTarget { id: string; title: string; url: string; option_count: number }
@@ -26,7 +27,7 @@ function cropToBlob(src: HTMLCanvasElement, b: { x: number; y: number; width: nu
   return new Promise((res, rej) => c.toBlob(bl => bl ? res({ blob: bl, width: w, height: h, hash: dhashHex(gray) }) : rej(new Error('Görsel oluşturulamadı.')), 'image/jpeg', 0.88));
 }
 
-export async function analyzePdf(target: AnalyzeTarget, teacherId: string, onProgress: (msg: string) => void): Promise<{ error?: string; saved: number; detected: number }> {
+export async function analyzePdf(target: AnalyzeTarget, teacherId: string, onProgress: (msg: string) => void): Promise<{ error?: string; saved: number; detected: number; note?: string }> {
   const job = await startAnalysis(target.id);
   if (job.error || !job.id) return { error: job.error || 'Analiz başlatılamadı.', saved: 0, detected: 0 };
   const jobId = job.id;
@@ -44,6 +45,16 @@ export async function analyzePdf(target: AnalyzeTarget, teacherId: string, onPro
     stats.method = scan.hasText ? 'text' : 'gaps';
     stats.answerKeys = scan.answerKey.size;
     const sb = supabaseBrowser();
+    // Yalnızca matematik bölümü: LGS kitapçığında Türkçe, Fen vb. sayfalar atlanır
+    const sel = selectMathPages(new Map([...scan.pages].map(([p, v]) => [p, v.section])));
+    if (scan.hasText && sel.found.length && !sel.hasMath) {
+      await finishAnalysis(jobId, target.id, stats);
+      return { saved: 0, detected: 0, note: `Matematik bölümü bulunamadı (bulunan bölümler: ${sel.found.join(', ')}); hiçbir soru alınmadı.` };
+    }
+    const { data: topicRows } = await sb.from('topics').select('id, parent_id, name, grade_level');
+    const topics = (topicRows || []) as TopicRow[];
+    let guessed = 0, noTopic = 0;
+    const otherSections = new Set<string>();
     let batch: PoolInput[] = [];
     let seq = 0;
     const flush = async () => {
@@ -56,6 +67,7 @@ export async function analyzePdf(target: AnalyzeTarget, teacherId: string, onPro
     };
     for (let p = 1; p <= doc.numPages; p++) {
       if (scan.hasText && !scan.pages.get(p)?.count) { stats.skippedPages++; continue; }
+      if (scan.hasText && !sel.keep.has(p)) { stats.skippedPages++; const sc = scan.pages.get(p)?.section; if (sc) otherSections.add(sc); continue; }
       onProgress(`Sayfa ${p}/${doc.numPages} · ${stats.detected} soru bulundu`);
       const page = await doc.getPage(p);
       const vp1 = page.getViewport({ scale: 1 });
@@ -74,7 +86,10 @@ export async function analyzePdf(target: AnalyzeTarget, teacherId: string, onPro
         if (up.error) throw new Error(`Görsel yüklenemedi: ${up.error.message}`);
         uploaded.push(path);
         stats.detected++;
+        const topic_id = resolveTopicId(guessTopic(b.text || ''), topics);
+        if (topic_id) guessed++; else noTopic++;
         batch.push({
+          topic_id,
           page_no: p, question_no: b.n || ++seq, section: b.section || '', image_path: path, width: crop.width, height: crop.height,
           correct: b.correct, option_count: target.option_count, detect_method: stats.method,
           confidence: stats.method === 'text' ? 0.9 : 0.5, image_hash: crop.hash,
@@ -87,7 +102,9 @@ export async function analyzePdf(target: AnalyzeTarget, teacherId: string, onPro
     await doc.loadingTask.destroy();
     onProgress('Benzer sorular kontrol ediliyor…');
     const fin = await finishAnalysis(jobId, target.id, stats);
-    return { error: fin.error, saved: stats.saved, detected: stats.detected };
+    const parts = [`${guessed} sorunun konusu otomatik seçildi`, `${noTopic} soru konusuz (elle seçilecek)`];
+    if (otherSections.size) parts.push(`matematik dışı bölümler atlandı: ${[...otherSections].join(', ')}`);
+    return { error: fin.error, saved: stats.saved, detected: stats.detected, note: parts.join(' · ') };
   } catch (e) {
     const msg = (e as Error).message || 'Bilinmeyen hata';
     await finishAnalysis(jobId, target.id, stats, msg);
