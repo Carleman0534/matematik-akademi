@@ -13,25 +13,18 @@ export const metadata: Metadata = { title: 'Denemeler' };
 export default async function ExamsPage() {
   const me = await requireTeacher();
   const sb = await supabaseServer();
-  let exams: ExamRow[] = [];
-  const className = new Map<string, string>();
+  const [{ data }, { data: cls }, { data: ss }] = await Promise.all([
+    sb.from('exams').select(EXAM_SELECT).eq('teacher_id', me.userId).order('created_at', { ascending: false }),
+    sb.from('classes').select('id, name').eq('teacher_id', me.userId),
+    sb.from('exam_sessions').select('exam_id, submitted_at, exams!inner(teacher_id)').eq('exams.teacher_id', me.userId),
+  ]);
+  const exams = (data || []) as ExamRow[];
+  const className = new Map((cls || []).map(c => [c.id, c.name]));
   const started = new Map<string, number>(), submitted = new Map<string, number>();
-
-  try {
-    const [{ data }, { data: cls }, { data: ss }] = await Promise.all([
-      sb.from('exams').select(EXAM_SELECT).eq('teacher_id', me.userId).order('created_at', { ascending: false }),
-      sb.from('classes').select('id, name').eq('teacher_id', me.userId),
-      sb.from('exam_sessions').select('exam_id, submitted_at, exams!inner(teacher_id)').eq('exams.teacher_id', me.userId),
-    ]);
-    exams = (data || []) as ExamRow[];
-    ((cls || []) as { id: string; name: string }[]).forEach(c => className.set(c.id, c.name));
-    ((ss || []) as { exam_id: string; submitted_at: string | null }[]).forEach(s => {
-      started.set(s.exam_id, (started.get(s.exam_id) || 0) + 1);
-      if (s.submitted_at) submitted.set(s.exam_id, (submitted.get(s.exam_id) || 0) + 1);
-    });
-  } catch (err) {
-    console.error('Exams load error:', err);
-  }
+  (ss || []).forEach((s: { exam_id: string; submitted_at: string | null }) => {
+    started.set(s.exam_id, (started.get(s.exam_id) || 0) + 1);
+    if (s.submitted_at) submitted.set(s.exam_id, (submitted.get(s.exam_id) || 0) + 1);
+  });
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">

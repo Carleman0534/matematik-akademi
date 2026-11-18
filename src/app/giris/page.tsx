@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
-import { LAST_ID_COOKIE } from '@/lib/supabase/session';
 import { LoginForm } from './LoginForm';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SetupNotice } from '@/components/SetupNotice';
@@ -13,7 +11,7 @@ export const metadata: Metadata = { title: 'Giriş' };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   if (!isConfigured()) return <SetupNotice />;
   const s = await getSession();
-  if (s) redirect(s.role === 'teacher' ? '/ogretmen' : '/ogrenci');
+  if (s) redirect(s.role === 'teacher' ? '/ogretmen' : s.role === 'parent' ? '/veli' : '/ogrenci');
   const sp = await searchParams;
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -25,7 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-sm text-slate-500">Yanlışlarını biriktir, tekrar et, eksiklerini kapat.</p>
         </div>
         <div className="card">
-          <LoginForm lastId={(await cookies()).get(LAST_ID_COOKIE)?.value} notice={sp.hata === 'pasif' ? 'Hesabınız pasif durumda. Öğretmeninizle iletişime geçin.' : undefined} />
+          <LoginForm notice={sp.hata === 'pasif' ? 'Hesabınız pasif durumda. Öğretmeninizle iletişime geçin.' : undefined} />
         </div>
       </div>
     </div>

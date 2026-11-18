@@ -9,7 +9,10 @@ export default defineConfig([
     rules: {
       // Soru görselleri Supabase'ten imzalı (süreli) adreslerle gelir; next/image yerine düz <img> kullanılır
       '@next/next/no-img-element': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'react-hooks/set-state-in-effect': 'off',
+      'react/no-unescaped-entities': 'off',
     },
   },
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
+  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'scripts/**']),
 ]);

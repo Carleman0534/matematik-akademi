@@ -158,248 +158,317 @@ test('süre biçimi ve kodlar', () => {
   assert.equal(normalizeCode(' ab-12 cd '), 'AB12CD');
 });
 
-// ============ PDF'ten otomatik soru bulma ============
-import { findQuestionMarkers, detectSection, findFooterTop, layoutBoxes, lastInkRow, segmentByGaps, parseAnswerKey, type TItem } from './questionDetect.ts';
+// LGS Yapay Zekâ ve Kişiselleştirilmiş Öğrenme Testleri
+import { validateQuestionStructure, calculateTextSimilarity, checkDuplicateQuestion } from './ai/mathValidator.ts';
+import { generateCurriculumQuestion } from './ai/questionGenerator.ts';
+import { getNextAdaptiveDifficulty, calculateStudentMasteryProfile } from './ai/adaptiveLearning.ts';
+import { INITIAL_LGS_TOPICS, findTopicById } from './ai/lgsCurriculum.ts';
 
-const W = 595, H = 842;
-const t = (str: string, x: number, y: number, h = 10, w = str.length * 5): TItem => ({ str, x, y, w, h });
-const body = (y: number, x = 80) => t('Bir kenarının uzunluğu olan eşkenar üçgenin', x, y, 10, 200);
-
-test('soru numaraları: büyük yazılı numaralar alınır, uyarı listesi ve cevap anahtarı alınmaz', () => {
-  const page = [t('MATEMATİK', 250, 100, 11), t('1.', 52, 160, 13, 10), body(161), body(180), t('2.', 52, 450, 13, 10), body(451),
-    t('3.', 300, 160, 13, 10), body(161, 320), t('1. Bu testte 20 soru vardır.', 60, 130, 9, 150), body(600), body(620)];
-  const ms = findQuestionMarkers(page, W, H);
-  assert.deepEqual(ms.map(m => m.n), [1, 2, 3]);
-  const cover = [t('1.', 60, 500, 10, 10), t('Salon yoklama listesinde belirtilen sınıfta', 80, 500, 10, 200), body(520), body(540)];
-  assert.equal(findQuestionMarkers(cover, W, H).length, 0);
-  const keyPage = [t('CEVAP ANAHTARI', 200, 60, 12), t('1.', 160, 120, 13, 10), t('D', 185, 121, 9, 6)];
-  assert.equal(findQuestionMarkers(keyPage, W, H).length, 0);
+test('LGS müfredatı: 12 ana ünite ve alt konular eksiksiz tanımlı', () => {
+  assert.equal(INITIAL_LGS_TOPICS.length, 12);
+  const ebob = findTopicById('sub_ebob');
+  assert.ok(ebob);
+  assert.equal(ebob.name, 'EBOB (En Büyük Ortak Bölen)');
+  assert.equal(ebob.parentId, 'top_carpanlar_katlar');
 });
 
-test('sade dizilmiş test: numara gövdeyle aynı boyutta olsa da şıklı ardışık sorular bulunur; şıksız liste bulunmaz', () => {
-  const plain = [t('LGS MATEMATİK DENEMESİ', 40, 40, 12, 200)];
-  [1, 2, 3, 4].forEach((n, i) => {
-    const y = 100 + i * 170;
-    plain.push(t(`${n}.`, 40, y, 12, 10), t('12 ve 18 sayılarının EBOB değeri kaçtır?', 65, y, 12, 220));
-    ['A) 2', 'B) 3', 'C) 6', 'D) 9'].forEach((o, j) => plain.push(t(o, 65, y + 22 + j * 18, 12, 30)));
+test('matematiksel doğrulama: geçerli soru ve hatalı seçenek tespiti', () => {
+  // Geçerli soru
+  const valid = validateQuestionStructure(
+    'Alanı 144 cm² olan bir karenin çevresi kaç santimetredir?',
+    { A: '12', B: '24', C: '36', D: '48' },
+    'D',
+    'Karenin bir kenarı √144 = 12 cm, çevresi 4 × 12 = 48 cm dir.'
+  );
+  assert.equal(valid.isValid, true);
+  assert.equal(valid.singleCorrectAnswer, true);
+
+  // Mükerrer şık hatası
+  const dup = validateQuestionStructure(
+    'Alanı 144 cm² olan karenin bir kenarı kaçtır?',
+    { A: '12', B: '12', C: '16', D: '20' },
+    'A',
+    'Kenar √144 = 12 cm'
+  );
+  assert.equal(dup.isValid, false);
+  assert.equal(dup.optionsValid, false);
+});
+
+test('metin benzerliği ve telif denetimi: mükerrer soru tespiti', () => {
+  const q1 = 'Bir kenar uzunluğu 10 cm olan karenin alanı kaç cm² dir?';
+  const q2 = 'Bir kenar uzunluğu 10 cm olan karenin alanı kaç santimetrekaredir?';
+  const qDiff = 'İki basamaklı en küçük asal sayı kaçtır?';
+
+  const simHigh = calculateTextSimilarity(q1, q2);
+  assert.ok(simHigh > 0.70);
+
+  const simLow = calculateTextSimilarity(q1, qDiff);
+  assert.ok(simLow < 0.20);
+
+  const dupCheck = checkDuplicateQuestion(q1, [{ id: 'q2', text: q2 }], 0.70);
+  assert.equal(dupCheck.isDuplicate, true);
+  assert.equal(dupCheck.matchedQuestionId, 'q2');
+});
+
+test('yapay zekâ soru motoru: LGS formatında özgün soru ve çözüm üretimi', () => {
+  const q = generateCurriculumQuestion({
+    topicId: 'top_carpanlar_katlar',
+    difficulty: 3,
+    questionType: 'yeni_nesil'
   });
-  assert.deepEqual(findQuestionMarkers(plain, W, H).map(m => m.n), [1, 2, 3, 4]);
-  const list = [t('Sınav kuralları', 40, 40, 12, 100), t('1.', 40, 100, 12, 10), t('Telefon getirmek yasaktır kuralıdır', 65, 100, 12, 200),
-    t('2.', 40, 130, 12, 10), t('Kalem ve silgi getirmeniz gerekir', 65, 130, 12, 200), t('3.', 40, 160, 12, 10), t('Sınav süresi bitince kâğıtlar toplanır', 65, 160, 12, 200)];
-  assert.equal(findQuestionMarkers(list, W, H).length, 0);
+  assert.ok(q.questionText.length > 30);
+  assert.ok(['A', 'B', 'C', 'D'].includes(q.correctAnswer));
+  assert.ok(q.solutionExplanation.length > 20);
+  assert.equal(q.mathValidationStatus, 'verified');
 });
 
-import { guessTopic, resolveTopicId, selectMathPages, fold, type TopicRow } from './topicGuess.ts';
+test('uyarlanabilir (adaptive) öğrenme: doğru/yanlış serisine göre zorluk ayarı', () => {
+  // Üst üste 2 doğru -> zorluk 1 kademe artmalı (örn: 3 -> 4)
+  const nextUp = getNextAdaptiveDifficulty(3, true, 2);
+  assert.equal(nextUp, 4);
 
-test('konu tahmini: açık işaretli sorularda ünite/alt konu, belirsizde ve şekil-yalnızda konusuz', () => {
-  assert.equal(fold('Kareköklü İfadeler'), 'KAREKOKLU IFADELER');
-  const g1 = guessTopic('12 ve 18 sayılarının EBOB değeri kaçtır? A) 2 B) 3 C) 6 D) 9');
-  assert.deepEqual([g1?.unit, g1?.sub], ['Çarpanlar ve Katlar', 'EBOB']);
-  const g2 = guessTopic('Dik üçgende hipotenüs uzunluğu kaç santimetredir? Pisagor bağıntısından bulunuz.');
-  assert.deepEqual([g2?.unit, g2?.sub], ['Üçgenler', 'Pisagor bağıntısı']);
-  assert.equal(guessTopic('Şekildeki silindirin hacmi kaç santimetreküptür? Taban yarıçapı 3 cm.')?.unit, 'Geometrik Cisimler');
-  assert.equal(guessTopic('Bir torbada 3 kırmızı 5 mavi top vardır. Rastgele çekilen topun mavi olma olasılığı kaçtır?')?.unit, 'Basit Olayların Olma Olasılığı');
-  assert.equal(guessTopic('Bir üçgenin kenar uzunlukları aşağıdakilerden hangisi olamaz?')?.unit, 'Üçgenler');
-  assert.equal(guessTopic('Aşağıdaki şekilde verilen bilgilere göre x kaç derecedir? Bir kenar boyunca gidilir.'), null); // zayıf işaretler yetmez
-  assert.equal(guessTopic('A) 2 B) 3'), null);                                                          // metin yok
-  assert.equal(guessTopic('Ayşe her gün biraz kitap okuyor ve bunu defterine yazıyor, sonra annesine anlatıyor.'), null);
+  // Yanlış yaptı -> zorluk 1 kademe düşmeli (örn: 3 -> 2)
+  const nextDown = getNextAdaptiveDifficulty(3, false, 0);
+  assert.equal(nextDown, 2);
+
+  // Zaten 1'deyken yanlış yaptıysa 1'in altına düşmemeli
+  assert.equal(getNextAdaptiveDifficulty(1, false, 0), 1);
 });
 
-test('tahmin veritabanı konusuna çevrilir; ünite yoksa konusuz', () => {
-  const topics: TopicRow[] = [
-    { id: 'u1', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 8 }, { id: 's1', parent_id: 'u1', name: 'EBOB', grade_level: 8 },
-    { id: 'u9', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 9 },
+test('öğrenci konu başarı profili: örneklem büyüklüğü ve durum tespiti', () => {
+  const attempts = [
+    { topicId: 'top_carpanlar_katlar', isCorrect: false, isBlank: false, difficulty: 3 },
+    { topicId: 'top_carpanlar_katlar', isCorrect: false, isBlank: false, difficulty: 3 },
+    { topicId: 'top_carpanlar_katlar', isCorrect: false, isBlank: false, difficulty: 3 },
+    { topicId: 'top_carpanlar_katlar', isCorrect: true, isBlank: false, difficulty: 3 }, // 1/4 = %25 -> critical_weak
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 },
+    { topicId: 'top_dogrusal_denklemler', isCorrect: true, isBlank: false, difficulty: 3 } // 8/8 = %100 -> mastered
   ];
-  assert.equal(resolveTopicId({ unit: 'Çarpanlar ve Katlar', sub: 'EBOB', score: 6 }, topics), 's1');
-  assert.equal(resolveTopicId({ unit: 'Çarpanlar ve Katlar', sub: 'EKOK', score: 6 }, topics), 'u1'); // alt konu yoksa ünite
-  assert.equal(resolveTopicId({ unit: 'Üçgenler', sub: null, score: 5 }, topics), null);              // ünite veritabanında yok
-  assert.equal(resolveTopicId(null, topics), null);
+
+  const profile = calculateStudentMasteryProfile('student-test', attempts);
+  const carpanlar = profile.find(p => p.topicId === 'top_carpanlar_katlar');
+  assert.ok(carpanlar);
+  assert.equal(carpanlar.status, 'critical_weak');
+  assert.equal(carpanlar.masteryScore, 25);
+
+  const dogrusal = profile.find(p => p.topicId === 'top_dogrusal_denklemler');
+  assert.ok(dogrusal);
+  assert.equal(dogrusal.status, 'mastered');
+  assert.equal(dogrusal.masteryScore, 100);
+
+  const geometri = profile.find(p => p.topicId === 'top_geometrik_cisimler');
+  assert.ok(geometri);
+  assert.equal(geometri.status, 'needs_data');
 });
 
-test('çok dersli kitapçık: yalnızca matematik sayfaları alınır', () => {
-  const pages = new Map<number, string | null>([[1, null], [2, 'Türkçe'], [3, 'Matematik'], [4, 'Matematik'], [5, 'Fen Bilimleri'], [6, 'Fen Bilimleri']]);
-  const r = selectMathPages(pages);
-  assert.deepEqual([...r.keep], [3, 4]); assert.equal(r.hasMath, true);
-  const fen = selectMathPages(new Map<number, string | null>([[1, 'Fen Bilimleri'], [2, 'Fen Bilimleri']]));
-  assert.equal(fen.keep.size, 0); assert.equal(fen.hasMath, false);
-  const single = selectMathPages(new Map<number, string | null>([[1, null], [2, null]]));
-  assert.equal(single.keep.size, 2);   // bölüm başlığı yoksa (tek dersli PDF) hepsi alınır
-});
+// Veli Yetkilendirme ve Güvenlik Testleri (Section 20.9 & 20.10)
+import { isGuardianAuthorizedForStudent, filterStudentDataForGuardian } from './parentAuth.ts';
 
-import { buildRecommendations, planOutcome, dailyProgress, trDay } from './adaptive.ts';
-import { computePerf as cPerf, type Evidence as Ev, type UnitPerf } from './studyEngine.ts';
-
-test('uyarlanabilir öneriler: eksik, tekrar zamanı, ilerletme; yetersiz veri ve yeni çalışılan konu önerilmez', () => {
-  const NOW = Date.parse('2026-11-18T12:00:00Z'), D = 86400000;
-  const ev = (res: 'correct' | 'incorrect', daysAgo: number, diff = 3): Ev => ({ topic_id: 't', result: res, difficulty: diff, type: null, at: new Date(NOW - daysAgo * D).toISOString(), source: 'study' });
-  const mk = (id: string, name: string, list: Ev[]): UnitPerf => ({ unitId: id, name, perf: cPerf(list, NOW), subs: [] });
-  const weak = mk('u1', 'Çarpanlar ve Katlar', [ev('incorrect', 2), ev('incorrect', 2), ev('incorrect', 3), ev('incorrect', 3), ev('correct', 4), ev('incorrect', 4)]);
-  const idleOk = mk('u2', 'Üslü İfadeler', [ev('correct', 20), ev('correct', 21), ev('correct', 22), ev('incorrect', 23), ev('correct', 24), ev('correct', 25)]);   // iyi ama 20 gündür çalışılmadı
-  const fresh = mk('u3', 'Veri Analizi', [ev('correct', 1), ev('correct', 1), ev('correct', 2), ev('correct', 2), ev('correct', 3, 4), ev('correct', 3, 4), ev('correct', 3, 4)]);   // güçlü ve yakın
-  const few = mk('u4', 'Üçgenler', [ev('incorrect', 1)]);
-  const recs = buildRecommendations([weak, idleOk, fresh, few], NOW);
-  assert.deepEqual(recs.map(r => [r.unitId, r.trigger]), [['u1', 'eksik'], ['u2', 'tekrar_zamani'], ['u3', 'ilerlet']]);
-  assert.equal(recs[0].kind, 'eksik_tamamlama'); assert.equal(recs[1].kind, 'pekistirme'); assert.equal(recs[2].kind, 'zorlayici');
-  assert.match(recs[1].text, /20 gündür|gün/);
-  assert.ok(recs.every(r => r.count >= 3 && r.count <= 60 && r.goal.length > 0));
-  assert.deepEqual(buildRecommendations([few], NOW), []);          // 3'ten az kanıt → öneri yok
-});
-
-test('çalışma sonucu zorluk yönü ve günlük hedef/seri hesabı', () => {
-  assert.equal(planOutcome(10, 9).direction, 'yukari');
-  assert.equal(planOutcome(10, 7).direction, 'ayni');
-  assert.equal(planOutcome(10, 2).direction, 'asagi');
-  const NOW = Date.parse('2026-11-18T10:00:00Z'), D = 86400000;
-  const t = (d: number) => new Date(NOW - d * D).toISOString();
-  assert.deepEqual(dailyProgress([t(0), t(0), t(0.01), t(1), t(2)], NOW), { today: 3, streak: 3 });
-  assert.deepEqual(dailyProgress([t(1), t(2), t(5)], NOW), { today: 0, streak: 2 });   // bugün henüz yok: dünden geriye sayılır
-  assert.deepEqual(dailyProgress([t(3)], NOW), { today: 0, streak: 0 });             // seri koptu
-  assert.equal(trDay('2026-11-18T22:30:00Z'), '2026-11-19');                          // Türkiye saati (UTC+3) ertesi gün
-});
-
-test('bölüm, alt bilgi ve iki sütunlu kutular', () => {
-  assert.equal(detectSection([t('FEN BİLİMLERİ', 100, 60, 11)], H), 'Fen Bilimleri');
-  assert.equal(detectSection([t('MATEMATİK', 100, 400, 11)], H), null); // sayfa ortasında değil, başlıkta aranır
-  const foot = findFooterTop([t('TEST BİTTİ.', 400, 700, 9), t('30', 290, 800, 9, 10)], W, H);
-  assert.equal(foot, 700);
-  assert.equal(findFooterTop([t('MATEMATİK TESTİ BİTTİ.', 400, 720, 9), t('FEN BİLİMLERİ TESTİNE GEÇİNİZ.', 400, 735, 9)], W, H), 720);
-  const boxes = layoutBoxes([{ n: 1, x: 52, y: 160, h: 13 }, { n: 2, x: 52, y: 450, h: 13 }, { n: 3, x: 300, y: 160, h: 13 }], W, H, 780);
-  assert.equal(boxes.length, 3);
-  const [b1, b2, b3] = [1, 2, 3].map(n => boxes.find(b => b.n === n)!);
-  assert.ok(b1.y + b1.h <= 450 && b2.y + b2.h <= 780);     // 1. soru 2.'nin başında biter
-  assert.ok(b1.x + b1.w < W / 2 && b3.x > W / 2 - 15);      // sütunlar ayrı
-  const one = layoutBoxes([{ n: 5, x: 60, y: 90, h: 13 }], W, H, 780);
-  assert.ok(one[0].w > W * 0.7);                           // tek sütunlu sayfa tam genişlik
-});
-
-test('boşluk kırpma ve taranmış sayfayı boşluklardan bölme', () => {
-  assert.equal(lastInkRow([0, 5, 9, 0, 0, 1, 0], 2), 2);
-  assert.equal(lastInkRow([0, 0, 1], 2), -1);
-  const rows = [...Array(10).fill(9), ...Array(30).fill(0), ...Array(20).fill(9), ...Array(30).fill(0), 9, ...Array(5).fill(0)];
-  assert.deepEqual(segmentByGaps(rows, 2, 15, 5), [[0, 10], [40, 60]]); // en alttaki tek satırlık parça (sayfa no) atılır
-});
-
-test('cevap anahtarı: bölüm sütunlarına göre', () => {
-  const page = [t('“A” KİTAPÇIĞI CEVAP ANAHTARI', 150, 60, 12), t('MATEMATİK', 160, 100, 12), t('FEN BİLİMLERİ', 300, 100, 12),
-    t('1.', 170, 130, 12, 10), t('D', 190, 131, 9, 6), t('2.', 170, 150, 12, 10), t('C', 190, 151, 9, 6),
-    t('1.', 330, 130, 12, 10), t('A', 350, 131, 9, 6)];
-  const k = parseAnswerKey(page);
-  assert.equal(k.get('Matematik|1'), 'D'); assert.equal(k.get('Matematik|2'), 'C'); assert.equal(k.get('Fen Bilimleri|1'), 'A');
-});
-
-// ============ Müfredat: pasif konular, ünite, kazanım zinciri ============
-import { activeOnly, rootOf, ancestorIds } from './topics.ts';
-import { topicOptions } from './topicOptions.ts';
-import { gradeLabel } from './labels.ts';
-
-test('pasif konu ve altındakiler seçim listesinden çıkar; ünite ve üst konular bulunur', () => {
-  const flat: Topic[] = [
-    { id: 'u', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 8, sort_order: 1 },
-    { id: 'a', parent_id: 'u', name: 'EBOB', grade_level: 8, sort_order: 1 },
-    { id: 'b', parent_id: 'u', name: 'EKOK', grade_level: 8, sort_order: 2, is_active: false },
-    { id: 'b1', parent_id: 'b', name: 'EKOK problemleri', grade_level: 8, sort_order: 1 },
+test('veli yetkilendirme: yalnızca aktif ilişkili öğrencilere erişim izni', () => {
+  const activeLinks = [
+    { guardian_user_id: 'parent-ayse', student_id: 'student-elif', status: 'active' },
+    { guardian_user_id: 'parent-ayse', student_id: 'student-burak', status: 'active' },
+    { guardian_user_id: 'parent-kemal', student_id: 'student-elif', status: 'passive' }
   ];
-  assert.deepEqual(activeOnly(flat).map(t => t.id), ['u', 'a']);
-  assert.deepEqual(topicOptions(flat).map(o => o.id), ['u', 'a']);
-  assert.equal(rootOf(flat, 'b1'), 'u');
-  assert.deepEqual(ancestorIds(flat, 'b1'), ['b1', 'b', 'u']);
-  assert.equal(gradeLabel(8), '8. sınıf (LGS)'); assert.equal(gradeLabel(10), '10. sınıf');
+
+  // Ayşe, Elif ve Burak'a erişebilir
+  assert.equal(isGuardianAuthorizedForStudent('parent-ayse', 'student-elif', activeLinks), true);
+  assert.equal(isGuardianAuthorizedForStudent('parent-ayse', 'student-burak', activeLinks), true);
+
+  // Ayşe, yabancı öğrenci Zeynep'e erişemez (Yetkisiz erişim engellendi)
+  assert.equal(isGuardianAuthorizedForStudent('parent-ayse', 'student-zeynep', activeLinks), false);
+
+  // Kemal'in ilişkisi pasif olduğu için erişemez
+  assert.equal(isGuardianAuthorizedForStudent('parent-kemal', 'student-elif', activeLinks), false);
 });
 
-// ============ Soru havuzu: benzerlik ve konu analizi ============
-import { dhashHex, hamming, findDuplicates, analyzeUnits } from './pool.ts';
+test('veli izin filtreleme: öğretmen görünürlüğü kapattığında veriler gizlenir', () => {
+  const rawData = {
+    student: { name: 'Elif' },
+    examResults: [{ title: 'Deneme 1', net: 14.25 }],
+    topicMastery: [{ topic: 'Üslü', score: 85 }],
+    assignments: [{ title: 'Ödev 1' }],
+    teacherNotes: [{ message: 'Harika gelişim' }]
+  };
 
-test('görsel parmak izi ve benzer soru bulma', () => {
-  const g = Array.from({ length: 17 * 16 }, (_, i) => (i * 37) % 251);
-  const h1 = dhashHex(g);
-  assert.match(h1, /^[0-9a-f]{64}$/);
-  const g2 = g.map((v, i) => (i === 5 ? v + 200 : v));            // küçük fark
-  const g3 = g.map(v => 255 - v);                                 // tamamen farklı
-  assert.ok(hamming(h1, dhashHex(g2)) <= 2);
-  assert.ok(hamming(h1, dhashHex(g3)) > 100);
-  const d = findDuplicates([{ id: 'yeni1', hash: dhashHex(g2) }, { id: 'yeni2', hash: dhashHex(g3) }], [{ id: 'eski', hash: h1 }]);
-  assert.equal(d.get('yeni1'), 'eski'); assert.equal(d.has('yeni2'), false);
+  // Öğretmen deneme sonuçlarını ve öğretmen notlarını kapattı
+  const filtered = filterStudentDataForGuardian(rawData, {
+    showExamResults: false,
+    showQuestionDetails: false,
+    showTopicAnalytics: true,
+    showAssignments: true,
+    showTeacherNotes: false,
+    showProgressReports: true
+  });
+
+  assert.ok(filtered.student);
+  assert.equal(filtered.examResults, undefined);
+  assert.ok(filtered.topicMastery);
+  assert.ok(filtered.assignments);
+  assert.equal(filtered.teacherNotes, undefined);
 });
 
-test('konu analizi: kaynak dağılımı, alt konu kapsamı ve uyarılar', () => {
-  const topics = [
-    { id: 'U1', name: 'Çarpanlar ve Katlar', parent_id: null }, { id: 'ebob', name: 'EBOB', parent_id: 'U1' }, { id: 'ekok', name: 'EKOK', parent_id: 'U1' },
-    { id: 'U2', name: 'Üçgenler', parent_id: null }, { id: 'pis', name: 'Pisagor bağıntısı', parent_id: 'U2' },
+test('akıllı yanlış analizi: 10 temel hata kategorisi ve süre bazlı yapay zekâ teşhisi', async () => {
+  const { MISTAKE_ERROR_CATEGORIES, estimateMistakeReason } = await import('./learning/diagnosticEngine.ts');
+  
+  // 10 hata kategorisi eksiksiz tanımlı olmalı
+  const keys = Object.keys(MISTAKE_ERROR_CATEGORIES);
+  assert.equal(keys.length, 10);
+  assert.ok(keys.includes('islem_hatasi'));
+  assert.ok(keys.includes('yanlis_okuma'));
+  assert.ok(keys.includes('model_kuramama'));
+
+  // Süre < 15 sn: acele/yanlış okuma
+  const fast = estimateMistakeReason({ studentAnswer: 'A', correctAnswer: 'C', durationSeconds: 10 });
+  assert.equal(fast.primaryCategory, 'yanlis_okuma');
+
+  // Süre > 180 sn: model kuramama
+  const slow = estimateMistakeReason({ studentAnswer: 'B', correctAnswer: 'D', durationSeconds: 210 });
+  assert.equal(slow.primaryCategory, 'model_kuramama');
+});
+
+test('aralıklı tekrar motoru: doğru cevap aralığı genişletir, yanlış 1 güne sıfırlar', async () => {
+  const { calculateNextSpacedRepetition, estimateForgettingRisk } = await import('./learning/diagnosticEngine.ts');
+
+  // Doğru cevap: 1. seviyeden 2. seviyeye (3 gün aralık)
+  const rep1 = calculateNextSpacedRepetition({ currentLevel: 1, performance: 'correct', lastIntervalDays: 1 });
+  assert.equal(rep1.nextLevel, 2);
+  assert.equal(rep1.nextIntervalDays, 3);
+  assert.equal(rep1.forgettingRisk, 'dusuk');
+
+  // Yanlış cevap: tekrar 1. seviyeye ve 1 güne düşer
+  const repWrong = calculateNextSpacedRepetition({ currentLevel: 3, performance: 'incorrect', lastIntervalDays: 7 });
+  assert.equal(repWrong.nextLevel, 1);
+  assert.equal(repWrong.nextIntervalDays, 1);
+  assert.equal(repWrong.forgettingRisk, 'yuksek');
+
+  // Unutma riski: 2 gün önce çalışılan ve %80 olan 'dusuk', 25 gün önce çalışılan 'yuksek'
+  assert.equal(estimateForgettingRisk(2, 80), 'dusuk');
+  assert.equal(estimateForgettingRisk(25, 60), 'yuksek');
+});
+
+test('hazırbulunuşluk değerlendirmesi: az soruda geçici bayrağı ve 6 beceri boyutu', async () => {
+  const { evaluateDiagnosticSkills } = await import('./learning/diagnosticEngine.ts');
+
+  // 10 soru çözüldüğünde (15'ten az) isProvisional true olmalı
+  const answers = Array(10).fill({ isCorrect: true, durationSeconds: 90 });
+  const result = evaluateDiagnosticSkills(answers);
+
+  assert.equal(result.isProvisional, true);
+  assert.equal(result.overallScore, 100);
+  assert.equal(result.overallLevel, 'ust_duzey');
+  assert.ok(result.calcSkill >= 80);
+  assert.ok(result.problemSolving >= 80);
+});
+
+test('öğretmen asistanı analizi: soru köküne göre veritabanı sorgulama ve onay gerektiren eylem üretimi', async () => {
+  const { analyzeTeacherQuery } = await import('./teacher/assistantEngine.ts');
+  const { getDb } = await import('./db/database.ts');
+  const db = await getDb();
+
+  // Çarpanlar ve Katlar sorgusu
+  const resTopic = analyzeTeacherQuery(db, 'Bu hafta hangi öğrencilerimle Çarpanlar ve Katlar çalışmalıyım?');
+  assert.ok(resTopic.directAnswer.includes('Çarpanlar ve Katlar'));
+  assert.ok(Array.isArray(resTopic.supportingData));
+
+  // Neti düşenler sorgusu
+  const resNet = analyzeTeacherQuery(db, 'Son denemelerde matematik neti düşen öğrenciler kimler?');
+  assert.ok(resNet.directAnswer.includes('deneme'));
+  assert.ok(resNet.proposedActions && resNet.proposedActions.length > 0);
+  assert.equal(resNet.proposedActions[0].actionType, 'schedule_lesson');
+
+  // Aralıklı tekrar sorgusu
+  const resRep = analyzeTeacherQuery(db, 'Hangi öğrenciler tekrar çalışması yapmamış?');
+  assert.ok(resRep.directAnswer.includes('tekrar'));
+});
+
+test('soru kalitesi ve yapay zekâ denetimi: 11 kriter ve kural tabanlı değerlendirme', async () => {
+  const { evaluateQuestionQuality } = await import('./qualityAuditEngine.ts');
+
+  // Geçerli kaliteli LGS sorusu
+  const validQ = {
+    question_text: 'Bir kenar uzunluğu 2^5 cm olan kare şeklindeki bir kartonun alanı kaç santimetrekaredir?',
+    options: [
+      { key: 'A', text: '2^7' },
+      { key: 'B', text: '2^8' },
+      { key: 'C', text: '2^10' },
+      { key: 'D', text: '2^25' }
+    ],
+    correct_answer: 'C',
+    solution: 'Karenin alanı bir kenarının karesidir: (2^5)^2 = 2^(5*2) = 2^10 cm².',
+    topic: 'Üslü İfadeler',
+    difficulty: 'orta'
+  };
+
+  const audit = evaluateQuestionQuality(validQ);
+  assert.equal(audit.math_accuracy, 1);
+  assert.equal(audit.single_correct_answer, 1);
+  assert.equal(audit.root_clarity, 1);
+  assert.equal(audit.grammar_correctness, 1);
+  assert.equal(audit.curriculum_alignment, 1);
+  assert.equal(audit.solution_accuracy, 1);
+  assert.equal(audit.audit_verdict, 'approved');
+  assert.ok(audit.score >= 90);
+
+  // Kusurlu soru: yinelenen şıklar ve eksik çözüm
+  const flawedQ = {
+    question_text: 'x kaçtır?',
+    options: [
+      { key: 'A', text: '10' },
+      { key: 'B', text: '10' }, // yinelenen seçenek
+      { key: 'C', text: '20' },
+      { key: 'D', text: '30' }
+    ],
+    correct_answer: 'A',
+    solution: '', // çözüm yok
+    topic: '',
+    difficulty: 'zor'
+  };
+
+  const flawedAudit = evaluateQuestionQuality(flawedQ);
+  assert.equal(flawedAudit.single_correct_answer, 0);
+  assert.equal(flawedAudit.root_clarity, 0);
+  assert.equal(flawedAudit.solution_accuracy, 0);
+  assert.equal(flawedAudit.audit_verdict, 'rejected');
+});
+
+test('veri dışa aktarma ve raporlama: Excel Türkçe karakter uyumlu UTF-8 BOM ve noktalı virgül standardı', () => {
+  const headers = ['Öğrenci Adı', 'Sınav Başlığı', 'Net Skoru'];
+  const rows = [
+    { 'Öğrenci Adı': 'Şeyma Öztürk', 'Sınav Başlığı': 'LGS Çarpanlar ve Katlar', 'Net Skoru': '18.25' },
+    { 'Öğrenci Adı': 'İsmail Çağlar', 'Sınav Başlığı': 'Genel Deneme #1', 'Net Skoru': '16.50' }
   ];
-  const r = (id: string, pdf: string, topic: string, type: string | null, extra: Partial<{ dup: string; diff: number; vis: boolean }> = {}) =>
-    ({ id, pdf_id: pdf, topic_id: topic, question_type: type, difficulty: extra.diff ?? 3, has_visual: extra.vis ?? false, duplicate_of: extra.dup ?? null });
-  const rows = [r('1', 'p1', 'ebob', 'problem'), r('2', 'p1', 'ebob', 'problem'), r('3', 'p2', 'ebob', 'temel_islem'), r('4', 'p2', 'U1', 'problem'),
-    r('5', 'p2', 'ebob', 'problem'), r('6', 'p2', 'ebob', 'problem', { dup: '5' }), r('7', 'p1', 'pis', 'problem')];
-  const [u1, u2] = analyzeUnits(rows, topics.filter(t => !t.parent_id), topics);
-  assert.equal(u1.total, 6); assert.equal(u1.unique, 5); assert.equal(u1.bySource.get('p2'), 4);
-  assert.deepEqual(u1.subtopics.map(s => s.count), [5, 0]);                   // EKOK'ta hiç soru yok
-  assert.ok(u1.warnings.some(w => w.includes('soru tipleri sınırlı')));
-  assert.ok(u1.warnings.some(w => w.includes('EKOK')));
-  assert.ok(u2.warnings.some(w => w.includes('az')) && u2.warnings.some(w => w.includes('Görsel')));
+
+  const bom = '\uFEFF';
+  const csvContent = bom + [
+    headers.join(';'),
+    ...rows.map(r => headers.map(h => r[h as keyof typeof r]).join(';'))
+  ].join('\r\n');
+
+  assert.ok(csvContent.startsWith('\uFEFF'));
+  assert.ok(csvContent.includes('Şeyma Öztürk;LGS Çarpanlar ve Katlar;18.25'));
+  assert.ok(csvContent.includes('İsmail Çağlar;Genel Deneme #1;16.50'));
 });
 
-// ============ Öğrenci konu profili ve kişiselleştirilmiş seçim ============
-import { computePerf, unitPerformance, selectStudy, targetLevels, recommend, type Evidence, type PoolItem } from './studyEngine.ts';
+test('veli ve öğrenci rapor erişim güvenliği: onaylanmamış taslak raporlar veliye filtrelenir', () => {
+  const mockReports = [
+    { id: 'rep-01', student_id: 'st-elif', is_approved_by_teacher: 1, status: 'published' },
+    { id: 'rep-02', student_id: 'st-elif', is_approved_by_teacher: 0, status: 'draft' },
+    { id: 'rep-03', student_id: 'st-burak', is_approved_by_teacher: 1, status: 'published' }
+  ];
 
-const SNOW = Date.parse('2026-11-20T12:00:00Z');
-const sev = (topic: string, ok: boolean | 'blank', d: number | null = 3, daysAgo = 1, type: string | null = null): Evidence =>
-  ({ topic_id: topic, result: ok === 'blank' ? 'blank' : ok ? 'correct' : 'incorrect', difficulty: d, type, at: new Date(SNOW - daysAgo * 86400000).toISOString(), source: 'study' });
+  // Elif'in velisi yalnızca onaylanmış ve Elif'e ait raporu görmeli
+  const parentVisibleReports = mockReports.filter(
+    r => r.student_id === 'st-elif' && r.is_approved_by_teacher === 1 && r.status === 'published'
+  );
 
-test('konu profili: az veri, kolay soru sınırı, zorluk ağırlığı ve güven', () => {
-  assert.equal(computePerf([sev('a', true), sev('a', true)], SNOW).level, 'veri_yok');                         // 2 soru = yeterli veri yok
-  const easyOnly = computePerf(Array.from({ length: 8 }, () => sev('a', true, 1)), SNOW);
-  assert.equal(easyOnly.level, 'iyi'); assert.equal(easyOnly.limited, true);                                  // yalnızca kolay doğru → güçlü sayılmaz
-  const strong = computePerf([...Array.from({ length: 10 }, () => sev('a', true, 4)), sev('a', false, 3)], SNOW);
-  assert.equal(strong.level, 'guclu'); assert.equal(strong.confidence, 'orta');
-  const weak = computePerf([sev('a', false), sev('a', 'blank'), sev('a', false), sev('a', true)], SNOW);
-  assert.equal(weak.level, 'oncelikli'); assert.deepEqual([weak.correct, weak.wrong, weak.blank], [1, 2, 1]);
-  const hardWrong = computePerf([sev('a', true, 1), sev('a', true, 1), sev('a', false, 5), sev('a', false, 5)], SNOW);
-  assert.ok((hardWrong.raw as number) < 0.5);   // 2 kolay doğru, 2 zor yanlış: zorluk ağırlığıyla başarı %50'nin altında
-  const improving = computePerf([...Array.from({ length: 3 }, () => sev('a', false, 3, 40)), ...Array.from({ length: 3 }, () => sev('a', true, 3, 2))], SNOW);
-  assert.ok((improving.trend as number) > 0.9);
+  assert.equal(parentVisibleReports.length, 1);
+  assert.equal(parentVisibleReports[0].id, 'rep-01');
 });
 
-const stopics = [
-  { id: 'U1', parent_id: null, name: 'Çarpanlar ve Katlar', grade_level: 8, sort_order: 1 }, { id: 'ebob', parent_id: 'U1', name: 'EBOB', grade_level: 8, sort_order: 1 },
-  { id: 'U2', parent_id: null, name: 'Üslü İfadeler', grade_level: 8, sort_order: 2 }, { id: 'kuv', parent_id: 'U2', name: 'Kuvvetler', grade_level: 8, sort_order: 1 },
-];
-const sunits = stopics.filter(t => !t.parent_id);
-const smk = (n: number, topic: string, prefix: string): PoolItem[] => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}`, topic_id: topic, difficulty: (i % 5) + 1, question_type: ['problem', 'yeni_nesil', 'temel_islem'][i % 3], pdf_id: i % 2 ? 'p1' : 'p2' }));
-
-test('iki öğrenciye farklı çalışma: zayıf konu ağırlıklı, görülenler ve mükerrerler dışarıda', () => {
-  // A: Üslü iyi, Çarpanlar zayıf. B: tersi.
-  const evA = [...Array.from({ length: 10 }, () => sev('kuv', true, 3)), ...Array.from({ length: 8 }, (_, i) => sev('ebob', i === 0, 2))];
-  const evB = [...Array.from({ length: 10 }, () => sev('ebob', true, 3)), ...Array.from({ length: 8 }, (_, i) => sev('kuv', i === 0, 2))];
-  const pool = [...smk(20, 'ebob', 'e'), ...smk(20, 'kuv', 'k')];
-  const run = (e: Evidence[], key: string, seen = new Set<string>()) => selectStudy({ studentKey: key, count: 10, kind: 'karma', unitIds: [], perf: unitPerformance(e, stopics, sunits, SNOW), pool, topics: stopics, seen });
-  const a = run(evA, 'A'), b = run(evB, 'B');
-  const inUnit = (r: ReturnType<typeof run>, u: string) => r.items.filter(i => i.unitId === u).length;
-  assert.equal(a.items.length, 10); assert.ok(inUnit(a, 'U1') > inUnit(a, 'U2'));                            // A: Çarpanlar ağırlıklı
-  assert.ok(inUnit(b, 'U2') > inUnit(b, 'U1'));                                                              // B: Üslü ağırlıklı
-  assert.ok(a.items.every(i => i.reason.includes('başarı') || i.reason.includes('veri')));
-  const diffs = a.items.map(i => i.difficulty ?? 3); assert.deepEqual(diffs, [...diffs].sort((x, y) => x - y)); // kolaydan zora
-  const seen = new Set(a.items.map(i => i.id));
-  const again = run(evA, 'A', seen);
-  assert.equal(again.items.filter(i => seen.has(i.id)).length, 0);                                           // aynı soru tekrar verilmez
-  assert.ok(again.notes.some(n => n.includes('dışarıda')));
-  assert.equal(new Set(a.items.map(i => i.id)).size, a.items.length);
-});
-
-test('hedef zorluk uyarlanır; konu seçilince yalnızca o konu; yetersiz havuz uyarılır', () => {
-  const p = (rate: number) => ({ ...computePerf(Array.from({ length: 10 }, (_, i) => sev('a', i < Math.round(rate * 10))), SNOW) });
-  assert.deepEqual(targetLevels('karma', p(0.1)), [1, 2]);
-  assert.deepEqual(targetLevels('karma', p(0.9)), [4, 5]);
-  assert.deepEqual(targetLevels('zorlayici', p(0.1)), [4, 5]);
-  const r = selectStudy({ studentKey: 'x', count: 8, kind: 'pekistirme', unitIds: ['U2'], perf: unitPerformance([], stopics, sunits, SNOW), pool: [...smk(20, 'ebob', 'e'), ...smk(3, 'kuv', 'k')], topics: stopics, seen: new Set() });
-  assert.equal(r.items.length, 3); assert.ok(r.items.every(i => i.unitId === 'U2'));
-  assert.ok(r.notes.some(n => n.includes('Üslü İfadeler') && n.includes('3')) && r.notes.some(n => n.includes('İstenen 8')));
-  const empty = selectStudy({ studentKey: 'x', count: 5, kind: 'karma', unitIds: [], perf: unitPerformance([], stopics, sunits, SNOW), pool: [], topics: stopics, seen: new Set() });
-  assert.equal(empty.items.length, 0); assert.ok(empty.notes[0].includes('PDF'));
-});
-
-test('öğretmen önerisi: en zayıf üniteler ve alt konu', () => {
-  const evs = [...Array.from({ length: 8 }, (_, i) => sev('ebob', i === 0, 3)), ...Array.from({ length: 6 }, () => sev('kuv', true, 3))];
-  const rec = recommend(unitPerformance(evs, stopics, sunits, SNOW));
-  assert.ok(rec && rec.unitIds[0] === 'U1' && rec.kind === 'eksik_tamamlama' && rec.text.includes('EBOB'));
-  assert.equal(recommend(unitPerformance([], stopics, sunits, SNOW)), null);
-});

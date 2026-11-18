@@ -1,7 +1,6 @@
 'use client';
 import { useActionState, useTransition, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createStudent, updateStudent, resetStudentPassword, setStudentActive, deleteStudent, type FormState } from './actions';
+import { createStudent, updateStudent, resetStudentPassword, setStudentActive, type FormState } from './actions';
 
 const Msg = ({ s }: { s: FormState }) => s.error ? <p role="alert" className="text-sm text-red-600 dark:text-red-400">{s.error}</p> : s.ok ? <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">✓ {s.ok}</p> : null;
 const GradeSelect = ({ value }: { value?: number | null }) => (
@@ -35,7 +34,7 @@ export function CreateStudentForm({ classes }: { classes: ClassOpt[] }) {
   );
 }
 
-export function EditStudentForm({ s, classes }: { s: { id: string; full_name: string; grade_level: number | null; school_name: string | null; notes: string | null; class_id: string | null; daily_goal: number }; classes: ClassOpt[] }) {
+export function EditStudentForm({ s, classes }: { s: { id: string; full_name: string; grade_level: number | null; school_name: string | null; notes: string | null; class_id: string | null }; classes: ClassOpt[] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateStudent, {});
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
@@ -44,7 +43,6 @@ export function EditStudentForm({ s, classes }: { s: { id: string; full_name: st
       <div><label className="label" htmlFor="e-sinif">Sınıf</label><GradeSelect value={s.grade_level} /></div>
       <div><label className="label" htmlFor="e-okul">Okul</label><input id="e-okul" name="okul" defaultValue={s.school_name || ''} className="input" /></div>
       <ClassSelect classes={classes} value={s.class_id} id="e-grup" />
-      <div><label className="label" htmlFor="e-hedef">Günlük soru hedefi <span className="font-normal">(0 = hedef gösterilmez)</span></label><input id="e-hedef" name="hedef" type="number" min={0} max={100} defaultValue={s.daily_goal} className="input" /></div>
       <div className="sm:col-span-2"><label className="label" htmlFor="e-not">Öğretmen notları (öğrenci görmez)</label><textarea id="e-not" name="notlar" defaultValue={s.notes || ''} rows={3} className="input" /></div>
       <div className="flex items-center gap-3 sm:col-span-2"><button className="btn-primary" disabled={pending}>Kaydet</button><Msg s={state} /></div>
     </form>
@@ -62,24 +60,6 @@ export function PasswordForm({ id }: { id: string }) {
         <button type="button" className="btn-secondary shrink-0" onClick={() => setPw(makePassword())}>Üret</button></div>
       <div className="flex items-center gap-3"><button className="btn-secondary" disabled={pending}>Şifreyi değiştir</button><Msg s={state} /></div>
     </form>
-  );
-}
-
-export function DeleteStudent({ id, name }: { id: string; name: string }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<FormState>({});
-  const go = () => {
-    const typed = window.prompt(`“${name}” KALICI olarak silinecek: hesabı, soruları, deneme cevapları ve çalışma planları. Bu geri alınamaz.\n\nEmin olmak için öğrencinin adını aynen yazın (geçici olarak çıkarmak için “Pasifleştir”i kullanın):`);
-    if (typed === null) return;
-    if (typed.trim() !== name.trim()) { setMsg({ error: 'Ad eşleşmedi; silinmedi.' }); return; }
-    start(async () => { const r = await deleteStudent(id); if (r.error) setMsg(r); else router.push('/ogretmen/ogrenciler'); });
-  };
-  return (
-    <div className="flex items-center gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-      <button type="button" onClick={go} disabled={pending} className="btn-danger">{pending ? 'Siliniyor…' : 'Öğrenciyi kalıcı sil'}</button>
-      <Msg s={msg} />
-    </div>
   );
 }
 

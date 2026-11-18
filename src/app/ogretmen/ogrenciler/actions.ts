@@ -70,7 +70,6 @@ export async function updateStudent(_prev: FormState, form: FormData): Promise<F
     full_name: fullName, grade_level: gradeOf(form.get('sinif')),
     school_name: String(form.get('okul') || '').trim() || null, notes: String(form.get('notlar') || '').trim() || null,
     class_id: await ownClassId(form.get('sinif_grubu')),
-    daily_goal: Math.min(100, Math.max(0, parseInt(String(form.get('hedef') ?? '10'), 10) || 0)),
   }).eq('id', id).select('profile_id').maybeSingle();
   if (error || !st) return { error: 'Kaydedilemedi: ' + (error?.message || 'öğrenci bulunamadı') };
   if (st.profile_id) await sb.from('profiles').update({ full_name: fullName }).eq('id', st.profile_id);
@@ -86,24 +85,6 @@ export async function setStudentActive(id: string, active: boolean): Promise<For
   if (error) return { error: error.message };
   revalidatePath('/ogretmen', 'layout');
   return { ok: active ? 'Öğrenci yeniden aktif.' : 'Öğrenci pasifleştirildi.' };
-}
-
-// Kalıcı silme: öğrenci kaydı, soruları, cevapları, çalışma planları, soru görselleri ve giriş hesabı. Geri alınamaz.
-export async function deleteStudent(id: string): Promise<FormState> {
-  try { await assertTeacher(); } catch (e) { return { error: (e as Error).message }; }
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: 'Geçersiz öğrenci.' };
-  const sb = await supabaseServer();
-  const { data: st } = await sb.from('students').select('id, profile_id, full_name').eq('id', id).maybeSingle(); // RLS: yalnızca kendi öğrencisi
-  if (!st) return { error: 'Öğrenci bulunamadı.' };
-  let admin;
-  try { admin = supabaseAdmin(); } catch (e) { return { error: (e as Error).message }; }
-  const { data: files } = await admin.storage.from('question-images').list(st.id, { limit: 1000 });
-  if (files?.length) await admin.storage.from('question-images').remove(files.map(f => `${st.id}/${f.name}`));
-  const { error } = await admin.from('students').delete().eq('id', st.id); // bağlı kayıtlar zincirleme silinir
-  if (error) return { error: 'Silinemedi: ' + error.message };
-  if (st.profile_id) await admin.auth.admin.deleteUser(st.profile_id);
-  revalidatePath('/ogretmen', 'layout');
-  return { ok: `${st.full_name} silindi.` };
 }
 
 export async function resetStudentPassword(_prev: FormState, form: FormData): Promise<FormState> {

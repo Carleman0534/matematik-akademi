@@ -4,26 +4,14 @@ import { requireStudent } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { bankSummaries } from '@/lib/data';
 import { Stat } from '@/components/Stat';
-import { pct, fmtDateTime } from '@/lib/labels';
-import { EXAM_SELECT, type ExamRow } from '@/lib/examData';
-import { examPhase } from '@/lib/exams';
+import { pct } from '@/lib/labels';
 
 export const metadata: Metadata = { title: 'Ana Sayfa' };
-export const dynamic = 'force-dynamic';
-
-const nowMs = () => Date.now();
 
 export default async function StudentHome() {
   const s = await requireStudent();
   const sb = await supabaseServer();
-  const [sum, { data: exData }, { data: ses }] = await Promise.all([
-    bankSummaries(sb, s.studentId).then(x => x.all),
-    sb.from('exams').select(EXAM_SELECT), // RLS: yalnızca bana atanmış, yayımlanmış denemeler
-    sb.from('exam_sessions').select('exam_id, submitted_at, deadline').eq('student_id', s.studentId),
-  ]);
-  const now = nowMs();
-  const doneIds = new Set(((ses || []) as { exam_id: string; submitted_at: string | null; deadline: string }[]).filter(x => x.submitted_at || Date.parse(x.deadline) < now).map(x => x.exam_id));
-  const open = ((exData || []) as ExamRow[]).filter(e => !doneIds.has(e.id) && ['canli', 'acik', 'bekliyor'].includes(examPhase(e, now)));
+  const sum = (await bankSummaries(sb, s.studentId)).all;
   const first = (s.fullName || '').split(' ')[0];
   return (
     <div className="space-y-6">
@@ -31,15 +19,6 @@ export default async function StudentHome() {
         <h1 className="text-2xl font-black">Merhaba{first ? ', ' + first : ''}!</h1>
         <p className="text-sm text-slate-500">Yanlışların kaybolmasın: ekle, tekrar et, öğren.</p>
       </div>
-
-      {open.map(e => { const ph = examPhase(e, now); return (
-        <Link key={e.id} href={`/ogrenci/denemeler/${e.id}`} className={'card flex items-center gap-3 ' + (ph === 'canli' ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : 'border-indigo-300')}>
-          <span className="text-2xl">{ph === 'canli' ? '🔴' : ph === 'bekliyor' ? '⏳' : '📝'}</span>
-          <div className="min-w-0 flex-1"><p className="font-bold">{e.title}</p>
-            <p className="text-xs text-slate-500">{ph === 'canli' ? 'Canlı deneme başladı, hemen katıl!' : ph === 'bekliyor' ? 'Öğretmenin birazdan başlatacak.' : `Çözmeni bekliyor${e.closes_at ? ' · son: ' + fmtDateTime(e.closes_at) : ''}`}</p></div>
-          <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Aç →</span>
-        </Link>
-      ); })}
 
       <section className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 p-6 text-white shadow-lg">
         <p className="text-sm text-indigo-100">Bugünkü tekrar programın</p>

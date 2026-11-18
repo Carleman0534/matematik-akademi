@@ -1,5 +1,4 @@
 'use client';
-import { GRADES, gradeLabel } from '@/lib/labels';
 import { useMemo, useState } from 'react';
 
 export interface TopicOption { id: string; label: string; depth: number; grade: number | null; rootGrade: number | null }
@@ -12,7 +11,7 @@ export function TopicSelect({ options, value, onChange, name, id, defaultGrade }
   return (
     <div className="flex gap-2">
       <select aria-label="Sınıf" value={grade} onChange={e => setGrade(e.target.value)} className="input w-28 shrink-0">
-        <option value="">Tümü</option>{GRADES.map(g => <option key={g} value={g}>{gradeLabel(g)}</option>)}
+        <option value="">Tümü</option>{[9, 10, 11, 12].map(g => <option key={g} value={g}>{g}. sınıf</option>)}
       </select>
       <select id={id} name={name} value={value} onChange={e => onChange?.(e.target.value)} className="input min-w-0">
         <option value="">Konu seçilmedi</option>

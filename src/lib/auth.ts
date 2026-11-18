@@ -1,20 +1,43 @@
 import 'server-only';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase/server';
-import { isConfigured } from '@/lib/env';
+import { isConfigured, isLocalMode } from '@/lib/env';
 
 export interface SessionInfo {
   userId: string;
   fullName: string;
-  role: 'teacher' | 'student';
+  role: 'teacher' | 'student' | 'parent';
   isAdmin: boolean;           // yönetici öğretmen: bütün öğretmenleri ve öğrencileri görür, davet kodu üretir
-  studentId: string | null;   // öğrenci hesabının students.id'si (öğretmende boş)
+  studentId: string | null;   // öğrenci hesabının students.id'si (öğretmen/velide boş)
 }
 
 // Oturumdaki kullanıcı (getUser, çerezdeki jetonu Supabase'e doğrulatır). Aynı istekte bir kez çalışır.
 export const getSession = cache(async (): Promise<SessionInfo | null> => {
   if (!isConfigured()) return null; // kurulum yapılmamış: giriş ekranı kurulum adımlarını gösterir
+
+  // Yerel Mod (Local Mode)
+  if (isLocalMode()) {
+    try {
+      const store = await cookies();
+      const raw = store.get('local_session')?.value;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.userId) {
+        return {
+          userId: parsed.userId,
+          fullName: parsed.fullName || '',
+          role: parsed.role || 'teacher',
+          isAdmin: parsed.isAdmin ?? (parsed.role === 'teacher'),
+          studentId: parsed.studentId ?? null,
+        };
+      }
+    } catch {
+      return null;
+    }
+  }
+
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
@@ -31,7 +54,8 @@ export const getSession = cache(async (): Promise<SessionInfo | null> => {
 export async function requireTeacher(): Promise<SessionInfo> {
   const s = await getSession();
   if (!s) redirect('/giris');
-  if (s.role !== 'teacher') redirect('/ogrenci');
+  if (s.role === 'student') redirect('/ogrenci');
+  if (s.role === 'parent') redirect('/veli');
   return s;
 }
 
@@ -45,6 +69,15 @@ export async function requireStudent(): Promise<SessionInfo & { studentId: strin
   const s = await getSession();
   if (!s) redirect('/giris');
   if (s.role === 'teacher') redirect('/ogretmen');
+  if (s.role === 'parent') redirect('/veli');
   if (!s.studentId) redirect('/giris?hata=pasif');
   return s as SessionInfo & { studentId: string };
+}
+
+export async function requireParent(): Promise<SessionInfo> {
+  const s = await getSession();
+  if (!s) redirect('/giris');
+  if (s.role === 'teacher') redirect('/ogretmen');
+  if (s.role === 'student') redirect('/ogrenci');
+  return s;
 }

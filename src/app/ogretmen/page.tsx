@@ -4,7 +4,6 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { bankSummaries, signedUrlMap, getTopics, idleStudents } from '@/lib/data';
 import { topicPath } from '@/lib/topics';
 import { Stat } from '@/components/Stat';
-import { requireTeacher } from '@/lib/auth';
 import { INITIAL_LABEL, fmtDate, fmtDateTime, pct } from '@/lib/labels';
 
 export const metadata: Metadata = { title: 'Genel Bakış' };
@@ -12,10 +11,9 @@ export const metadata: Metadata = { title: 'Genel Bakış' };
 type Recent = { id: string; student_id: string; topic_id: string | null; initial_status: 'wrong' | 'blank'; created_at: string; question_images: { path: string; thumb_path: string | null; sort_order: number }[] };
 
 export default async function TeacherDashboard() {
-  const me = await requireTeacher();
   const sb = await supabaseServer();
   const [{ data: studentsData }, sums, topics, { data: recentData }] = await Promise.all([
-    sb.from('students').select('id, full_name, grade_level, is_active').eq('teacher_id', me.userId).order('full_name'),
+    sb.from('students').select('id, full_name, grade_level, is_active').order('full_name'),
     bankSummaries(sb),
     getTopics(sb),
     sb.from('questions').select('id, student_id, topic_id, initial_status, created_at, question_images(path, thumb_path, sort_order)').is('archived_at', null).order('created_at', { ascending: false }).limit(6),
@@ -30,13 +28,7 @@ export default async function TeacherDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-black">Genel Bakış</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/ogretmen/pdf-soru-ayikla" className="btn-secondary px-3 py-2 text-xs">✂️ PDF&rsquo;den soru ayıkla</Link>
-          <Link href="/ogretmen/denemeler/yeni" className="btn-primary px-3 py-2 text-xs">📝 Yeni deneme</Link>
-        </div>
-      </div>
+      <h1 className="text-2xl font-black">Genel Bakış</h1>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Aktif öğrenci" value={active.length} sub={`toplam ${students.length}`} />
         <Stat label="Toplam soru" value={a.total} sub={`${a.wrong} yanlış · ${a.blank} boş`} />

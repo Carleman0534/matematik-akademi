@@ -1,78 +1,263 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { Metadata } from 'next';
-import { requireTeacher } from '@/lib/auth';
-import { supabaseServer } from '@/lib/supabase/server';
-import { getTopics } from '@/lib/data';
-import { topicOptions } from '@/lib/topicOptions';
-import { topicPath } from '@/lib/topics';
-import { gradeLabel } from '@/lib/labels';
-import { listPool, POOL_LIMIT, type PoolFilters } from '@/lib/poolData';
-import { DIFFICULTY_LEVELS, QUESTION_TYPES } from '@/lib/pool';
-import { PoolGrid } from '@/components/pool/PoolGrid';
+import { 
+  Database, Filter, Search, Sparkles, CheckSquare, Square, 
+  ArrowRight, ShieldCheck, Eye, Layers, Image as ImageIcon 
+} from 'lucide-react';
 
-export const metadata: Metadata = { title: 'Soru Havuzu' };
-export const dynamic = 'force-dynamic';
+export default function SoruHavuzuPage() {
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  
+  // Filtreler
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [topicFilter, setTopicFilter] = useState('');
+  const [difficultyFilter, setDifficultyFilter] = useState('');
+  const [hasVisualFilter, setHasVisualFilter] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-export default async function PoolPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const me = await requireTeacher();
-  const sp = await searchParams;
-  const f: PoolFilters = { pdf: sp.pdf, konu: sp.konu, zorluk: sp.zorluk, tur: sp.tur, gorsel: sp.gorsel, durum: sp.durum, benzer: sp.benzer, yayin: sp.yayin };
-  const sb = await supabaseServer();
-  const [topics, { data: pdfs }, { count: drafts }] = await Promise.all([
-    getTopics(sb),
-    sb.from('pdf_documents').select('id, title, publisher').eq('teacher_id', me.userId).neq('analysis_status', 'none').order('created_at', { ascending: false }),
-    sb.from('pool_questions').select('id', { count: 'exact', head: true }).eq('teacher_id', me.userId).eq('status', 'draft'),
-  ]);
-  const docs = (pdfs || []) as { id: string; title: string; publisher: string | null }[];
-  const publishers = [...new Set(docs.map(d => d.publisher).filter(Boolean))] as string[];
-  const byPublisher = f.yayin ? docs.filter(d => d.publisher === f.yayin).map(d => d.id) : undefined;
-  const { rows, truncated } = await listPool(sb, me.userId, f, topics, byPublisher);
-  const opts = topicOptions(topics);
-  const title = f.konu ? topicPath(topics, f.konu).split(' › ').pop() + ' çalışması' : 'Havuzdan deneme';
+  const loadQuestions = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (sourceFilter !== 'all') params.set('source', sourceFilter);
+      if (topicFilter) params.set('topicId', topicFilter);
+      if (difficultyFilter) params.set('difficulty', difficultyFilter);
+      if (hasVisualFilter) params.set('hasVisual', 'true');
+      if (searchQuery) params.set('search', searchQuery);
+
+      const res = await fetch(`/api/lgs/question-pool?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setQuestions(data.questions);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQuestions();
+  }, [sourceFilter, topicFilter, difficultyFilter, hasVisualFilter]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const selectAll = () => {
+    if (selectedIds.length === questions.length) setSelectedIds([]);
+    else setSelectedIds(questions.map(q => q.id));
+  };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-black">Soru Havuzu</h1>
-          <p className="text-sm text-slate-500">PDF&rsquo;lerden çıkarılıp onayladığınız sorular. Konu ve alt konuya, kaynağa, zorluğa ve türe göre süzün; seçtiklerinizden deneme oluşturun.</p>
+    <div className="space-y-6">
+      {/* Üst Başlık */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-600 p-6 text-white shadow-lg">
+        <div>
+          <div className="flex items-center gap-2 text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">
+            <Database className="h-4 w-4" /> Ortak Matematik Soru Deposu
+          </div>
+          <h1 className="text-2xl font-black">Merkezi LGS Soru Havuzu</h1>
+          <p className="text-sm text-indigo-100 mt-1 max-w-2xl">
+            Taranan PDF denemelerinden ayıklanan ve yapay zekâ tarafından üretilen tüm onaylı sorular tek bir havuzda toplanır. Konuya, zorluğa ve soru tipine göre filtreleyip çalışma seti oluşturabilirsiniz.
+          </p>
         </div>
-        <Link href="/ogretmen/soru-havuzu/analiz" className="btn-secondary">📊 Deneme konu analizi</Link>
-        <Link href="/ogretmen/pdf-arsivi" className="btn-secondary">PDF Analiz Merkezi</Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/ogretmen/ai-soru-uret"
+            className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-bold text-white backdrop-blur transition hover:bg-white/30"
+          >
+            <Sparkles className="h-4 w-4" /> AI ile Soru Üret
+          </Link>
+          <Link
+            href={`/ogretmen/calisma-olustur?selected=${selectedIds.join(',')}`}
+            className={`inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-indigo-700 shadow-md transition hover:bg-indigo-50 ${
+              selectedIds.length === 0 ? 'pointer-events-none opacity-60' : ''
+            }`}
+          >
+            Çalışma Seti Oluştur ({selectedIds.length}) <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
-      {!!drafts && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">{drafts} soru inceleme bekliyor. <Link href="/ogretmen/soru-havuzu?durum=draft" className="font-semibold underline">Göster</Link> ya da PDF Analiz Merkezi&rsquo;nde &ldquo;İncele ve onayla&rdquo;.</p>}
 
-      <form className="card grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="search">
-        <div className="sm:col-span-2"><label className="label" htmlFor="konu">Konu / alt konu</label>
-          <select id="konu" name="konu" defaultValue={f.konu || ''} className="input"><option value="">Bütün konular</option>
-            {opts.map(o => <option key={o.id} value={o.id}>{o.depth === 0 ? `${gradeLabel(o.grade)} · ` : ' '.repeat(o.depth * 3)}{o.label}</option>)}</select></div>
-        <div><label className="label" htmlFor="pdf">Kaynak PDF</label>
-          <select id="pdf" name="pdf" defaultValue={f.pdf || ''} className="input"><option value="">Hepsi</option>{docs.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}</select></div>
-        <div><label className="label" htmlFor="yayin">Yayınevi</label>
-          <select id="yayin" name="yayin" defaultValue={f.yayin || ''} className="input"><option value="">Hepsi</option>{publishers.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-        <div><label className="label" htmlFor="zorluk">Zorluk</label>
-          <select id="zorluk" name="zorluk" defaultValue={f.zorluk || ''} className="input"><option value="">Hepsi</option>{Object.entries(DIFFICULTY_LEVELS).map(([k, v]) => <option key={k} value={k}>{k} · {v}</option>)}</select></div>
-        <div><label className="label" htmlFor="tur">Soru türü</label>
-          <select id="tur" name="tur" defaultValue={f.tur || ''} className="input"><option value="">Hepsi</option>{Object.entries(QUESTION_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-        <div><label className="label" htmlFor="durum">Durum</label>
-          <select id="durum" name="durum" defaultValue={f.durum || 'approved'} className="input"><option value="approved">Onaylanan</option><option value="draft">İnceleme bekleyen</option><option value="all">Hepsi</option></select></div>
-        <div className="flex flex-col justify-end gap-1 text-sm">
-          <label className="flex items-center gap-2"><input type="checkbox" name="gorsel" value="1" defaultChecked={f.gorsel === '1'} />Yalnızca şekil/grafik içerenler</label>
-          <label className="flex items-center gap-2"><input type="checkbox" name="benzer" value="goster" defaultChecked={f.benzer === 'goster'} />Benzer (mükerrer) soruları da göster</label>
+      {/* Filtreleme Çubuğu */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+          <Search className="h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && loadQuestions()}
+            placeholder="Soru metni veya konu ara..."
+            className="w-full bg-transparent text-sm focus:outline-none dark:text-white"
+          />
         </div>
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4"><button className="btn-primary">Süz</button><Link href="/ogretmen/soru-havuzu" className="btn-secondary">Temizle</Link>
-          <span className="ml-auto self-center text-sm text-slate-500">{rows.length}{truncated ? '+' : ''} soru{truncated ? ` (ilk ${POOL_LIMIT})` : ''}</span></div>
-      </form>
 
-      {rows.length === 0 ? <p className="text-sm text-slate-500">Bu süzgece uyan soru yok.{docs.length === 0 ? ' Önce PDF Analiz Merkezi’nde bir PDF analiz edin.' : ''}</p> : (
-        <PoolGrid defaultTitle={title} items={rows.map(r => ({
-          id: r.id, url: r.url, approved: r.status === 'approved', dup: !!r.duplicate_of,
-          title: `${r.section ? r.section + ' ' : ''}${r.question_no}. soru`,
-          meta: [r.source_label, topicPath(topics, r.topic_id).split(' › ').slice(-2).join(' › ')].filter(Boolean).join(' · '),
-          badges: [r.difficulty ? DIFFICULTY_LEVELS[r.difficulty] : '', r.question_type ? QUESTION_TYPES[r.question_type] : '', r.has_visual ? 'şekilli' : '', r.correct ? 'cevap ' + r.correct : 'cevap yok',
-            ...r.pool_question_topics.map(t => '+ ' + (topicPath(topics, t.topic_id).split(' › ').pop() || ''))].filter(Boolean),
-        }))} />
-      )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Kaynak Filtresi */}
+          <select
+            value={sourceFilter}
+            onChange={e => setSourceFilter(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          >
+            <option value="all">Tüm Kaynaklar (PDF + AI)</option>
+            <option value="pdf">Yalnızca PDF Kaynakları</option>
+            <option value="ai">Yalnızca Yapay Zekâ Soruları</option>
+          </select>
+
+          {/* Konu Filtresi */}
+          <select
+            value={topicFilter}
+            onChange={e => setTopicFilter(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          >
+            <option value="">Tüm LGS Konuları</option>
+            <option value="top_carpanlar_katlar">Çarpanlar ve Katlar</option>
+            <option value="sub_ebob">EBOB</option>
+            <option value="sub_ekok">EKOK</option>
+            <option value="sub_aralarinda_asal">Aralarında Asal Sayılar</option>
+            <option value="top_uslu_ifadeler">Üslü İfadeler</option>
+            <option value="top_karekoklu_ifadeler">Kareköklü İfadeler</option>
+            <option value="top_ucgenler">Üçgenler</option>
+            <option value="top_dogrusal_denklemler">Doğrusal Denklemler</option>
+          </select>
+
+          {/* Zorluk */}
+          <select
+            value={difficultyFilter}
+            onChange={e => setDifficultyFilter(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          >
+            <option value="">Tüm Zorluklar</option>
+            <option value="1">1 - Başlangıç</option>
+            <option value="2">2 - Kolay</option>
+            <option value="3">3 - Orta</option>
+            <option value="4">4 - Zor</option>
+            <option value="5">5 - İleri Düzey</option>
+          </select>
+
+          {/* Görsel Filtresi */}
+          <button
+            onClick={() => setHasVisualFilter(prev => !prev)}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+              hasVisualFilter 
+                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' 
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300'
+            }`}
+          >
+            <ImageIcon className="h-3.5 w-3.5" /> Şekil / Grafik İçerenler
+          </button>
+        </div>
+      </div>
+
+      {/* Soru Kartları */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2">
+            <button onClick={selectAll} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700">
+              {selectedIds.length === questions.length && questions.length > 0 ? (
+                <CheckSquare className="h-4 w-4" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              <span>Tümünü Seç ({questions.length} Soru)</span>
+            </button>
+          </div>
+          {selectedIds.length > 0 && (
+            <span className="text-xs font-bold text-emerald-600">
+              {selectedIds.length} soru seçildi
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="p-12 text-center text-sm text-slate-500">Soru havuzu taranıyor...</div>
+        ) : questions.length === 0 ? (
+          <div className="p-12 text-center text-sm text-slate-500">Kriterlere uygun soru bulunamadı.</div>
+        ) : (
+          <div className="grid gap-4">
+            {questions.map((q) => {
+              const isSelected = selectedIds.includes(q.id);
+              return (
+                <div
+                  key={q.id}
+                  onClick={() => toggleSelect(q.id)}
+                  className={`cursor-pointer rounded-2xl border p-5 shadow-sm transition hover:shadow-md ${
+                    isSelected 
+                      ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20 dark:bg-indigo-950/20' 
+                      : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <button className="mt-1 text-slate-400">
+                      {isSelected ? <CheckSquare className="h-5 w-5 text-indigo-600" /> : <Square className="h-5 w-5" />}
+                    </button>
+
+                    <div className="flex-1 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${
+                          q.source_type === 'ai_generated'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
+                        }`}>
+                          {q.source_title}
+                        </span>
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {q.topic_name || q.primary_topic_id}
+                        </span>
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                          Zorluk: {q.difficulty}/5
+                        </span>
+                        {q.has_visual && (
+                          <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1">
+                            <ImageIcon className="h-3 w-3" /> Şekilli Soru
+                          </span>
+                        )}
+                      </div>
+
+                      {/* SVG Görseli Varsa Render Et */}
+                      {q.svg_content && (
+                        <div 
+                          className="my-3 overflow-hidden" 
+                          dangerouslySetInnerHTML={{ __html: q.svg_content }} 
+                        />
+                      )}
+
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+                        {q.question_text}
+                      </p>
+
+                      {/* Şıklar */}
+                      {q.options && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                          {Object.entries(q.options).map(([opt, val]) => (
+                            <div 
+                              key={opt}
+                              className={`rounded-xl border p-2 text-xs font-semibold ${
+                                opt === q.correct_answer 
+                                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold' 
+                                  : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-800/40'
+                              }`}
+                            >
+                              <span className="font-bold mr-1.5">{opt})</span> {String(val)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

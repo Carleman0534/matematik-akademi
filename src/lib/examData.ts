@@ -36,18 +36,12 @@ export async function getKey(sb: SupabaseClient, examId: string): Promise<Map<nu
   return new Map(((data || []) as KeyRow[]).map(k => [k.question_no, { ...k, correct: (k.correct as Letter | null) || null }]));
 }
 
-// Denemeye atanmış (aktif) öğrenciler: seçili öğrenciler varsa yalnızca onlar; yoksa sınıf ya da öğretmenin bütün öğrencileri
-export async function getAssignees(sb: SupabaseClient, examId: string): Promise<string[]> {
-  const { data } = await sb.from('exam_assignees').select('student_id').eq('exam_id', examId);
-  return ((data || []) as { student_id: string }[]).map(r => r.student_id);
-}
-
-export async function eligibleStudents(sb: SupabaseClient, exam: Pick<ExamRow, 'id' | 'teacher_id' | 'class_id'>): Promise<{ id: string; full_name: string }[]> {
+// Denemeye atanmış (aktif) öğrenciler: sınıfa atanmışsa o sınıf, değilse öğretmenin bütün öğrencileri
+export async function eligibleStudents(sb: SupabaseClient, exam: Pick<ExamRow, 'teacher_id' | 'class_id'>): Promise<{ id: string; full_name: string }[]> {
   let q = sb.from('students').select('id, full_name').eq('teacher_id', exam.teacher_id).eq('is_active', true).order('full_name');
   if (exam.class_id) q = q.eq('class_id', exam.class_id);
-  const [{ data }, picked] = await Promise.all([q, getAssignees(sb, exam.id)]);
-  const list = (data || []) as { id: string; full_name: string }[];
-  return picked.length ? list.filter(s => picked.includes(s.id)) : list;
+  const { data } = await q;
+  return (data || []) as { id: string; full_name: string }[];
 }
 
 export async function answerMatrix(sb: SupabaseClient, examId: string): Promise<MatrixRow[]> {

@@ -1,4 +1,3 @@
-import { GRADES, gradeLabel } from '@/lib/labels';
 import Link from 'next/link';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { fetchBank, getSources, getTopics, BANK_LIMIT } from '@/lib/data';
@@ -43,7 +42,7 @@ export async function QuestionBank({ sb, studentId, searchParams, basePath, addH
         <form method="get" action={basePath} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2"><label className="label" htmlFor="q">Ara (soru metni, notlar, test/soru no)</label><input id="q" name="q" defaultValue={f.q} className="input" /></div>
           <div><label className="label" htmlFor="sinif">Sınıf</label>
-            <select id="sinif" name="sinif" defaultValue={f.sinif} className="input"><option value="">Tümü</option>{GRADES.map(g => <option key={g} value={g}>{gradeLabel(g)}</option>)}</select></div>
+            <select id="sinif" name="sinif" defaultValue={f.sinif} className="input"><option value="">Tümü</option>{[9, 10, 11, 12].map(g => <option key={g} value={g}>{g}. sınıf</option>)}</select></div>
           <div><label className="label" htmlFor="konu">Ünite / konu</label>
             <select id="konu" name="konu" defaultValue={f.konu} className="input"><option value="">Tümü</option>
               {topicOpts.map(t => <option key={t.id} value={t.id}>{' '.repeat(t.depth * 3)}{t.depth === 0 && t.grade ? t.grade + '. sınıf · ' : ''}{t.label}</option>)}</select></div>

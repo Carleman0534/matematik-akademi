@@ -11,7 +11,6 @@ export interface ExamInput {
   title: string; instructions: string; mode: 'live' | 'assignment'; class_id: string;
   question_count: number; option_count: number; duration_min: number; penalty_divisor: number;
   opens_at: string; closes_at: string; results_mode: 'after_close' | 'after_submit' | 'never';
-  pdf_id?: string;
 }
 
 async function teacher() {
@@ -48,7 +47,7 @@ export async function createExam(x: ExamInput): Promise<ExamResult> {
   const c = clean(x);
   if (c.error) return { error: c.error };
   const sb = await supabaseServer();
-  const { data, error } = await sb.from('exams').insert({ ...c.row, teacher_id: s.userId, pdf_id: x.pdf_id && isUuid(x.pdf_id) ? x.pdf_id : null }).select('id').single();
+  const { data, error } = await sb.from('exams').insert({ ...c.row, teacher_id: s.userId }).select('id').single();
   if (error) return { error: 'Deneme oluşturulamadı: ' + error.message };
   done();
   return { id: data.id };
@@ -192,30 +191,4 @@ export async function transferWrongs(examId: string, studentIds?: string[]): Pro
   done(examId);
   revalidatePath('/ogretmen', 'layout');
   return { ok: data ? `${data} yanlış/boş soru öğrencilerin soru bankasına eklendi.` : 'Aktarılacak yeni yanlış ya da boş soru yok.', count: Number(data) || 0 };
-}
-
-// Seçili öğrencilere atama: liste boşsa deneme sınıfa / bütün öğrencilere açık olur
-export async function setAssignees(examId: string, studentIds: string[]): Promise<ExamResult> {
-  if (!(await teacher())) return { error: 'Yetkiniz yok.' };
-  const sb = await supabaseServer();
-  const ids = [...new Set(studentIds.filter(isUuid))];
-  const { error: delErr } = await sb.from('exam_assignees').delete().eq('exam_id', examId);
-  if (delErr) return { error: delErr.message };
-  if (ids.length) {
-    const { error } = await sb.from('exam_assignees').insert(ids.map(student_id => ({ exam_id: examId, student_id })));
-    if (error) return { error: 'Atanamadı: ' + error.message };
-  }
-  done(examId);
-  return { ok: ids.length ? `${ids.length} öğrenciye atandı.` : 'Deneme seçili sınıfın / bütün öğrencilerinin hepsine açık.' };
-}
-
-// Kâğıt üzerinde çözülen denemenin cevaplarını öğretmen girer ("ABCD-…", '-' = boş)
-export async function recordPaperAnswers(examId: string, studentId: string, answers: string): Promise<ExamResult> {
-  if (!(await teacher())) return { error: 'Yetkiniz yok.' };
-  const clean = String(answers || '').toLocaleUpperCase('tr').replace(/[^A-E-]/g, '-');
-  const sb = await supabaseServer();
-  const { error } = await sb.rpc('record_paper_answers', { eid: examId, sid: studentId, p_answers: clean.replace(/-+$/, '') });
-  if (error) return { error: 'Kaydedilemedi: ' + error.message };
-  done(examId);
-  return { ok: 'Cevaplar kaydedildi.' };
 }

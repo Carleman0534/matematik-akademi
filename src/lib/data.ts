@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { IMAGE_BUCKET, EXAM_PAGE_BUCKET, POOL_BUCKET } from '@/lib/env';
+import { IMAGE_BUCKET, EXAM_PAGE_BUCKET } from '@/lib/env';
 import { analyzeQuestion, summarize, type Attempt, type QuestionAnalysis, type BankSummary } from '@/lib/learning';
 import { descendantIds, topicPath, type Topic } from '@/lib/topics';
 import { matchesComputed, sanitizeSearch, type BankFilters } from '@/lib/filters';
@@ -13,12 +13,11 @@ export interface QuestionRow {
   page_no: string | null; test_no: string | null; question_no: string | null;
   question_text: string | null; correct_answer: string | null; student_answer: string | null; error_type: string | null;
   solution: string | null; teacher_note: string | null; student_note: string | null;
-  created_at: string; archived_at: string | null; outcome_id: string | null;
+  created_at: string; archived_at: string | null;
   question_images: ImageRow[]; question_attempts: AttemptRow[];
-  question_topic_relations?: { topic_id: string; role: string }[];   // yardımcı konular
 }
 export interface Source { id: string; name: string }
-export interface StudentRow { id: string; profile_id: string | null; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; notes: string | null; created_at: string; class_id: string | null; teacher_id: string | null; daily_goal: number }
+export interface StudentRow { id: string; profile_id: string | null; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; notes: string | null; created_at: string; class_id: string | null; teacher_id: string | null }
 export interface ClassRow { id: string; name: string; join_code: string; is_open: boolean; teacher_id: string; created_at: string }
 
 // Öğretmenin sınıfları (RLS: yalnızca kendi sınıfları; yönetici hepsini görür, bu yüzden öğretmene göre süzülür)
@@ -28,18 +27,12 @@ export async function getClasses(sb: SupabaseClient, teacherId: string): Promise
 }
 export interface BankItem { q: QuestionRow; a: QuestionAnalysis; thumbUrl: string | null; topic: string; source: string }
 
-const Q_SELECT = 'id, student_id, topic_id, source_id, initial_status, difficulty, page_no, test_no, question_no, question_text, correct_answer, student_answer, error_type, solution, teacher_note, student_note, created_at, archived_at, outcome_id, question_topic_relations(topic_id, role), question_images(id, path, thumb_path, sort_order, width, height), question_attempts(id, result, attempt_type, attempted_at, time_spent_sec, note)';
+const Q_SELECT = 'id, student_id, topic_id, source_id, initial_status, difficulty, page_no, test_no, question_no, question_text, correct_answer, student_answer, error_type, solution, teacher_note, student_note, created_at, archived_at, question_images(id, path, thumb_path, sort_order, width, height), question_attempts(id, result, attempt_type, attempted_at, time_spent_sec, note)';
 export const BANK_LIMIT = 400;
 
 export async function getTopics(sb: SupabaseClient): Promise<Topic[]> {
-  const { data } = await sb.from('topics').select('id, parent_id, name, grade_level, sort_order, is_active, description').order('sort_order');
+  const { data } = await sb.from('topics').select('id, parent_id, name, grade_level, sort_order').order('sort_order');
   return (data || []) as Topic[];
-}
-
-export interface Outcome { id: string; topic_id: string; code: string | null; text: string; sort_order: number; is_active: boolean }
-export async function getOutcomes(sb: SupabaseClient): Promise<Outcome[]> {
-  const { data } = await sb.from('curriculum_outcomes').select('id, topic_id, code, text, sort_order, is_active').order('sort_order');
-  return (data || []) as Outcome[];
 }
 
 export async function getSources(sb: SupabaseClient): Promise<Source[]> {
@@ -50,13 +43,11 @@ export async function getSources(sb: SupabaseClient): Promise<Source[]> {
 // Gizli kovadaki görseller için süreli (1 saat) adresler. "exam-pages:<yol>" biçimindeki yollar deneme sayfası
 // kovasından okunur (denemeden soru bankasına aktarılan sorular, sayfa görselini kopyalamadan kullanır).
 export const EXAM_PAGE_PREFIX = 'exam-pages:';
-export const POOL_PREFIX = 'question-pool:';
 export async function signedUrlMap(sb: SupabaseClient, paths: string[], seconds = 3600): Promise<Map<string, string>> {
   const list = [...new Set(paths.filter(Boolean))];
   const out = new Map<string, string>();
   const groups: [string, string[], (p: string) => string][] = [
-    [IMAGE_BUCKET, list.filter(p => !p.startsWith(EXAM_PAGE_PREFIX) && !p.startsWith(POOL_PREFIX)), p => p],
-    [POOL_BUCKET, list.filter(p => p.startsWith(POOL_PREFIX)).map(p => p.slice(POOL_PREFIX.length)), p => POOL_PREFIX + p],
+    [IMAGE_BUCKET, list.filter(p => !p.startsWith(EXAM_PAGE_PREFIX)), p => p],
     [EXAM_PAGE_BUCKET, list.filter(p => p.startsWith(EXAM_PAGE_PREFIX)).map(p => p.slice(EXAM_PAGE_PREFIX.length)), p => EXAM_PAGE_PREFIX + p],
   ];
   for (const [bucket, items, key] of groups) {
@@ -79,14 +70,7 @@ export async function fetchBank(sb: SupabaseClient, studentId: string, f: BankFi
   let topicIds: string[] | null = null;
   if (f.konu) topicIds = descendantIds(topics, f.konu);
   else if (f.sinif) topicIds = topics.filter(t => String(t.grade_level) === f.sinif).map(t => t.id);
-  if (topicIds) {
-    // Ana konusu ya da yardımcı konularından biri seçilen konu (veya alt konusu) olan sorular
-    const ids = topicIds.length ? topicIds : ['00000000-0000-0000-0000-000000000000'];
-    const { data: rel } = await sb.from('question_topic_relations').select('question_id, questions!inner(student_id)')
-      .in('topic_id', ids).eq('questions.student_id', studentId).limit(BANK_LIMIT);
-    const relIds = [...new Set(((rel || []) as { question_id: string }[]).map(r => r.question_id))];
-    query = relIds.length ? query.or(`topic_id.in.(${ids.join(',')}),id.in.(${relIds.join(',')})`) : query.in('topic_id', ids);
-  }
+  if (topicIds) query = query.in('topic_id', topicIds.length ? topicIds : ['00000000-0000-0000-0000-000000000000']);
   const term = sanitizeSearch(f.q);
   if (term) query = query.or(['question_text', 'student_note', 'teacher_note', 'solution', 'question_no', 'test_no'].map(c => c + '.ilike.%' + term + '%').join(','));
 
@@ -115,7 +99,7 @@ export async function getQuestion(sb: SupabaseClient, id: string): Promise<Quest
 }
 
 export async function getStudent(sb: SupabaseClient, id: string): Promise<StudentRow | null> {
-  const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at, class_id, teacher_id, daily_goal').eq('id', id).maybeSingle();
+  const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at, class_id, teacher_id').eq('id', id).maybeSingle();
   return (data as StudentRow) || null;
 }
 

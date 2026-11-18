@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Camera, Scissors, Check, X, Plus } from 'lucide-react';
+import { Camera, Scissors, Check, X, Plus, Sparkles, Layers } from 'lucide-react';
 
 interface CropBox {
   id: string;

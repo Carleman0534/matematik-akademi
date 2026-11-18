@@ -59,25 +59,6 @@ async function pdfToPages(file: File, onPage: (done: number, total: number) => v
   return out;
 }
 
-// PDF'in sayfa sayısı (arşive yüklerken bilgi olarak)
-export async function countPdfPages(file: File): Promise<number | null> {
-  try {
-    const pdfjs = await import('pdfjs-dist');
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-    const n = doc.numPages;
-    await doc.loadingTask.destroy();
-    return n;
-  } catch { return null; }
-}
-
-// Arşivdeki PDF'i (süreli adresinden) dosya olarak indirir
-export async function fetchPdfFile(url: string, name: string): Promise<File> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('PDF arşivden indirilemedi (bağlantının süresi dolmuş olabilir; sayfayı yenileyin).');
-  return new File([await res.blob()], name || 'belge.pdf', { type: 'application/pdf' });
-}
-
 // Dosyaları sırayla sayfalara çevirir; toplam en çok MAX_PAGES sayfa
 export async function filesToPages(files: File[], onProgress: (msg: string) => void, already = 0): Promise<PageImage[]> {
   const pages: PageImage[] = [];
