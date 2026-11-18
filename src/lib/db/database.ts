@@ -2,7 +2,9 @@ import initSqlJs, { type Database } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'app.db');
+const IS_SERVERLESS = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
+const ORIGINAL_DB_PATH = path.join(process.cwd(), 'data', 'app.db');
+const DB_PATH = IS_SERVERLESS ? path.join('/tmp', 'app.db') : ORIGINAL_DB_PATH;
 
 let db: Database | null = null;
 let initPromise: Promise<Database> | null = null;
@@ -868,7 +870,9 @@ CREATE TABLE IF NOT EXISTS system_audit_logs (
 async function initDatabase(): Promise<Database> {
   const dataDir = path.dirname(DB_PATH);
   if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+    try {
+      fs.mkdirSync(dataDir, { recursive: true });
+    } catch {}
   }
 
   const wasmPath = path.join(process.cwd(), 'public', 'sql-wasm.wasm');
@@ -877,8 +881,17 @@ async function initDatabase(): Promise<Database> {
   const SQL = await initSqlJs({ wasmBinary: wasmBinary.buffer as ArrayBuffer });
 
   let database: Database;
+  if (IS_SERVERLESS && !fs.existsSync(DB_PATH) && fs.existsSync(ORIGINAL_DB_PATH)) {
+    try {
+      fs.copyFileSync(ORIGINAL_DB_PATH, DB_PATH);
+    } catch {}
+  }
+
   if (fs.existsSync(DB_PATH)) {
     const fileBuffer = fs.readFileSync(DB_PATH);
+    database = new SQL.Database(fileBuffer);
+  } else if (fs.existsSync(ORIGINAL_DB_PATH)) {
+    const fileBuffer = fs.readFileSync(ORIGINAL_DB_PATH);
     database = new SQL.Database(fileBuffer);
   } else {
     database = new SQL.Database();
@@ -1017,9 +1030,13 @@ async function initDatabase(): Promise<Database> {
 export function saveDb(database?: Database): void {
   const d = database || db;
   if (!d) return;
-  const data = d.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  try {
+    const data = d.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+  } catch (err) {
+    console.warn('Could not save database file:', err);
+  }
 }
 
 export async function getDb(): Promise<Database> {

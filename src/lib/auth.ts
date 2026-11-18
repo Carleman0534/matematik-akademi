@@ -15,14 +15,11 @@ export interface SessionInfo {
 
 // Oturumdaki kullanıcı (getUser, çerezdeki jetonu Supabase'e doğrulatır). Aynı istekte bir kez çalışır.
 export const getSession = cache(async (): Promise<SessionInfo | null> => {
-  if (!isConfigured()) return null; // kurulum yapılmamış: giriş ekranı kurulum adımlarını gösterir
-
-  // Yerel Mod (Local Mode)
-  if (isLocalMode()) {
-    try {
-      const store = await cookies();
-      const raw = store.get('local_session')?.value;
-      if (!raw) return null;
+  // Yerel ya da Canlı Oturum Çerezi Kontrolü
+  try {
+    const store = await cookies();
+    const raw = store.get('local_session')?.value;
+    if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.userId) {
         return {
@@ -33,10 +30,12 @@ export const getSession = cache(async (): Promise<SessionInfo | null> => {
           studentId: parsed.studentId ?? null,
         };
       }
-    } catch {
-      return null;
     }
+  } catch {
+    // Supabase kontrolüne geç
   }
+
+  if (!isConfigured()) return null; // kurulum yapılmamış: giriş ekranı kurulum adımlarını gösterir
 
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();

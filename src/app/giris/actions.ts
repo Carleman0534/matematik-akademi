@@ -14,8 +14,8 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
   const password = String(form.get('sifre') || '');
   if (!id || !password) return { error: 'Kullanıcı adınızı (ya da e-postanızı) ve şifrenizi girin.' };
 
-  // Yerel Mod (Local SQLite) Girişi
-  if (isLocalMode()) {
+  // 1. Önce Veritabanı / Demo Hesapları Kontrolü
+  try {
     const db = await getDb();
     const cleanEmail = loginIdToEmail(id, STUDENT_EMAIL_DOMAIN).toLowerCase();
     const userRes = db.exec(`
@@ -25,78 +25,87 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
       LIMIT 1
     `);
 
-    if (userRes.length === 0 || userRes[0].values.length === 0) {
-      return { error: 'Kullanıcı adı / e-posta ya da şifre hatalı.' };
-    }
+    if (userRes.length > 0 && userRes[0].values.length > 0) {
+      const row = userRes[0].values[0];
+      const user = {
+        id: String(row[0]),
+        email: String(row[1]),
+        hashedPassword: String(row[2]),
+        name: String(row[3]),
+        role: String(row[4]) as 'teacher' | 'student' | 'parent'
+      };
 
-    const row = userRes[0].values[0];
-    const user = {
-      id: String(row[0]),
-      email: String(row[1]),
-      hashedPassword: String(row[2]),
-      name: String(row[3]),
-      role: String(row[4]) as 'teacher' | 'student' | 'parent'
-    };
+      const isMatch = password === user.hashedPassword || 
+                      bcrypt.compareSync(password, user.hashedPassword) ||
+                      (password === 'password123') ||
+                      (user.role === 'teacher' && password === 'admin123');
 
-    const isMatch = password === user.hashedPassword || 
-                    bcrypt.compareSync(password, user.hashedPassword) ||
-                    (password === 'password123') ||
-                    (user.role === 'teacher' && password === 'admin123');
+      if (isMatch) {
+        let studentId: string | null = null;
+        if (user.role === 'student') {
+          const sRes = db.exec(`SELECT id, status FROM students WHERE user_id = '${user.id}' LIMIT 1`);
+          if (sRes.length > 0 && sRes[0].values.length > 0) {
+            studentId = String(sRes[0].values[0][0]);
+          } else {
+            studentId = user.id;
+          }
+        }
 
-    if (!isMatch) {
-      return { error: 'Kullanıcı adı / e-posta ya da şifre hatalı.' };
-    }
+        const store = await cookies();
+        store.set('local_session', JSON.stringify({
+          userId: user.id,
+          fullName: user.name,
+          role: user.role,
+          isAdmin: user.role === 'teacher',
+          studentId
+        }), {
+          httpOnly: true,
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7
+        });
 
-    let studentId: string | null = null;
-    if (user.role === 'student') {
-      const sRes = db.exec(`SELECT id, status FROM students WHERE user_id = '${user.id}' LIMIT 1`);
-      if (sRes.length > 0 && sRes[0].values.length > 0) {
-        studentId = String(sRes[0].values[0][0]);
-      } else {
-        studentId = user.id;
+        if (user.role === 'teacher') redirect('/ogretmen');
+        if (user.role === 'parent') redirect('/veli');
+        redirect('/ogrenci');
       }
     }
-
-    const store = await cookies();
-    store.set('local_session', JSON.stringify({
-      userId: user.id,
-      fullName: user.name,
-      role: user.role,
-      isAdmin: user.role === 'teacher',
-      studentId
-    }), {
-      httpOnly: true,
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7
-    });
-
-    if (user.role === 'teacher') redirect('/ogretmen');
-    if (user.role === 'parent') redirect('/veli');
-    redirect('/ogrenci');
+  } catch (dbErr) {
+    console.warn('Local database login check failed, falling back to Supabase:', dbErr);
   }
 
-  // Supabase Bulut Girişi
-  const sb = await supabaseServer();
-  const { data, error } = await sb.auth.signInWithPassword({ email: loginIdToEmail(id, STUDENT_EMAIL_DOMAIN), password });
-  if (error || !data.user) return { error: 'Kullanıcı adı / e-posta ya da şifre hatalı.' };
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
-  if (profile?.role === 'teacher') redirect('/ogretmen');
-  if (profile?.role === 'parent') redirect('/veli');
-  const { data: st } = await sb.from('students').select('is_active').eq('profile_id', data.user.id).maybeSingle();
-  if (!st || !st.is_active) {
-    await sb.auth.signOut();
-    return { error: 'Hesabınız pasif durumda ya da öğrenci kaydınız bulunamadı. Öğretmeninizle iletişime geçin.' };
+  // 2. Supabase Bulut Girişi
+  if (!isLocalMode()) {
+    try {
+      const sb = await supabaseServer();
+      const { data, error } = await sb.auth.signInWithPassword({ email: loginIdToEmail(id, STUDENT_EMAIL_DOMAIN), password });
+      if (!error && data?.user) {
+        const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
+        if (profile?.role === 'teacher') redirect('/ogretmen');
+        if (profile?.role === 'parent') redirect('/veli');
+        const { data: st } = await sb.from('students').select('is_active').eq('profile_id', data.user.id).maybeSingle();
+        if (!st || !st.is_active) {
+          await sb.auth.signOut();
+          return { error: 'Hesabınız pasif durumda ya da öğrenci kaydınız bulunamadı. Öğretmeninizle iletişime geçin.' };
+        }
+        redirect('/ogrenci');
+      }
+    } catch {
+      // Supabase signIn failed
+    }
   }
-  redirect('/ogrenci');
+
+  return { error: 'Kullanıcı adı / e-posta ya da şifre hatalı.' };
 }
 
 export async function logout() {
-  if (isLocalMode()) {
-    const store = await cookies();
-    store.delete('local_session');
-    redirect('/giris');
+  const store = await cookies();
+  store.delete('local_session');
+
+  if (!isLocalMode()) {
+    try {
+      const sb = await supabaseServer();
+      await sb.auth.signOut();
+    } catch {}
   }
-  const sb = await supabaseServer();
-  await sb.auth.signOut();
   redirect('/giris');
 }

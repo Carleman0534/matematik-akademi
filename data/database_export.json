@@ -1,13 +1,10 @@
 {
-  "exportedAt": "2026-11-17T17:43:21.099Z",
-  "projectName": "Matematik Akademi - Akıllı Soru Bankası & Deneme Platformu",
-  "version": "1.0.0-PROD",
   "tables": {
     "users": [
       {
         "id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
         "email": "ogretmen@test.com",
-        "password": "$2b$10$fXABrsGPSnnWMwvT9nTvIefdpd81gEMpeC5qeIta7Qi.hIR8GMW32",
+        "password": "$2b$10$1o5G2DxjQ9KwxMXXnzeW7O1UrcGntiT5zpxiBZg51db0.PeoQ98K.",
         "name": "Ahmet Öğretmen (Matematik)",
         "role": "teacher",
         "avatar": null,
@@ -17,7 +14,7 @@
       {
         "id": "7d07540f-3eb9-4dbb-9089-dd7d5e8cdb73",
         "email": "elif@test.com",
-        "password": "$2b$10$IxPrHRrkPUoKyXBx1Ln63O.mASqtUS9XYOBmCR7UBtCFg.UszAU5a",
+        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
         "name": "Elif Yılmaz",
         "role": "student",
         "avatar": null,
@@ -27,7 +24,7 @@
       {
         "id": "1e2749ed-c63c-431e-a0cf-624a4b706ef7",
         "email": "burak@test.com",
-        "password": "$2b$10$yj.ewQfXA4Qz0Uxpa7UamOFNWvqnCFUVTRWoVwAeJH//sTauuSFPW",
+        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
         "name": "Burak Demir",
         "role": "student",
         "avatar": null,
@@ -37,12 +34,32 @@
       {
         "id": "d49f2fe0-2b8e-4193-9aa3-42eb154c0892",
         "email": "zeynep@test.com",
-        "password": "$2b$10$SM0qKPru97CSrs0JpP5QqeztY8k448TK64SudNDBGRr9kPB/qXrGm",
+        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
         "name": "Zeynep Kaya",
         "role": "student",
         "avatar": null,
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
+      },
+      {
+        "id": "parent_ayse",
+        "email": "ayse.yilmaz@test.com",
+        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
+        "name": "Ayşe Yılmaz",
+        "role": "parent",
+        "avatar": null,
+        "created_at": null,
+        "updated_at": null
+      },
+      {
+        "id": "parent_kemal",
+        "email": "kemal.demir@test.com",
+        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
+        "name": "Kemal Demir",
+        "role": "parent",
+        "avatar": null,
+        "created_at": null,
+        "updated_at": null
       }
     ],
     "students": [
@@ -50,7 +67,7 @@
         "id": "50fa22f6-1021-4dde-8278-2339fa65030d",
         "user_id": "7d07540f-3eb9-4dbb-9089-dd7d5e8cdb73",
         "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
-        "grade": 11,
+        "grade": "11",
         "school": "Fen Lisesi",
         "parent_name": "Mustafa Yılmaz",
         "parent_phone": "05551112233",
@@ -62,7 +79,7 @@
         "id": "4685e009-c47e-4747-b986-f3d83f8b7eef",
         "user_id": "1e2749ed-c63c-431e-a0cf-624a4b706ef7",
         "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
-        "grade": 10,
+        "grade": "10",
         "school": "Anadolu Lisesi",
         "parent_name": "Aylin Demir",
         "parent_phone": "05552223344",
@@ -74,7 +91,7 @@
         "id": "49b24d48-3a98-464f-bf94-46e01a52e2f2",
         "user_id": "d49f2fe0-2b8e-4193-9aa3-42eb154c0892",
         "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
-        "grade": 12,
+        "grade": "12",
         "school": "Atatürk Anadolu Lisesi",
         "parent_name": "Mehmet Kaya",
         "parent_phone": "05553334455",
@@ -89,7 +106,7 @@
         "name": "Matematik",
         "color": "#3B82F6",
         "icon": "Calculator",
-        "sort_order": 1
+        "sort_order": "1"
       }
     ],
     "topics": [
@@ -97,263 +114,55 @@
         "id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Fonksiyonlar",
-        "sort_order": 1
+        "sort_order": "1"
       },
       {
         "id": "d889dca2-8f65-4276-8f4a-eed899105db3",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Polinomlar",
-        "sort_order": 2
+        "sort_order": "2"
       },
       {
         "id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Denklemler ve Eşitsizlikler",
-        "sort_order": 3
+        "sort_order": "3"
       },
       {
         "id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Trigonometri",
-        "sort_order": 4
+        "sort_order": "4"
       },
       {
         "id": "1ad9a2b7-8d5b-4933-a2ce-722ba9bc990f",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Logaritma",
-        "sort_order": 5
+        "sort_order": "5"
       },
       {
         "id": "175f577a-2656-4843-aeca-051e6b5bcb50",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Diziler",
-        "sort_order": 6
+        "sort_order": "6"
       },
       {
         "id": "fa0aeac0-9a9b-4715-b73d-afc8a8189f20",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Limit ve Süreklilik",
-        "sort_order": 7
+        "sort_order": "7"
       },
       {
         "id": "f833cc9f-9956-48b5-ae04-d3d256769630",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "Türev",
-        "sort_order": 8
+        "sort_order": "8"
       },
       {
         "id": "5f205dfe-4465-45b0-838a-8ee77d30151f",
         "subject_id": "3953ea08-5bf0-4717-8dd4-86ea5d007c5c",
         "name": "İntegral",
-        "sort_order": 9
-      }
-    ],
-    "subtopics": [
-      {
-        "id": "cbd22ab9-709b-47d7-b8fc-b248444bb539",
-        "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
-        "name": "Fonksiyon Tanımı ve Değer Bulma",
-        "sort_order": 1
-      },
-      {
-        "id": "5ba7ee60-5dd0-4c2c-abe5-7de8e69affe7",
-        "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
-        "name": "Bileşke Fonksiyon",
-        "sort_order": 2
-      },
-      {
-        "id": "94274224-373c-43cc-81eb-543f50272b4f",
-        "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
-        "name": "Ters Fonksiyon",
-        "sort_order": 3
-      },
-      {
-        "id": "cd8b23c4-66e0-4c19-85f6-2c6191dced50",
-        "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
-        "name": "Fonksiyon Grafikleri",
-        "sort_order": 4
-      },
-      {
-        "id": "5a045fc3-ee8d-49fc-b366-7778a59af2e2",
-        "topic_id": "d889dca2-8f65-4276-8f4a-eed899105db3",
-        "name": "Polinom Kavramı ve Derece",
-        "sort_order": 1
-      },
-      {
-        "id": "0f039af8-79ad-4c1f-b9af-a222631282e0",
-        "topic_id": "d889dca2-8f65-4276-8f4a-eed899105db3",
-        "name": "Polinomlarda Bölme ve Kalan",
-        "sort_order": 2
-      },
-      {
-        "id": "e05b2beb-433a-493c-8bd2-866b22066d93",
-        "topic_id": "d889dca2-8f65-4276-8f4a-eed899105db3",
-        "name": "Kök-Katsayı İlişkileri",
-        "sort_order": 3
-      },
-      {
-        "id": "e411e2aa-2f48-4cbb-b34d-beea959156c1",
-        "topic_id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
-        "name": "İkinci Dereceden Denklemler",
-        "sort_order": 1
-      },
-      {
-        "id": "c907f0bf-7f09-434d-b89c-6f6fc79316c1",
-        "topic_id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
-        "name": "İşaret Tablosu",
-        "sort_order": 2
-      },
-      {
-        "id": "d73abf3f-a257-423b-a72b-0291cc4f5ef1",
-        "topic_id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
-        "name": "Eşitsizlik Sistemleri",
-        "sort_order": 3
-      },
-      {
-        "id": "17e1be6c-a2d3-4e19-b366-4d172e9b9e29",
-        "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
-        "name": "Birim Çember ve Esas Ölçü",
-        "sort_order": 1
-      },
-      {
-        "id": "a97538d1-a473-4a94-9c3a-9e8d6b7eb8d1",
-        "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
-        "name": "Trigonometrik Özdeşlikler",
-        "sort_order": 2
-      },
-      {
-        "id": "3ca8ec0a-ac99-4293-8eae-fc17589ac851",
-        "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
-        "name": "Toplam-Fark Formülleri",
-        "sort_order": 3
-      },
-      {
-        "id": "e8a06fb5-56ac-448b-8ecf-332d7529ff98",
-        "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
-        "name": "Trigonometrik Denklemler",
-        "sort_order": 4
-      },
-      {
-        "id": "ba6dc1f0-3956-4c8b-aef8-7df03efa0c7b",
-        "topic_id": "1ad9a2b7-8d5b-4933-a2ce-722ba9bc990f",
-        "name": "Logaritma Tanımı ve Özellikleri",
-        "sort_order": 1
-      },
-      {
-        "id": "219027dc-99b6-43bf-8573-f61da7c1c86a",
-        "topic_id": "1ad9a2b7-8d5b-4933-a2ce-722ba9bc990f",
-        "name": "Taban Değiştirme",
-        "sort_order": 2
-      },
-      {
-        "id": "a3bbd8c0-4611-4f06-bfeb-2b9c18a47821",
-        "topic_id": "1ad9a2b7-8d5b-4933-a2ce-722ba9bc990f",
-        "name": "Logaritmik Denklemler ve Eşitsizlikler",
-        "sort_order": 3
-      },
-      {
-        "id": "63cb0e30-36f2-4f34-9550-cb8f8fa4204d",
-        "topic_id": "175f577a-2656-4843-aeca-051e6b5bcb50",
-        "name": "Aritmetik Dizi",
-        "sort_order": 1
-      },
-      {
-        "id": "b2dde5d5-aa92-431b-9b72-4f964de90ac7",
-        "topic_id": "175f577a-2656-4843-aeca-051e6b5bcb50",
-        "name": "Geometrik Dizi",
-        "sort_order": 2
-      },
-      {
-        "id": "2a862007-a350-40f4-bb2d-6436b1226168",
-        "topic_id": "175f577a-2656-4843-aeca-051e6b5bcb50",
-        "name": "Dizi Toplamları",
-        "sort_order": 3
-      },
-      {
-        "id": "530d6009-45c2-4c17-85f5-bec594d94b4d",
-        "topic_id": "fa0aeac0-9a9b-4715-b73d-afc8a8189f20",
-        "name": "Sağdan-Soldan Limit",
-        "sort_order": 1
-      },
-      {
-        "id": "c37a9026-500d-417c-8986-87aff7c369c7",
-        "topic_id": "fa0aeac0-9a9b-4715-b73d-afc8a8189f20",
-        "name": "Belirsizlik Durumları (0/0)",
-        "sort_order": 2
-      },
-      {
-        "id": "574d61ab-730e-4a7f-841a-a73fcd0d7b5c",
-        "topic_id": "fa0aeac0-9a9b-4715-b73d-afc8a8189f20",
-        "name": "Süreklilik",
-        "sort_order": 3
-      },
-      {
-        "id": "fbadf93c-873e-4a0c-ae94-c9f9c64c4268",
-        "topic_id": "f833cc9f-9956-48b5-ae04-d3d256769630",
-        "name": "Türev Alma Kuralları",
-        "sort_order": 1
-      },
-      {
-        "id": "572a3ded-0390-43b5-ac65-123f377882f3",
-        "topic_id": "f833cc9f-9956-48b5-ae04-d3d256769630",
-        "name": "Geometrik Yorum ve Teğet",
-        "sort_order": 2
-      },
-      {
-        "id": "b5688634-5622-4215-a324-ff7a0d041f97",
-        "topic_id": "f833cc9f-9956-48b5-ae04-d3d256769630",
-        "name": "Artan-Azalanlık ve Ekstremum Noktaları",
-        "sort_order": 3
-      },
-      {
-        "id": "1acd9cec-06a0-47b2-b8ca-a11650eae677",
-        "topic_id": "5f205dfe-4465-45b0-838a-8ee77d30151f",
-        "name": "Belirsiz İntegral",
-        "sort_order": 1
-      },
-      {
-        "id": "6e8edfd5-c331-4678-9493-5c4762e8f54f",
-        "topic_id": "5f205dfe-4465-45b0-838a-8ee77d30151f",
-        "name": "Değişken Değiştirme",
-        "sort_order": 2
-      },
-      {
-        "id": "94109b90-7ed4-42d2-bc3f-a53ffa6eb39c",
-        "topic_id": "5f205dfe-4465-45b0-838a-8ee77d30151f",
-        "name": "Belirli İntegral ve Alan Hesabı",
-        "sort_order": 3
-      }
-    ],
-    "sources": [
-      {
-        "id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "name": "Orijinal AYT Matematik",
-        "publisher": "Orijinal Yayınları",
-        "type": "book"
-      },
-      {
-        "id": "8e61160e-dd27-4224-bdb2-9d0721813d3d",
-        "name": "345 TYT-AYT Matematik",
-        "publisher": "ÜçDörtBeş",
-        "type": "book"
-      },
-      {
-        "id": "e527e534-e6cb-4c97-ad08-296e1fd6ae27",
-        "name": "Apotemi Türev Fasikülü",
-        "publisher": "Apotemi",
-        "type": "book"
-      },
-      {
-        "id": "3fac0a99-4407-4da4-b82f-13cef1a9e7cc",
-        "name": "Türkiye Geneli Özdebir AYT Deneme 1",
-        "publisher": "Özdebir",
-        "type": "exam"
-      },
-      {
-        "id": "5e2b6b8a-4b43-4857-9e8a-ef7bd75d6fd4",
-        "name": "3D Türkiye Geneli Deneme",
-        "publisher": "3D Yayınları",
-        "type": "exam"
+        "sort_order": "9"
       }
     ],
     "questions": [
@@ -364,10 +173,10 @@
         "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subtopic_id": "5ba7ee60-5dd0-4c2c-abe5-7de8e69affe7",
         "source_id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "grade": 11,
-        "page_number": 45,
-        "test_number": 3,
-        "question_number": 8,
+        "grade": "11",
+        "page_number": "45",
+        "test_number": "3",
+        "question_number": "8",
         "difficulty": "medium",
         "question_type": "wrong",
         "correct_answer": "C",
@@ -377,8 +186,8 @@
         "teacher_note": "f(g(x)) ile g(f(x)) sırasına çok dikkat et.",
         "student_note": "Bileşke fonksiyon sırasını ters uyguladım.",
         "learning_status": "reviewed_correct",
-        "review_count": 1,
-        "correct_streak": 1,
+        "review_count": "1",
+        "correct_streak": "1",
         "next_review_date": "2026-11-18T16:41:07.524Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 17:31:34"
@@ -390,10 +199,10 @@
         "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subtopic_id": "94274224-373c-43cc-81eb-543f50272b4f",
         "source_id": "8e61160e-dd27-4224-bdb2-9d0721813d3d",
-        "grade": 11,
-        "page_number": 52,
-        "test_number": 4,
-        "question_number": 12,
+        "grade": "11",
+        "page_number": "52",
+        "test_number": "4",
+        "question_number": "12",
         "difficulty": "hard",
         "question_type": "blank",
         "correct_answer": "E",
@@ -403,8 +212,8 @@
         "teacher_note": "Rasyonel fonksiyonun tersini alma kuralını tekrar edelim.",
         "student_note": "Tersini bulurken paydayı sıfırlayan değeri atlamışım.",
         "learning_status": "not_reviewed",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.525Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -416,10 +225,10 @@
         "topic_id": "d889dca2-8f65-4276-8f4a-eed899105db3",
         "subtopic_id": "0f039af8-79ad-4c1f-b9af-a222631282e0",
         "source_id": "e527e534-e6cb-4c97-ad08-296e1fd6ae27",
-        "grade": 11,
-        "page_number": 84,
-        "test_number": 2,
-        "question_number": 5,
+        "grade": "11",
+        "page_number": "84",
+        "test_number": "2",
+        "question_number": "5",
         "difficulty": "medium",
         "question_type": "wrong",
         "correct_answer": "B",
@@ -429,8 +238,8 @@
         "teacher_note": "P(x) polinomunun (x-2) ile bölümünden kalan P(2) değeridir.",
         "student_note": "x yerine -2 yazmışım!",
         "learning_status": "reviewed_correct",
-        "review_count": 1,
-        "correct_streak": 1,
+        "review_count": "1",
+        "correct_streak": "1",
         "next_review_date": "2026-11-18T16:41:07.525Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -442,10 +251,10 @@
         "topic_id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
         "subtopic_id": "c907f0bf-7f09-434d-b89c-6f6fc79316c1",
         "source_id": "3fac0a99-4407-4da4-b82f-13cef1a9e7cc",
-        "grade": 11,
-        "page_number": 110,
-        "test_number": 1,
-        "question_number": 3,
+        "grade": "11",
+        "page_number": "110",
+        "test_number": "1",
+        "question_number": "3",
         "difficulty": "easy",
         "question_type": "wrong",
         "correct_answer": "A",
@@ -455,8 +264,8 @@
         "teacher_note": "Çift katlı köklerde işaretin değişmediğini unutma.",
         "student_note": "Çift kat kökte işaret değiştirdim.",
         "learning_status": "learned",
-        "review_count": 3,
-        "correct_streak": 2,
+        "review_count": "3",
+        "correct_streak": "2",
         "next_review_date": "2026-11-18T16:41:07.526Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -468,10 +277,10 @@
         "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
         "subtopic_id": "3ca8ec0a-ac99-4293-8eae-fc17589ac851",
         "source_id": "5e2b6b8a-4b43-4857-9e8a-ef7bd75d6fd4",
-        "grade": 11,
-        "page_number": 140,
-        "test_number": 6,
-        "question_number": 11,
+        "grade": "11",
+        "page_number": "140",
+        "test_number": "6",
+        "question_number": "11",
         "difficulty": "hard",
         "question_type": "wrong",
         "correct_answer": "D",
@@ -481,8 +290,8 @@
         "teacher_note": "cos(a+b) = cosa*cosb - sina*sinb formülündeki eksi işaretine dikkat.",
         "student_note": "cos toplam formülünü artı olarak hatırladım.",
         "learning_status": "needs_review",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.526Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -494,10 +303,10 @@
         "topic_id": "f833cc9f-9956-48b5-ae04-d3d256769630",
         "subtopic_id": "b5688634-5622-4215-a324-ff7a0d041f97",
         "source_id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "grade": 11,
-        "page_number": 215,
-        "test_number": 5,
-        "question_number": 14,
+        "grade": "11",
+        "page_number": "215",
+        "test_number": "5",
+        "question_number": "14",
         "difficulty": "very_hard",
         "question_type": "blank",
         "correct_answer": "C",
@@ -507,8 +316,8 @@
         "teacher_note": "Fonksiyonun birinci türevini sıfır yapan noktalara bakacaksın.",
         "student_note": "Grafik çizimi ve teğet eğimi çok karmaşık geldi.",
         "learning_status": "new",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.526Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -520,10 +329,10 @@
         "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subtopic_id": "5ba7ee60-5dd0-4c2c-abe5-7de8e69affe7",
         "source_id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "grade": 11,
-        "page_number": 45,
-        "test_number": 3,
-        "question_number": 8,
+        "grade": "11",
+        "page_number": "45",
+        "test_number": "3",
+        "question_number": "8",
         "difficulty": "medium",
         "question_type": "wrong",
         "correct_answer": "C",
@@ -533,8 +342,8 @@
         "teacher_note": "f(g(x)) ile g(f(x)) sırasına çok dikkat et.",
         "student_note": "Bileşke fonksiyon sırasını ters uyguladım.",
         "learning_status": "needs_review",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.526Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -546,10 +355,10 @@
         "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subtopic_id": "94274224-373c-43cc-81eb-543f50272b4f",
         "source_id": "8e61160e-dd27-4224-bdb2-9d0721813d3d",
-        "grade": 11,
-        "page_number": 52,
-        "test_number": 4,
-        "question_number": 12,
+        "grade": "11",
+        "page_number": "52",
+        "test_number": "4",
+        "question_number": "12",
         "difficulty": "hard",
         "question_type": "blank",
         "correct_answer": "E",
@@ -559,8 +368,8 @@
         "teacher_note": "Rasyonel fonksiyonun tersini alma kuralını tekrar edelim.",
         "student_note": "Tersini bulurken paydayı sıfırlayan değeri atlamışım.",
         "learning_status": "not_reviewed",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.526Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -572,10 +381,10 @@
         "topic_id": "d889dca2-8f65-4276-8f4a-eed899105db3",
         "subtopic_id": "0f039af8-79ad-4c1f-b9af-a222631282e0",
         "source_id": "e527e534-e6cb-4c97-ad08-296e1fd6ae27",
-        "grade": 11,
-        "page_number": 84,
-        "test_number": 2,
-        "question_number": 5,
+        "grade": "11",
+        "page_number": "84",
+        "test_number": "2",
+        "question_number": "5",
         "difficulty": "medium",
         "question_type": "wrong",
         "correct_answer": "B",
@@ -585,8 +394,8 @@
         "teacher_note": "P(x) polinomunun (x-2) ile bölümünden kalan P(2) değeridir.",
         "student_note": "x yerine -2 yazmışım!",
         "learning_status": "reviewed_correct",
-        "review_count": 1,
-        "correct_streak": 1,
+        "review_count": "1",
+        "correct_streak": "1",
         "next_review_date": "2026-11-18T16:41:07.527Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -598,10 +407,10 @@
         "topic_id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
         "subtopic_id": "c907f0bf-7f09-434d-b89c-6f6fc79316c1",
         "source_id": "3fac0a99-4407-4da4-b82f-13cef1a9e7cc",
-        "grade": 11,
-        "page_number": 110,
-        "test_number": 1,
-        "question_number": 3,
+        "grade": "11",
+        "page_number": "110",
+        "test_number": "1",
+        "question_number": "3",
         "difficulty": "easy",
         "question_type": "wrong",
         "correct_answer": "A",
@@ -611,8 +420,8 @@
         "teacher_note": "Çift katlı köklerde işaretin değişmediğini unutma.",
         "student_note": "Çift kat kökte işaret değiştirdim.",
         "learning_status": "learned",
-        "review_count": 3,
-        "correct_streak": 2,
+        "review_count": "3",
+        "correct_streak": "2",
         "next_review_date": "2026-11-18T16:41:07.527Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -624,10 +433,10 @@
         "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
         "subtopic_id": "3ca8ec0a-ac99-4293-8eae-fc17589ac851",
         "source_id": "5e2b6b8a-4b43-4857-9e8a-ef7bd75d6fd4",
-        "grade": 11,
-        "page_number": 140,
-        "test_number": 6,
-        "question_number": 11,
+        "grade": "11",
+        "page_number": "140",
+        "test_number": "6",
+        "question_number": "11",
         "difficulty": "hard",
         "question_type": "wrong",
         "correct_answer": "D",
@@ -637,8 +446,8 @@
         "teacher_note": "cos(a+b) = cosa*cosb - sina*sinb formülündeki eksi işaretine dikkat.",
         "student_note": "cos toplam formülünü artı olarak hatırladım.",
         "learning_status": "needs_review",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.527Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -650,10 +459,10 @@
         "topic_id": "f833cc9f-9956-48b5-ae04-d3d256769630",
         "subtopic_id": "b5688634-5622-4215-a324-ff7a0d041f97",
         "source_id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "grade": 11,
-        "page_number": 215,
-        "test_number": 5,
-        "question_number": 14,
+        "grade": "11",
+        "page_number": "215",
+        "test_number": "5",
+        "question_number": "14",
         "difficulty": "very_hard",
         "question_type": "blank",
         "correct_answer": "C",
@@ -663,8 +472,8 @@
         "teacher_note": "Fonksiyonun birinci türevini sıfır yapan noktalara bakacaksın.",
         "student_note": "Grafik çizimi ve teğet eğimi çok karmaşık geldi.",
         "learning_status": "new",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.527Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -676,10 +485,10 @@
         "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subtopic_id": "5ba7ee60-5dd0-4c2c-abe5-7de8e69affe7",
         "source_id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "grade": 11,
-        "page_number": 45,
-        "test_number": 3,
-        "question_number": 8,
+        "grade": "11",
+        "page_number": "45",
+        "test_number": "3",
+        "question_number": "8",
         "difficulty": "medium",
         "question_type": "wrong",
         "correct_answer": "C",
@@ -689,8 +498,8 @@
         "teacher_note": "f(g(x)) ile g(f(x)) sırasına çok dikkat et.",
         "student_note": "Bileşke fonksiyon sırasını ters uyguladım.",
         "learning_status": "needs_review",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.527Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -702,10 +511,10 @@
         "topic_id": "77c71b8c-625d-4e23-89ea-a4cb22073771",
         "subtopic_id": "94274224-373c-43cc-81eb-543f50272b4f",
         "source_id": "8e61160e-dd27-4224-bdb2-9d0721813d3d",
-        "grade": 11,
-        "page_number": 52,
-        "test_number": 4,
-        "question_number": 12,
+        "grade": "11",
+        "page_number": "52",
+        "test_number": "4",
+        "question_number": "12",
         "difficulty": "hard",
         "question_type": "blank",
         "correct_answer": "E",
@@ -715,8 +524,8 @@
         "teacher_note": "Rasyonel fonksiyonun tersini alma kuralını tekrar edelim.",
         "student_note": "Tersini bulurken paydayı sıfırlayan değeri atlamışım.",
         "learning_status": "not_reviewed",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.528Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -728,10 +537,10 @@
         "topic_id": "d889dca2-8f65-4276-8f4a-eed899105db3",
         "subtopic_id": "0f039af8-79ad-4c1f-b9af-a222631282e0",
         "source_id": "e527e534-e6cb-4c97-ad08-296e1fd6ae27",
-        "grade": 11,
-        "page_number": 84,
-        "test_number": 2,
-        "question_number": 5,
+        "grade": "11",
+        "page_number": "84",
+        "test_number": "2",
+        "question_number": "5",
         "difficulty": "medium",
         "question_type": "wrong",
         "correct_answer": "B",
@@ -741,8 +550,8 @@
         "teacher_note": "P(x) polinomunun (x-2) ile bölümünden kalan P(2) değeridir.",
         "student_note": "x yerine -2 yazmışım!",
         "learning_status": "reviewed_correct",
-        "review_count": 1,
-        "correct_streak": 1,
+        "review_count": "1",
+        "correct_streak": "1",
         "next_review_date": "2026-11-18T16:41:07.528Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -754,10 +563,10 @@
         "topic_id": "c1990eb4-8e09-4830-a591-2cc0cf5635c8",
         "subtopic_id": "c907f0bf-7f09-434d-b89c-6f6fc79316c1",
         "source_id": "3fac0a99-4407-4da4-b82f-13cef1a9e7cc",
-        "grade": 11,
-        "page_number": 110,
-        "test_number": 1,
-        "question_number": 3,
+        "grade": "11",
+        "page_number": "110",
+        "test_number": "1",
+        "question_number": "3",
         "difficulty": "easy",
         "question_type": "wrong",
         "correct_answer": "A",
@@ -767,8 +576,8 @@
         "teacher_note": "Çift katlı köklerde işaretin değişmediğini unutma.",
         "student_note": "Çift kat kökte işaret değiştirdim.",
         "learning_status": "learned",
-        "review_count": 3,
-        "correct_streak": 2,
+        "review_count": "3",
+        "correct_streak": "2",
         "next_review_date": "2026-11-18T16:41:07.528Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -780,10 +589,10 @@
         "topic_id": "1243367b-d354-4929-a9fe-55d8b9152c4a",
         "subtopic_id": "3ca8ec0a-ac99-4293-8eae-fc17589ac851",
         "source_id": "5e2b6b8a-4b43-4857-9e8a-ef7bd75d6fd4",
-        "grade": 11,
-        "page_number": 140,
-        "test_number": 6,
-        "question_number": 11,
+        "grade": "11",
+        "page_number": "140",
+        "test_number": "6",
+        "question_number": "11",
         "difficulty": "hard",
         "question_type": "wrong",
         "correct_answer": "D",
@@ -793,8 +602,8 @@
         "teacher_note": "cos(a+b) = cosa*cosb - sina*sinb formülündeki eksi işaretine dikkat.",
         "student_note": "cos toplam formülünü artı olarak hatırladım.",
         "learning_status": "needs_review",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.528Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
@@ -806,10 +615,10 @@
         "topic_id": "f833cc9f-9956-48b5-ae04-d3d256769630",
         "subtopic_id": "b5688634-5622-4215-a324-ff7a0d041f97",
         "source_id": "d1fb2c41-c81b-4d96-b7c4-f4a801bbc2dc",
-        "grade": 11,
-        "page_number": 215,
-        "test_number": 5,
-        "question_number": 14,
+        "grade": "11",
+        "page_number": "215",
+        "test_number": "5",
+        "question_number": "14",
         "difficulty": "very_hard",
         "question_type": "blank",
         "correct_answer": "C",
@@ -819,276 +628,1201 @@
         "teacher_note": "Fonksiyonun birinci türevini sıfır yapan noktalara bakacaksın.",
         "student_note": "Grafik çizimi ve teğet eğimi çok karmaşık geldi.",
         "learning_status": "new",
-        "review_count": 0,
-        "correct_streak": 0,
+        "review_count": "0",
+        "correct_streak": "0",
         "next_review_date": "2026-11-18T16:41:07.528Z",
         "created_at": "2026-11-17 16:41:07",
         "updated_at": "2026-11-17 16:41:07"
       }
     ],
-    "question_images": [
+    "curriculum_topics": [
       {
-        "id": "9706c7e6-ceaf-4cb4-83a4-d7ac09a23046",
-        "question_id": "65f7d5e4-7ecb-4721-af69-47a319ff6f1c",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
+        "id": "top_carpanlar_katlar",
+        "code": "LGS_01",
+        "name": "Çarpanlar ve Katlar",
+        "parent_id": null,
+        "grade_level": 8,
         "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "dd06fd1b-43cd-4ad6-bd58-6ee071253f2d",
-        "question_id": "5559d992-14e6-4858-adf4-ac15c66cb1da",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
+        "id": "sub_pozitif_carpanlar",
+        "code": "LGS_01_01",
+        "name": "Pozitif tam sayıların çarpanları",
+        "parent_id": "top_carpanlar_katlar",
+        "grade_level": 8,
         "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "3e54c16c-bfdb-4152-8380-633f6aa38fa6",
-        "question_id": "215f8b7a-3c5c-492e-81eb-64febb4b5a1e",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_ebob",
+        "code": "LGS_01_02",
+        "name": "EBOB (En Büyük Ortak Bölen)",
+        "parent_id": "top_carpanlar_katlar",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "6e71d85c-a60a-447b-ac93-310aa7de199f",
-        "question_id": "43422e95-9604-433d-b387-82406e770ed4",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_ekok",
+        "code": "LGS_01_03",
+        "name": "EKOK (En Küçük Ortak Kat)",
+        "parent_id": "top_carpanlar_katlar",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "0af05bf7-056d-4247-863f-d51a40b88d0d",
-        "question_id": "0d521065-7f21-4b5c-b31e-5bed1090d2e4",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_aralarinda_asal",
+        "code": "LGS_01_04",
+        "name": "Aralarında asal sayılar",
+        "parent_id": "top_carpanlar_katlar",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "a12d2dc6-b2b0-4348-8a0a-24643e1fbe78",
-        "question_id": "d8eb5026-639c-43e1-88c8-9aaf24aaaa3e",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_ebob_ekok_problemleri",
+        "code": "LGS_01_05",
+        "name": "EBOB–EKOK problemleri",
+        "parent_id": "top_carpanlar_katlar",
+        "grade_level": 8,
+        "sort_order": 5,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "1cb6e171-ec20-428a-aa67-70b477d154b5",
-        "question_id": "b671050d-55d6-4168-b518-bd71ad02b6e5",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "top_uslu_ifadeler",
+        "code": "LGS_02",
+        "name": "Üslü İfadeler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "0005d65f-1453-498b-b3c3-387c73fc1d50",
-        "question_id": "f5426ae7-8ad1-4b41-b8b4-b5fa1920f506",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
+        "id": "sub_tam_sayi_kuvvetleri",
+        "code": "LGS_02_01",
+        "name": "Tam sayıların tam sayı kuvvetleri",
+        "parent_id": "top_uslu_ifadeler",
+        "grade_level": 8,
         "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "f1e51375-3ac6-4411-876d-89738b3a977b",
-        "question_id": "487f34ef-060b-4e66-8711-a4d28c782d29",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_uslu_ozellikler",
+        "code": "LGS_02_02",
+        "name": "Üslü ifadelerin özellikleri",
+        "parent_id": "top_uslu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "28ac6a64-71ac-45bd-b955-7b18b97098e7",
-        "question_id": "0250f807-323b-4b96-bd08-4796da4b7f4c",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_bilimsel_gosterim",
+        "code": "LGS_02_03",
+        "name": "Bilimsel gösterim",
+        "parent_id": "top_uslu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "d71025dc-ee21-4a2e-9359-4282e2f2b29e",
-        "question_id": "f25e5e69-3e57-4613-97c4-30d7423c80c0",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_uslu_islemler",
+        "code": "LGS_02_04",
+        "name": "Üslü ifadelerle işlemler",
+        "parent_id": "top_uslu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "42f38d6b-30e3-4e1d-830f-8d2a0ee5154b",
-        "question_id": "2fe2653e-e12e-4964-ab12-545d6cd6ac2d",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_uslu_problemler",
+        "code": "LGS_02_05",
+        "name": "Üslü ifadelerle problemler",
+        "parent_id": "top_uslu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 5,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "4ca1170f-28a9-4175-8448-0f06195a3187",
-        "question_id": "4cb5e697-1df2-43e9-b43e-7d24f28ca30c",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "top_karekoklu_ifadeler",
+        "code": "LGS_03",
+        "name": "Kareköklü İfadeler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "5ea551f0-ee87-4165-95a3-bcb9f098b243",
-        "question_id": "d317fb14-c4bd-4b17-98ee-f45bef6a1650",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
+        "id": "sub_tam_kare_sayilar",
+        "code": "LGS_03_01",
+        "name": "Tam kare doğal sayılar",
+        "parent_id": "top_karekoklu_ifadeler",
+        "grade_level": 8,
         "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "a0f6e390-0b1f-4674-9334-8467064a7193",
-        "question_id": "23eae7d8-1e11-42d4-a20e-7861db8f5733",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_karekok_ozellikler",
+        "code": "LGS_03_02",
+        "name": "Kareköklü ifadelerin özellikleri",
+        "parent_id": "top_karekoklu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "6e76a97e-e96f-4641-b3c3-7459790304d5",
-        "question_id": "25c8bfa9-1d15-4c15-a61b-c866845dacf1",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_karekok_islemler",
+        "code": "LGS_03_03",
+        "name": "Kareköklü ifadelerle işlemler",
+        "parent_id": "top_karekoklu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "06144ee4-7698-441e-b908-b076dfd7b548",
-        "question_id": "7c7258b3-d462-417c-b2a6-f59f994bf8dd",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
-        "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "id": "sub_ondalik_karekok",
+        "code": "LGS_03_04",
+        "name": "Ondalık ifadelerin karekökü",
+        "parent_id": "top_karekoklu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       },
       {
-        "id": "2167133d-ba0d-4636-8a8b-3feeca48c882",
-        "question_id": "b02dbdc3-b166-4839-8601-859bc22b0b94",
-        "image_path": "/placeholder-question.svg",
-        "image_type": "question",
+        "id": "sub_gercek_sayilar",
+        "code": "LGS_03_05",
+        "name": "Gerçek sayılar",
+        "parent_id": "top_karekoklu_ifadeler",
+        "grade_level": 8,
+        "sort_order": 5,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_veri_analizi",
+        "code": "LGS_04",
+        "name": "Veri Analizi",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_cizgi_sutun_grafikleri",
+        "code": "LGS_04_01",
+        "name": "Çizgi ve sütun grafikleri",
+        "parent_id": "top_veri_analizi",
+        "grade_level": 8,
         "sort_order": 1,
-        "created_at": "2026-11-17 16:41:07"
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_daire_grafikleri",
+        "code": "LGS_04_02",
+        "name": "Daire grafikleri",
+        "parent_id": "top_veri_analizi",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_grafik_yorumlama",
+        "code": "LGS_04_03",
+        "name": "Grafik yorumlama",
+        "parent_id": "top_veri_analizi",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_grafikler_arasi_donusum",
+        "code": "LGS_04_04",
+        "name": "Grafikler arası dönüşüm",
+        "parent_id": "top_veri_analizi",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_olasilik",
+        "code": "LGS_05",
+        "name": "Basit Olayların Olma Olasılığı",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 5,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_olasi_durumlar",
+        "code": "LGS_05_01",
+        "name": "Olası durumlar",
+        "parent_id": "top_olasilik",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_es_olasilikli_olaylar",
+        "code": "LGS_05_02",
+        "name": "Eş olasılıklı olaylar",
+        "parent_id": "top_olasilik",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_olasilik_hesaplari",
+        "code": "LGS_05_03",
+        "name": "Olasılık hesaplamaları",
+        "parent_id": "top_olasilik",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_cebirsel_ifadeler",
+        "code": "LGS_06",
+        "name": "Cebirsel İfadeler ve Özdeşlikler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 6,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_cebirsel_ifadeler_temel",
+        "code": "LGS_06_01",
+        "name": "Cebirsel ifadeler",
+        "parent_id": "top_cebirsel_ifadeler",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_ozdeslikler",
+        "code": "LGS_06_02",
+        "name": "Özdeşlikler",
+        "parent_id": "top_cebirsel_ifadeler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_carpanlara_ayirma",
+        "code": "LGS_06_03",
+        "name": "Çarpanlara ayırma",
+        "parent_id": "top_cebirsel_ifadeler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_cebirsel_islemler",
+        "code": "LGS_06_04",
+        "name": "Cebirsel ifadelerle işlemler",
+        "parent_id": "top_cebirsel_ifadeler",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_dogrusal_denklemler",
+        "code": "LGS_07",
+        "name": "Doğrusal Denklemler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 7,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_koordinat_sistemi",
+        "code": "LGS_07_01",
+        "name": "Koordinat sistemi",
+        "parent_id": "top_dogrusal_denklemler",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_dogrusal_iliski",
+        "code": "LGS_07_02",
+        "name": "Doğrusal ilişki",
+        "parent_id": "top_dogrusal_denklemler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_dogrunun_egimi",
+        "code": "LGS_07_03",
+        "name": "Doğrunun eğimi",
+        "parent_id": "top_dogrusal_denklemler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_dogrusal_denklem_problemleri",
+        "code": "LGS_07_04",
+        "name": "Doğrusal denklem problemleri",
+        "parent_id": "top_dogrusal_denklemler",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_esitsizlikler",
+        "code": "LGS_08",
+        "name": "Eşitsizlikler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 8,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_birinci_derece_esitsizlik",
+        "code": "LGS_08_01",
+        "name": "Birinci dereceden bir bilinmeyenli eşitsizlikler",
+        "parent_id": "top_esitsizlikler",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_sayi_dogrusunda_gosterim",
+        "code": "LGS_08_02",
+        "name": "Eşitsizliklerin sayı doğrusunda gösterimi",
+        "parent_id": "top_esitsizlikler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_esitsizlik_problemleri",
+        "code": "LGS_08_03",
+        "name": "Eşitsizlik problemleri",
+        "parent_id": "top_esitsizlikler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_ucgenler",
+        "code": "LGS_09",
+        "name": "Üçgenler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 9,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_kenar_aci_iliskileri",
+        "code": "LGS_09_01",
+        "name": "Üçgende kenar ve açı ilişkileri",
+        "parent_id": "top_ucgenler",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_ucgen_esitsizligi",
+        "code": "LGS_09_02",
+        "name": "Üçgen eşitsizliği",
+        "parent_id": "top_ucgenler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_pisagor_bagintisi",
+        "code": "LGS_09_03",
+        "name": "Pisagor bağıntısı",
+        "parent_id": "top_ucgenler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_ucgen_problemleri",
+        "code": "LGS_09_04",
+        "name": "Üçgen problemleri",
+        "parent_id": "top_ucgenler",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_eslik_benzerlik",
+        "code": "LGS_10",
+        "name": "Eşlik ve Benzerlik",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 10,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_es_sekiller",
+        "code": "LGS_10_01",
+        "name": "Eş şekiller",
+        "parent_id": "top_eslik_benzerlik",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_benzer_sekiller",
+        "code": "LGS_10_02",
+        "name": "Benzer şekiller",
+        "parent_id": "top_eslik_benzerlik",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_benzerlik_orani",
+        "code": "LGS_10_03",
+        "name": "Benzerlik oranı",
+        "parent_id": "top_eslik_benzerlik",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_benzerlik_problemleri",
+        "code": "LGS_10_04",
+        "name": "Benzerlik problemleri",
+        "parent_id": "top_eslik_benzerlik",
+        "grade_level": 8,
+        "sort_order": 4,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_donusum_geometrisi",
+        "code": "LGS_11",
+        "name": "Dönüşüm Geometrisi",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 11,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_oteleme",
+        "code": "LGS_11_01",
+        "name": "Öteleme",
+        "parent_id": "top_donusum_geometrisi",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_yansima",
+        "code": "LGS_11_02",
+        "name": "Yansıma",
+        "parent_id": "top_donusum_geometrisi",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_geometrik_donusumler",
+        "code": "LGS_11_03",
+        "name": "Geometrik dönüşümler",
+        "parent_id": "top_donusum_geometrisi",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "top_geometrik_cisimler",
+        "code": "LGS_12",
+        "name": "Geometrik Cisimler",
+        "parent_id": null,
+        "grade_level": 8,
+        "sort_order": 12,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_prizmalar",
+        "code": "LGS_12_01",
+        "name": "Prizmalar",
+        "parent_id": "top_geometrik_cisimler",
+        "grade_level": 8,
+        "sort_order": 1,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_dik_dairesel_silindir",
+        "code": "LGS_12_02",
+        "name": "Dik dairesel silindir",
+        "parent_id": "top_geometrik_cisimler",
+        "grade_level": 8,
+        "sort_order": 2,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
+      },
+      {
+        "id": "sub_silindirin_yuzey_alani_hacmi",
+        "code": "LGS_12_03",
+        "name": "Silindirin yüzey alanı ve hacmi",
+        "parent_id": "top_geometrik_cisimler",
+        "grade_level": 8,
+        "sort_order": 3,
+        "is_active": 1,
+        "description": null,
+        "created_at": "2026-11-18 18:54:28"
       }
     ],
-    "question_attempts": [
+    "diagnostic_tests": [
       {
-        "id": "ac371ff6-62d2-420b-8c0c-cebfdb5b1b7b",
-        "question_id": "215f8b7a-3c5c-492e-81eb-64febb4b5a1e",
-        "result": "correct",
-        "duration_seconds": 75,
-        "exam_result_id": null,
-        "notes": "Tekrar çözümde doğru yapıldı.",
-        "attempted_at": "2026-11-15 16:41:07"
-      },
-      {
-        "id": "fe305e3b-47c3-4d90-afe3-6fc059919bf4",
-        "question_id": "43422e95-9604-433d-b387-82406e770ed4",
-        "result": "correct",
-        "duration_seconds": 75,
-        "exam_result_id": null,
-        "notes": "Tekrar çözümde doğru yapıldı.",
-        "attempted_at": "2026-11-15 16:41:07"
-      },
-      {
-        "id": "250f2065-c562-4dac-9b28-aafb5d159525",
-        "question_id": "487f34ef-060b-4e66-8711-a4d28c782d29",
-        "result": "correct",
-        "duration_seconds": 75,
-        "exam_result_id": null,
-        "notes": "Tekrar çözümde doğru yapıldı.",
-        "attempted_at": "2026-11-15 16:41:07"
-      },
-      {
-        "id": "05e47674-49ad-48d5-a154-b956c82e6d52",
-        "question_id": "0250f807-323b-4b96-bd08-4796da4b7f4c",
-        "result": "correct",
-        "duration_seconds": 75,
-        "exam_result_id": null,
-        "notes": "Tekrar çözümde doğru yapıldı.",
-        "attempted_at": "2026-11-15 16:41:07"
-      },
-      {
-        "id": "52df5891-26a0-48ae-8917-8478854884f7",
-        "question_id": "23eae7d8-1e11-42d4-a20e-7861db8f5733",
-        "result": "correct",
-        "duration_seconds": 75,
-        "exam_result_id": null,
-        "notes": "Tekrar çözümde doğru yapıldı.",
-        "attempted_at": "2026-11-15 16:41:07"
-      },
-      {
-        "id": "586c0f18-872d-4179-9e5f-ddd36ae9586a",
-        "question_id": "25c8bfa9-1d15-4c15-a61b-c866845dacf1",
-        "result": "correct",
-        "duration_seconds": 75,
-        "exam_result_id": null,
-        "notes": "Tekrar çözümde doğru yapıldı.",
-        "attempted_at": "2026-11-15 16:41:07"
-      },
-      {
-        "id": "906927dd-c3fe-4bd6-b6e8-6b18d49f11c4",
-        "question_id": "65f7d5e4-7ecb-4721-af69-47a319ff6f1c",
-        "result": "correct",
-        "duration_seconds": 60,
-        "exam_result_id": null,
-        "notes": "Formülü yeniden yazdım ve doğru çözdüm. [Kök Neden: Formül / Kural Unutma] [Süre: 60 sn]",
-        "attempted_at": "2026-11-17 17:31:34"
+        "id": "diag-lgs-01",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "title": "LGS Matematik Hazırbulunuşluk ve Başlangıç Seviye Tespit Sınavı",
+        "description": "Öğrencinin 8. sınıf LGS matematik konularındaki temel işlem, akıl yürütme, grafik okuma ve problem çözme becerilerini ölçen kapsamlı tanılama testi.",
+        "grade_level": 8,
+        "total_questions": 20,
+        "duration_minutes": 45,
+        "is_active": 1,
+        "created_at": "2026-11-18 19:42:40"
       }
     ],
-    "exams": [
+    "student_diagnostic_results": [
       {
-        "id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "title": "Akıllı Eksik Giderme Telafi Denemesi (17.11.2026)",
+        "id": "diag-res-elif",
+        "test_id": "diag-lgs-01",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "overall_score": 72.5,
+        "overall_level": "orta",
+        "is_provisional": 1,
+        "confidence_rating": 0.7,
+        "calc_skill_score": 82,
+        "problem_solving_score": 68,
+        "graphic_table_score": 75,
+        "math_reasoning_score": 70,
+        "new_gen_score": 65,
+        "time_management_score": 78,
+        "strong_topics_json": "[\"Üslü İfadeler\", \"Veri Analizi\", \"Cebirsel İfadeler\"]",
+        "weak_topics_json": "[\"Çarpanlar ve Katlar (EBOB-EKOK Problemleri)\", \"Kareköklü İfadeler (Gerçek Sayılar)\"]",
+        "sub_outcome_deficits_json": "[\"EBOB-EKOK problemlerinde ortak bölen adımı\", \"Kareköklü sayılarda yaklaşık değer tahmini\"]",
+        "suggested_start_plan_json": "{\"focusTopic\": \"Çarpanlar ve Katlar\", \"weeklyTargetQuestions\": 120, \"dailyMinutes\": 45, \"recommendedLevel\": \"Orta Ağırlıklı\"}",
+        "completed_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "diag-res-burak",
+        "test_id": "diag-lgs-01",
+        "student_id": "4685e009-c47e-4747-b986-f3d83f8b7eef",
+        "overall_score": 64,
+        "overall_level": "gelismekte",
+        "is_provisional": 1,
+        "confidence_rating": 0.65,
+        "calc_skill_score": 70,
+        "problem_solving_score": 58,
+        "graphic_table_score": 62,
+        "math_reasoning_score": 60,
+        "new_gen_score": 55,
+        "time_management_score": 60,
+        "strong_topics_json": "[\"Doğrusal Denklemler\", \"Veri Analizi\"]",
+        "weak_topics_json": "[\"Üçgenler (Pisagor Bağıntısı)\", \"Basit Olayların Olasılığı\"]",
+        "sub_outcome_deficits_json": "[\"Pisagor teoreminde dik kenar bağıntısı\", \"Olasılık hesaplamalarında örnek uzay tespiti\"]",
+        "suggested_start_plan_json": "{\"focusTopic\": \"Üçgenler\", \"weeklyTargetQuestions\": 90, \"dailyMinutes\": 35, \"recommendedLevel\": \"Temel ve Orta\"}",
+        "completed_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "smart_mistake_analyses": [
+      {
+        "id": "mistake-1",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "question_id": "q-ebob-1",
+        "topic_id": "top_carpanlar_katlar",
+        "subtopic_id": "sub_ebob_ekok_problemleri",
+        "exam_id": null,
+        "student_answer": "B",
+        "correct_answer": "D",
+        "primary_error_type": "islem_hatasi",
+        "ai_probability": 0.88,
+        "ai_reasoning_explanation": "Öğrencinin EBOB mantığını kavradığı ancak 72 ve 96 sayılarının asal çarpan algoritmasında 3. adımda çıkarma/bölme işlem hatası yaptığı düşünülmektedir.",
+        "verified_by_teacher": 1,
+        "verified_by_student": 1,
+        "teacher_note": "Öğrenciyle derste incelendi; işlem basamaklarını acele yapmaktan kaynaklanmış.",
+        "created_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "mistake-2",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "question_id": "q-uslu-1",
+        "topic_id": "top_uslu_ifadeler",
+        "subtopic_id": "sub_uslu_problemler",
+        "exam_id": null,
+        "student_answer": "A",
+        "correct_answer": "C",
+        "primary_error_type": "yanlis_okuma",
+        "ai_probability": 0.82,
+        "ai_reasoning_explanation": "Soru kökündeki \"en az kaç kutu gereklidir\" ifadesi yerine kutuların toplam hacmine odaklanılmış; soruyu eksik okuma ihtimali yüksektir.",
+        "verified_by_teacher": 1,
+        "verified_by_student": 0,
+        "teacher_note": "Soru kökündeki olumsuz/şart ifadelerinin altını çizmesi hatırlatıldı.",
+        "created_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "mistake-3",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "question_id": "q-karekok-1",
+        "topic_id": "top_karekoklu_ifadeler",
+        "subtopic_id": "sub_ondalik_karekok",
+        "exam_id": null,
+        "student_answer": "C",
+        "correct_answer": "B",
+        "primary_error_type": "model_kuramama",
+        "ai_probability": 0.79,
+        "ai_reasoning_explanation": "Ondalık gösterimin kesir haline getirilmesi aşamasında kök dışına çıkarma kuralı doğru uygulanmış ancak geometri alan bağıntısıyla model kurulamamıştır.",
+        "verified_by_teacher": 0,
+        "verified_by_student": 0,
+        "teacher_note": null,
+        "created_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "spaced_repetition_items": [
+      {
+        "id": "sr-1",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "topic_id": "top_carpanlar_katlar",
+        "source_type": "mistake",
+        "source_id": "q-ebob-1",
+        "question_text": "İki çuval pirinç ve mercimek poşetlere eşit ve hiç artmayacak şekilde paylaştırılacaktır...",
+        "repetition_level": 2,
+        "ease_factor": 2.5,
+        "interval_days": 3,
+        "last_reviewed_at": "2026-11-18 19:42:40",
+        "next_review_at": "2026-11-19 19:42:40",
+        "last_performance": "incorrect",
+        "forgetting_risk": "dusuk",
+        "is_mastered": 0,
+        "created_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "sr-2",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "topic_id": "top_uslu_ifadeler",
+        "source_type": "outcome",
+        "source_id": "sub_uslu_islemler",
+        "question_text": "Tabanları aynı üsleri farklı üslü sayılarda bölme ve çarpma kuralı uygulaması...",
+        "repetition_level": 3,
+        "ease_factor": 2.6,
+        "interval_days": 7,
+        "last_reviewed_at": "2026-11-18 19:42:40",
+        "next_review_at": "2026-11-21 19:42:40",
+        "last_performance": "correct",
+        "forgetting_risk": "orta",
+        "is_mastered": 0,
+        "created_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "sr-3",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "topic_id": "top_karekoklu_ifadeler",
+        "source_type": "mistake",
+        "source_id": "q-karekok-1",
+        "question_text": "Alanı 2,89 cm² olan karenin bir kenar uzunluğu ile alanı 1,44 cm² olan dairenin çapı...",
+        "repetition_level": 1,
+        "ease_factor": 2.3,
+        "interval_days": 1,
+        "last_reviewed_at": "2026-11-18 19:42:40",
+        "next_review_at": "2026-11-16 19:42:40",
+        "last_performance": "incorrect",
+        "forgetting_risk": "yuksek",
+        "is_mastered": 0,
+        "created_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "daily_student_goals": [
+      {
+        "id": "goal-elif-today",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "goal_date": "2026-11-18",
+        "title": "Bugünkü LGS Matematik Çalışma Planım",
+        "items_json": "[{\"id\":\"item-1\",\"type\":\"topic_review\",\"title\":\"10 dk: Üslü ifadeler özellikler konu özeti\",\"durationMin\":10,\"questionCount\":0,\"completed\":true},{\"id\":\"item-2\",\"type\":\"medium_questions\",\"title\":\"15 soru: Üslü ifadeler orta seviye test\",\"durationMin\":20,\"questionCount\":15,\"completed\":true},{\"id\":\"item-3\",\"type\":\"topic_practice\",\"title\":\"10 soru: Çarpanlar ve Katlar EBOB-EKOK pratik\",\"durationMin\":15,\"questionCount\":10,\"completed\":false},{\"id\":\"item-4\",\"type\":\"spaced_repetition\",\"title\":\"5 soru: Önceki yanlışların aralıklı tekrarı\",\"durationMin\":10,\"questionCount\":5,\"completed\":false},{\"id\":\"item-5\",\"type\":\"new_gen\",\"title\":\"5 soru: LGS formatında yeni nesil problem\",\"durationMin\":15,\"questionCount\":5,\"completed\":false}]",
+        "total_minutes": 70,
+        "total_questions": 35,
+        "completed_minutes": 30,
+        "completed_questions": 15,
+        "is_fully_completed": 0,
+        "rolled_over_to_next_day": 0,
+        "teacher_approved": 1,
+        "created_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "teacher_lesson_schedules": [
+      {
+        "id": "sched-1",
         "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
         "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
-        "question_count": 6,
-        "duration_minutes": 30,
-        "status": "draft",
-        "created_at": "2026-11-17 17:14:32",
-        "updated_at": "2026-11-17 17:14:32"
+        "lesson_date": "2026-11-18",
+        "start_time": "17:00",
+        "duration_minutes": 60,
+        "status": "completed",
+        "topic_id": "top_carpanlar_katlar",
+        "planned_goals": "EBOB-EKOK yeni nesil problem çözme stratejileri ve soru kökü analizi.",
+        "created_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "sched-2",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "lesson_date": "2026-11-21 19:42:40",
+        "start_time": "16:30",
+        "duration_minutes": 60,
+        "status": "scheduled",
+        "topic_id": "top_uslu_ifadeler",
+        "planned_goals": "Bilimsel gösterim ve çok büyük/küçük sayılarda üs dönüşümleri.",
+        "created_at": "2026-11-18 19:42:40"
       }
     ],
-    "exam_questions": [
+    "lesson_history_records": [
       {
-        "id": "534138c0-720f-48e9-ad1d-1dece041461c",
-        "exam_id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "question_id": "0d521065-7f21-4b5c-b31e-5bed1090d2e4",
-        "sort_order": 0
-      },
-      {
-        "id": "447108af-2569-4f53-926a-3d50ae9ee3fb",
-        "exam_id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "question_id": "65f7d5e4-7ecb-4721-af69-47a319ff6f1c",
-        "sort_order": 1
-      },
-      {
-        "id": "2b1d5f1a-4b20-431f-be20-9de56c843c75",
-        "exam_id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "question_id": "215f8b7a-3c5c-492e-81eb-64febb4b5a1e",
-        "sort_order": 2
-      },
-      {
-        "id": "43cc70b3-b7e8-4365-85df-cc74eb7fff3d",
-        "exam_id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "question_id": "5559d992-14e6-4858-adf4-ac15c66cb1da",
-        "sort_order": 3
-      },
-      {
-        "id": "c11a339d-6b83-4331-b324-817c1838a78e",
-        "exam_id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "question_id": "d8eb5026-639c-43e1-88c8-9aaf24aaaa3e",
-        "sort_order": 4
-      },
-      {
-        "id": "4da4079c-9f69-47dd-a582-0b3e90291fea",
-        "exam_id": "5d573a65-a08f-4df7-983e-2ed6298d8d08",
-        "question_id": "43422e95-9604-433d-b387-82406e770ed4",
-        "sort_order": 5
+        "id": "hist-1",
+        "schedule_id": "sched-1",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "lesson_date": "2026-11-18",
+        "topic_id": "top_carpanlar_katlar",
+        "subtopics_covered": "EBOB-EKOK problemleri, ortak bölen analizi",
+        "questions_solved_count": 18,
+        "student_performance_rating": 4,
+        "teacher_private_notes": "Öğrencinin dikkati gayet iyiydi; yalnızca çarpan algoritmasında acele etmemesi gerekiyor.",
+        "teacher_parent_notes": "Elif bugün EBOB-EKOK yeni nesil sorularında oldukça başarılı bir ilerleme kaydetti. Çözüm adımlarını sakin şekilde yazması konusunda mutabık kaldık.",
+        "assigned_homework": "Soru bankasından 15 adet orta seviye EBOB-EKOK testi.",
+        "next_lesson_goals": "Bir sonraki derste Üslü İfadeler bilimsel gösterim ve modelleme çalışacağız.",
+        "created_at": "2026-11-18 19:42:40"
       }
     ],
-    "exam_results": [],
-    "exam_answers": []
+    "student_homework_assignments": [
+      {
+        "id": "hw-1",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "title": "Çarpanlar ve Katlar Pekiştirme Ödevi",
+        "description": "EBOB-EKOK ve aralarında asal sayılar 15 soruluk haftalık hedef ödevi.",
+        "topic_id": "top_carpanlar_katlar",
+        "question_count": 15,
+        "difficulty_level": 3,
+        "source_type": "question_bank",
+        "start_date": "2026-11-18",
+        "due_date": "2026-11-22 19:42:40",
+        "status": "started",
+        "completed_question_count": 10,
+        "correct_count": 8,
+        "wrong_count": 2,
+        "completion_percentage": 66.6,
+        "completed_at": null,
+        "share_with_parent": 1,
+        "created_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "hw-2",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "title": "Üslü Sayılar Bilimsel Gösterim Testi",
+        "description": "Yeni nesil grafikli ve modellemeli 12 soru.",
+        "topic_id": "top_uslu_ifadeler",
+        "question_count": 12,
+        "difficulty_level": 4,
+        "source_type": "question_bank",
+        "start_date": "2026-11-18",
+        "due_date": "2026-11-25 19:42:40",
+        "status": "assigned",
+        "completed_question_count": 0,
+        "correct_count": 0,
+        "wrong_count": 0,
+        "completion_percentage": 0,
+        "completed_at": null,
+        "share_with_parent": 1,
+        "created_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "mini_lesson_topics": [
+      {
+        "id": "mini-ebob-ekok",
+        "topic_id": "top_carpanlar_katlar",
+        "title": "EBOB ve EKOK Stratejileri ile Yeni Nesil Problem Çözümü",
+        "summary_text": "İki veya daha fazla doğal sayının ortak bölenlerinin en büyüğüne EBOB; ortak katlarının en küçüğüne EKOK denir. Parçadan bütüne gidiliyorsa (küçük kutulardan büyük kutu) EKOK; bütünden parçaya gidiliyorsa (büyük çuvallardan küçük poşetler) EBOB kullanılır.",
+        "formulas_json": "[\"a · b = EBOB(a, b) · EKOK(a, b)\", \"Aralarında asal iki sayının EBOB'u 1, EKOK'u çarpımlarına eşittir.\"]",
+        "solved_examples_json": "[{\"question\": \"Kenarları 24 m ve 36 m olan dikdörtgen şeklindeki bir bahçenin etrafına köşelere de gelmek şartıyla eşit aralıklarla en az kaç ağaç dikilir?\", \"solution\": \"Bütünden eşit parçalara bölündüğü için EBOB(24, 36) = 12 metredir. Çevre = 2 · (24 + 36) = 120 m. Ağaç sayısı = 120 / 12 = 10 ağaç.\"}]",
+        "video_url": "https://www.youtube.com/watch?v=sample-ebob",
+        "pdf_url": null,
+        "sort_order": 0,
+        "is_active": 1,
+        "created_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "student_achievement_badges": [
+      {
+        "id": "b-1",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "badge_code": "first_100",
+        "badge_title": "İlk Adım",
+        "badge_description": "İlk 100 matematik sorusunu başarıyla tamamladı.",
+        "icon": "🚀",
+        "category": "milestone",
+        "earned_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "b-2",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "badge_code": "consistent_worker",
+        "badge_title": "Düzenli Çalışan",
+        "badge_description": "7 gün üst üste günlük matematik hedefine ulaştı.",
+        "icon": "🔥",
+        "category": "streak",
+        "earned_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "b-3",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "badge_code": "problem_solver",
+        "badge_title": "Problem Çözücü",
+        "badge_description": "LGS yeni nesil problem testinde %80 üzeri başarı gösterdi.",
+        "icon": "🧩",
+        "category": "mastery",
+        "earned_at": "2026-11-18 19:42:40"
+      },
+      {
+        "id": "b-4",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "badge_code": "review_master",
+        "badge_title": "Tekrar Ustası",
+        "badge_description": "Aralıklı tekrar sorularının tamamını gününde çözdü.",
+        "icon": "🔁",
+        "category": "habit",
+        "earned_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "exam_countdown_settings": [
+      {
+        "id": "lgs-target",
+        "exam_title": "2027 LGS Matematik Sınavı",
+        "target_date": "2027-06-06",
+        "updated_by": null,
+        "updated_at": "2026-11-18 19:42:40"
+      }
+    ],
+    "question_quality_audits": [
+      {
+        "id": "qa-seed-01",
+        "question_id": "q-carpan-01",
+        "math_accuracy": 1,
+        "single_correct_answer": 1,
+        "option_consistency": 1,
+        "root_clarity": 1,
+        "grammar_correctness": 1,
+        "curriculum_alignment": 1,
+        "difficulty_consistency": 1,
+        "svg_accuracy": 1,
+        "similarity_ratio": 0.04,
+        "audit_verdict": "approved",
+        "audit_notes": "Soru LGS 2026/2027 kazanımlarına birebir uygundur. Çeldirici şıklar öğrencilerin yapabileceği yaygın EBOB hatalarına göre pedagojik olarak yapılandırılmıştır.",
+        "audited_at": "2026-11-18 14:00:00",
+        "solution_accuracy": 1
+      },
+      {
+        "id": "qa-seed-02",
+        "question_id": "q-uslu-01",
+        "math_accuracy": 1,
+        "single_correct_answer": 1,
+        "option_consistency": 1,
+        "root_clarity": 1,
+        "grammar_correctness": 1,
+        "curriculum_alignment": 1,
+        "difficulty_consistency": 1,
+        "svg_accuracy": 1,
+        "similarity_ratio": 0.02,
+        "audit_verdict": "approved",
+        "audit_notes": "Üs alma ve basamak hesabı hatasız, soru kökündeki koyu vurgu anlaşılır ve çözüm açıklaması adım adım verilmiştir.",
+        "audited_at": "2026-11-18 14:10:00",
+        "solution_accuracy": 1
+      },
+      {
+        "id": "qa-seed-03",
+        "question_id": "q-karekök-01",
+        "math_accuracy": 1,
+        "single_correct_answer": 1,
+        "option_consistency": 1,
+        "root_clarity": 1,
+        "grammar_correctness": 1,
+        "curriculum_alignment": 1,
+        "difficulty_consistency": 1,
+        "svg_accuracy": 1,
+        "similarity_ratio": 0.06,
+        "audit_verdict": "approved",
+        "audit_notes": "Sayı doğrusu SVG görseli ölçekli ve piksel hassasiyetinde üretilmiş; yaklaşık değer tahmin sorusu titizlikle kurgulanmıştır.",
+        "audited_at": "2026-11-18 14:20:00",
+        "solution_accuracy": 1
+      },
+      {
+        "id": "qa-seed-04",
+        "question_id": "q-sample-review-01",
+        "math_accuracy": 1,
+        "single_correct_answer": 1,
+        "option_consistency": 0,
+        "root_clarity": 1,
+        "grammar_correctness": 1,
+        "curriculum_alignment": 1,
+        "difficulty_consistency": 1,
+        "svg_accuracy": 1,
+        "similarity_ratio": 0.12,
+        "audit_verdict": "needs_review",
+        "audit_notes": "C ve D şıkları sayısal olarak birbirine çok yakın (18 ve 19); çeldiricilerin ayırt ediciliği artırılmalı.",
+        "audited_at": "2026-11-18 15:00:00",
+        "solution_accuracy": 1
+      }
+    ],
+    "parent_progress_reports": [
+      {
+        "id": "prep-weekly-elif-01",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "period_type": "weekly",
+        "start_date": "2026-11-10",
+        "end_date": "2026-11-17",
+        "total_questions": 145,
+        "correct_count": 118,
+        "wrong_count": 19,
+        "empty_count": 8,
+        "completed_homeworks": 3,
+        "total_homeworks": 3,
+        "attended_exams": 2,
+        "net_change": 1.75,
+        "topics_summary": "[{\"topic\":\"Çarpanlar ve Katlar\",\"solved\":65,\"accuracy\":82},{\"topic\":\"Üslü İfadeler\",\"solved\":50,\"accuracy\":86},{\"topic\":\"Kareköklü İfadeler\",\"solved\":30,\"accuracy\":73}]",
+        "next_week_goals": "Haftaya Kareköklü İfadeler yaklaşık değer ve gerçek sayılar soru çözümüne ağırlık verilecek; günlük 25 soru hedefi korunacak.",
+        "teacher_message": "Elif bu hafta harika bir disiplin gösterdi. Özellikle EBOB-EKOK problemlerinde model kurma aşamasını çok iyi kavradı. Evdeki düzenli soru çözüm desteğiniz için teşekkür ederiz.",
+        "is_approved_by_teacher": 1,
+        "status": "published",
+        "created_at": "2026-11-17 18:00:00",
+        "updated_at": "2026-11-18 20:02:06"
+      },
+      {
+        "id": "prep-monthly-elif-01",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "period_type": "monthly",
+        "start_date": "2026-10-18",
+        "end_date": "2026-11-18",
+        "total_questions": 580,
+        "correct_count": 482,
+        "wrong_count": 68,
+        "empty_count": 30,
+        "completed_homeworks": 12,
+        "total_homeworks": 12,
+        "attended_exams": 5,
+        "net_change": 3.5,
+        "topics_summary": "[{\"topic\":\"Çarpanlar ve Katlar\",\"solved\":210,\"accuracy\":85},{\"topic\":\"Üslü İfadeler\",\"solved\":190,\"accuracy\":88},{\"topic\":\"Kareköklü İfadeler\",\"solved\":180,\"accuracy\":76}]",
+        "next_week_goals": "Aralık ayı boyunca Veri Analizi ve Basit Olayların Olma Olasılığı konuları tamamlanacak, ay sonunda genel LGS denemesi uygulanacak.",
+        "teacher_message": "Elif bir aylık periyotta matematik netlerini 13.50 seviyesinden 17.00 seviyesine yükselterek büyük bir gelişim kaydetti. Azmi ve ders katılımı takdire şayandır.",
+        "is_approved_by_teacher": 1,
+        "status": "published",
+        "created_at": "2026-11-18 10:00:00",
+        "updated_at": "2026-11-18 20:02:06"
+      },
+      {
+        "id": "prep-weekly-burak-01",
+        "student_id": "e1b4b127-18c7-43a9-8a21-9860b0ec8884",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "period_type": "weekly",
+        "start_date": "2026-11-10",
+        "end_date": "2026-11-17",
+        "total_questions": 110,
+        "correct_count": 82,
+        "wrong_count": 21,
+        "empty_count": 7,
+        "completed_homeworks": 2,
+        "total_homeworks": 2,
+        "attended_exams": 1,
+        "net_change": 1.25,
+        "topics_summary": "[{\"topic\":\"Çarpanlar ve Katlar\",\"solved\":60,\"accuracy\":75},{\"topic\":\"Üslü İfadeler\",\"solved\":50,\"accuracy\":74}]",
+        "next_week_goals": "Haftaya üslü sayılarda çözümleme ve bilimsel gösterim pekiştirilecek.",
+        "teacher_message": "Burak bu hafta çalışma temposunu belirgin şekilde artırdı. Soruları sakin ve dikkatli okuduğunda işlem hatalarının azaldığını gözlemledik. Gayreti çok sevindirici.",
+        "is_approved_by_teacher": 1,
+        "status": "published",
+        "created_at": "2026-11-17 19:30:00",
+        "updated_at": "2026-11-18 20:02:06"
+      }
+    ],
+    "post_exam_evaluations": [
+      {
+        "id": "eval-post-exam-01",
+        "exam_id": "exam-genel-lgs-01",
+        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
+        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "summary_json": "{\"correct\":16,\"wrong\":3,\"empty\":1,\"net\":15.0,\"score\":75.0,\"timeSpentMinutes\":38,\"totalDuration\":45}",
+        "topics_json": "[{\"topic\":\"Çarpanlar ve Katlar\",\"total\":6,\"correct\":5,\"wrong\":1,\"empty\":0,\"net\":4.67,\"accuracy\":83},{\"topic\":\"Üslü İfadeler\",\"total\":7,\"correct\":6,\"wrong\":1,\"empty\":0,\"net\":5.67,\"accuracy\":86},{\"topic\":\"Kareköklü İfadeler\",\"total\":7,\"correct\":5,\"wrong\":1,\"empty\":1,\"net\":4.67,\"accuracy\":71}]",
+        "subtopics_json": "[{\"subtopic\":\"EBOB-EKOK Problemleri\",\"mastery\":\"Güçlü\"},{\"subtopic\":\"Üslü Sayılarda Çözümleme\",\"mastery\":\"Mükemmel\"},{\"subtopic\":\"Kareköklü Sayılarda Tahmin\",\"mastery\":\"Geliştirilmeli\"}]",
+        "difficulty_json": "{\"easy\":{\"total\":5,\"correct\":5,\"wrong\":0,\"empty\":0,\"accuracy\":100},\"medium\":{\"total\":9,\"correct\":8,\"wrong\":1,\"empty\":0,\"accuracy\":89},\"hard\":{\"total\":6,\"correct\":3,\"wrong\":2,\"empty\":1,\"accuracy\":50},\"newGeneration\":{\"total\":8,\"correct\":6,\"wrong\":2,\"empty\":0,\"accuracy\":75}}",
+        "time_management_json": "{\"averageSecondsPerQuestion\":114,\"slowestQuestions\":[7,14,19],\"rushedMistakes\":[19],\"timePressureZone\":\"Son 5 dakika\"}",
+        "mistake_reasons_json": "[{\"reason\":\"İşlem hatası\",\"count\":1,\"questions\":[7]},{\"reason\":\"Soruyu yanlış okuma\",\"count\":1,\"questions\":[14]},{\"reason\":\"Matematiksel model kuramama\",\"count\":1,\"questions\":[19]}]",
+        "previous_comparison_json": "{\"previousNet\":13.25,\"currentNet\":15.00,\"netDelta\":1.75,\"topicProgress\":{\"Çarpanlar ve Katlar\":\"+1.00 Net\",\"Üslü İfadeler\":\"+0.75 Net\"}}",
+        "strengths_text": "Üslü ifadeler ve temel EBOB-EKOK kazanımlarında çok başarılı; kolay ve orta düzey soruların tamamına yakınını hatasız çözüyor.",
+        "priorities_text": "Kareköklü ifadelerde problem kurma ve yeni nesil uzun metinli sorularda soru kökünün altını çizerek okuma alışkanlığı.",
+        "study_recommendations": "Önümüzdeki 5 gün boyunca Kareköklü İfadelerden her gün 15 yeni nesil soru çözülmesi ve 14. sorudaki soru kökü analizinin tekrar edilmesi önerilir.",
+        "ai_evaluation_text": "Elif sınav süresini 38 dakikada dengeli tamamladı. 15.00 net ile önceki sınavına kıyasla +1.75 netlik belirgin bir artış gösterdi. Zorlandığı 3 sorunun 1 tanesi basit işlem hatasından kaynaklandı. Genel motivasyonu ve odaklanması yüksek.",
+        "teacher_approved": 1,
+        "approved_at": "2026-11-18 11:30:00",
+        "created_at": "2026-11-18 11:00:00",
+        "updated_at": "2026-11-18 20:02:06"
+      }
+    ],
+    "system_audit_logs": [
+      {
+        "id": "audit-01",
+        "user_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "action": "APPROVE_REPORT",
+        "resource_type": "parent_progress_reports",
+        "resource_id": "prep-weekly-elif-01",
+        "details": "{\"status\":\"published\",\"student\":\"Elif Yılmaz\"}",
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-11-17 18:05:00"
+      },
+      {
+        "id": "audit-02",
+        "user_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "action": "APPROVE_EXAM_EVAL",
+        "resource_type": "post_exam_evaluations",
+        "resource_id": "eval-post-exam-01",
+        "details": "{\"exam\":\"exam-genel-lgs-01\",\"student\":\"Elif Yılmaz\"}",
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-11-18 11:30:00"
+      },
+      {
+        "id": "audit-03",
+        "user_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "action": "DATA_EXPORT",
+        "resource_type": "reports_export",
+        "resource_id": "csv_exam_results",
+        "details": "{\"format\":\"CSV\",\"records\":42}",
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-11-18 12:00:00"
+      },
+      {
+        "id": "audit-04",
+        "user_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
+        "action": "QUALITY_AUDIT",
+        "resource_type": "question_quality_audits",
+        "resource_id": "qa-seed-01",
+        "details": "{\"verdict\":\"approved\"}",
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-11-18 14:05:00"
+      }
+    ]
   }
 }

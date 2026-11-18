@@ -42,6 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 # local databases and uploads
-*.db
 *.sqlite
+!data/app.db
 public/uploads/pdfs/*.pdf
