@@ -1,6 +1,7 @@
 'use client';
 import { useActionState, useTransition, useState } from 'react';
-import { createStudent, updateStudent, resetStudentPassword, setStudentActive, type FormState } from './actions';
+import { useRouter } from 'next/navigation';
+import { createStudent, updateStudent, resetStudentPassword, setStudentActive, deleteStudent, type FormState } from './actions';
 
 const Msg = ({ s }: { s: FormState }) => s.error ? <p role="alert" className="text-sm text-red-600 dark:text-red-400">{s.error}</p> : s.ok ? <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">✓ {s.ok}</p> : null;
 const GradeSelect = ({ value }: { value?: number | null }) => (
@@ -60,6 +61,24 @@ export function PasswordForm({ id }: { id: string }) {
         <button type="button" className="btn-secondary shrink-0" onClick={() => setPw(makePassword())}>Üret</button></div>
       <div className="flex items-center gap-3"><button className="btn-secondary" disabled={pending}>Şifreyi değiştir</button><Msg s={state} /></div>
     </form>
+  );
+}
+
+export function DeleteStudent({ id, name }: { id: string; name: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<FormState>({});
+  const go = () => {
+    const typed = window.prompt(`“${name}” KALICI olarak silinecek: hesabı, soruları, deneme cevapları ve çalışma planları. Bu geri alınamaz.\n\nEmin olmak için öğrencinin adını aynen yazın (geçici olarak çıkarmak için “Pasifleştir”i kullanın):`);
+    if (typed === null) return;
+    if (typed.trim() !== name.trim()) { setMsg({ error: 'Ad eşleşmedi; silinmedi.' }); return; }
+    start(async () => { const r = await deleteStudent(id); if (r.error) setMsg(r); else router.push('/ogretmen/ogrenciler'); });
+  };
+  return (
+    <div className="flex items-center gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+      <button type="button" onClick={go} disabled={pending} className="btn-danger">{pending ? 'Siliniyor…' : 'Öğrenciyi kalıcı sil'}</button>
+      <Msg s={msg} />
+    </div>
   );
 }
 

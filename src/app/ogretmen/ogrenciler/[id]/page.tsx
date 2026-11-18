@@ -5,7 +5,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { getStudent, bankSummaries, getClasses } from '@/lib/data';
 import { QuestionBank } from '@/components/questions/QuestionBank';
 import { Stat } from '@/components/Stat';
-import { EditStudentForm, PasswordForm, ActiveToggle } from '../StudentForms';
+import { EditStudentForm, PasswordForm, ActiveToggle, DeleteStudent } from '../StudentForms';
 import { pct } from '@/lib/labels';
 
 export const metadata: Metadata = { title: 'Öğrenci' };
@@ -43,7 +43,7 @@ export default async function StudentDetail({ params, searchParams }: { params: 
       <section className="grid gap-6 lg:grid-cols-3">
         <details className="card lg:col-span-2"><summary className="cursor-pointer font-bold">Öğrenci bilgileri</summary><div className="mt-4"><EditStudentForm s={s} classes={classes} /></div></details>
         <details className="card space-y-4"><summary className="cursor-pointer font-bold">Hesap</summary>
-          <div className="mt-4 space-y-5">{s.profile_id && <PasswordForm id={s.id} />}<ActiveToggle id={s.id} active={s.is_active} /></div>
+          <div className="mt-4 space-y-5">{s.profile_id && <PasswordForm id={s.id} />}<ActiveToggle id={s.id} active={s.is_active} /><DeleteStudent id={s.id} name={s.full_name} /></div>
         </details>
       </section>
     </div>
