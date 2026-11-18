@@ -97,7 +97,7 @@ export function targetLevels(kind: Kind, p: Perf): number[] {
   if (p.level === 'veri_yok' || p.rate == null) return [2, 3, 4];     // ölçmek için orta aralık
   return p.rate < 0.35 ? [1, 2] : p.rate < 0.5 ? [2, 3] : p.rate < 0.65 ? [2, 3, 4] : p.rate < 0.8 ? [3, 4] : [4, 5];
 }
-const levelsText = (l: number[]) => (l.length === 1 ? DIFF_LABEL[l[0]] : `${DIFF_LABEL[l[0]]}–${DIFF_LABEL[l[l.length - 1]]}`);
+export const levelsText = (l: number[]) => (l.length === 1 ? DIFF_LABEL[l[0]] : `${DIFF_LABEL[l[0]]}–${DIFF_LABEL[l[l.length - 1]]}`);
 
 export function selectStudy(inp: SelectInput): { items: Picked[]; notes: string[] } {
   const notes: string[] = [];

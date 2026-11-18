@@ -18,7 +18,7 @@ export interface QuestionRow {
   question_topic_relations?: { topic_id: string; role: string }[];   // yardımcı konular
 }
 export interface Source { id: string; name: string }
-export interface StudentRow { id: string; profile_id: string | null; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; notes: string | null; created_at: string; class_id: string | null; teacher_id: string | null }
+export interface StudentRow { id: string; profile_id: string | null; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; notes: string | null; created_at: string; class_id: string | null; teacher_id: string | null; daily_goal: number }
 export interface ClassRow { id: string; name: string; join_code: string; is_open: boolean; teacher_id: string; created_at: string }
 
 // Öğretmenin sınıfları (RLS: yalnızca kendi sınıfları; yönetici hepsini görür, bu yüzden öğretmene göre süzülür)
@@ -115,7 +115,7 @@ export async function getQuestion(sb: SupabaseClient, id: string): Promise<Quest
 }
 
 export async function getStudent(sb: SupabaseClient, id: string): Promise<StudentRow | null> {
-  const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at, class_id, teacher_id').eq('id', id).maybeSingle();
+  const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at, class_id, teacher_id, daily_goal').eq('id', id).maybeSingle();
   return (data as StudentRow) || null;
 }
 

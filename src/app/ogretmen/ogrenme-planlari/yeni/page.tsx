@@ -35,7 +35,7 @@ export default async function NewPlanPage({ searchParams }: { searchParams: Prom
       </div>
       {(approved ?? 0) === 0 ? <p className="card text-sm text-amber-700 dark:text-amber-300">Havuzda uygun soru yok. <Link href="/ogretmen/pdf-arsivi" className="font-semibold underline">PDF Analiz Merkezi</Link>&rsquo;nde bir PDF analiz edip soruların konusunu verip onaylayın.</p> : (
         <PlanBuilder students={students} units={units} pdfs={(pdfs || []) as { id: string; title: string }[]} grade={grade}
-          initial={{ students: (sp.ogrenci || '').split(',').filter(Boolean), units: (sp.konu || '').split(',').filter(Boolean), kind, count: Math.min(60, Math.max(3, Number(sp.adet) || 10)) }} />
+          initial={{ students: (sp.ogrenci || '').split(',').filter(Boolean), units: (sp.konu || '').split(',').filter(Boolean), kind, count: Math.min(60, Math.max(3, Number(sp.adet) || 10)), rec: /^[0-9a-f-]{36}$/i.test(sp.oneri || '') ? sp.oneri : undefined }} />
       )}
     </div>
   );

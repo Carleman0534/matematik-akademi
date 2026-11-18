@@ -70,6 +70,7 @@ export async function updateStudent(_prev: FormState, form: FormData): Promise<F
     full_name: fullName, grade_level: gradeOf(form.get('sinif')),
     school_name: String(form.get('okul') || '').trim() || null, notes: String(form.get('notlar') || '').trim() || null,
     class_id: await ownClassId(form.get('sinif_grubu')),
+    daily_goal: Math.min(100, Math.max(0, parseInt(String(form.get('hedef') ?? '10'), 10) || 0)),
   }).eq('id', id).select('profile_id').maybeSingle();
   if (error || !st) return { error: 'Kaydedilemedi: ' + (error?.message || 'öğrenci bulunamadı') };
   if (st.profile_id) await sb.from('profiles').update({ full_name: fullName }).eq('id', st.profile_id);

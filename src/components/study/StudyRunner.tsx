@@ -3,13 +3,15 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { planCompleted, type CompletionInfo } from '@/app/ogrenci/calisma/actions';
 
 export interface StudyItem { qid: string; pos: number; url: string | null; opts: number; ans: string | null; res: string | null; cor: string | null; answered: boolean }
 
 const RES_LABEL: Record<string, string> = { correct: 'Doğru! 🎉', incorrect: 'Yanlış', blank: 'Boş bırakıldı' };
 
 // Öğrenci çalışma ekranı: soru görseli + şıklar; cevap kaydedilir, sonuç (ve izin varsa doğru şık) gösterilir
-export function StudyRunner({ title, note, solutionMode, initial, dueLabel }: { title: string; note: string | null; solutionMode: string; initial: StudyItem[]; dueLabel: string | null }) {
+export function StudyRunner({ planId, title, note, solutionMode, initial, dueLabel }: { planId: string; title: string; note: string | null; solutionMode: string; initial: StudyItem[]; dueLabel: string | null }) {
+  const [after, setAfter] = useState<CompletionInfo | null>(null);
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const firstOpen = initial.findIndex(i => !i.answered);
@@ -35,7 +37,9 @@ export function StudyRunner({ title, note, solutionMode, initial, dueLabel }: { 
     if (error) { setErr(error.message); return; }
     const r = (data as { res: string; cor: string | null }[])[0];
     setItems(prev => prev.map((x, i) => (i === cur ? { ...x, ans: letter, res: r.res, cor: r.cor, answered: true } : x)));
-    if (items.filter(x => x.answered).length + 1 === items.length) router.refresh(); // plan tamamlandı: sunucudan güncel durum (çözümler "bitince" modunda açılır)
+    if (items.filter(x => x.answered).length + 1 === items.length) {   // plan tamamlandı: profil/öneriler güncellenir, sunucudan güncel durum (çözümler "bitince" modunda açılır)
+      planCompleted(planId).then(setAfter).finally(() => router.refresh());
+    }
   };
 
   const wrong = items.filter(i => i.res === 'incorrect' || i.res === 'blank').length;
@@ -53,6 +57,7 @@ export function StudyRunner({ title, note, solutionMode, initial, dueLabel }: { 
       {done && (
         <div className="card space-y-1 text-center"><p className="text-3xl">🏁</p><p className="font-bold">Çalışmayı tamamladın!</p>
           <p className="text-sm text-slate-600 dark:text-slate-300">{items.filter(i => i.res === 'correct').length} doğru · {items.filter(i => i.res === 'incorrect').length} yanlış · {items.filter(i => i.res === 'blank').length} boş</p>
+          {after?.message && <p className="rounded-lg bg-indigo-50 px-3 py-2 text-sm dark:bg-indigo-950/40">{after.direction === 'yukari' ? '🚀' : after.direction === 'asagi' ? '💪' : '👍'} {after.message}</p>}
           {wrong > 0 && <p className="text-xs text-slate-500">Yanlış ve boş sorular <b>Soru Bankam</b>&rsquo;a eklendi; <Link href="/ogrenci/tekrar" className="font-semibold text-indigo-600 dark:text-indigo-400">Tekrar Et</Link>&rsquo;te karşına çıkacak.</p>}
           {solutionMode === 'after_complete' && <p className="text-xs text-slate-500">Doğru cevapları aşağıdaki soru numaralarına tıklayarak görebilirsin.</p>}
         </div>

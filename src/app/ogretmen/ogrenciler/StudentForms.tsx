@@ -35,7 +35,7 @@ export function CreateStudentForm({ classes }: { classes: ClassOpt[] }) {
   );
 }
 
-export function EditStudentForm({ s, classes }: { s: { id: string; full_name: string; grade_level: number | null; school_name: string | null; notes: string | null; class_id: string | null }; classes: ClassOpt[] }) {
+export function EditStudentForm({ s, classes }: { s: { id: string; full_name: string; grade_level: number | null; school_name: string | null; notes: string | null; class_id: string | null; daily_goal: number }; classes: ClassOpt[] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateStudent, {});
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
@@ -44,6 +44,7 @@ export function EditStudentForm({ s, classes }: { s: { id: string; full_name: st
       <div><label className="label" htmlFor="e-sinif">Sınıf</label><GradeSelect value={s.grade_level} /></div>
       <div><label className="label" htmlFor="e-okul">Okul</label><input id="e-okul" name="okul" defaultValue={s.school_name || ''} className="input" /></div>
       <ClassSelect classes={classes} value={s.class_id} id="e-grup" />
+      <div><label className="label" htmlFor="e-hedef">Günlük soru hedefi <span className="font-normal">(0 = hedef gösterilmez)</span></label><input id="e-hedef" name="hedef" type="number" min={0} max={100} defaultValue={s.daily_goal} className="input" /></div>
       <div className="sm:col-span-2"><label className="label" htmlFor="e-not">Öğretmen notları (öğrenci görmez)</label><textarea id="e-not" name="notlar" defaultValue={s.notes || ''} rows={3} className="input" /></div>
       <div className="flex items-center gap-3 sm:col-span-2"><button className="btn-primary" disabled={pending}>Kaydet</button><Msg s={state} /></div>
     </form>

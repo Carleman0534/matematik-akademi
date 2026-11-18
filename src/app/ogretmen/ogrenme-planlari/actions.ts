@@ -57,7 +57,7 @@ export async function previewPlans(p: PlanParams): Promise<{ error?: string; pre
 export interface PlanInput { studentId: string; title: string; items: { id: string; reason: string }[] }
 export interface PlanOpts { kind: Kind; solution_mode: 'after_answer' | 'after_complete' | 'never'; due_on: string; note: string; assign: boolean }
 
-export async function createPlans(plans: PlanInput[], o: PlanOpts): Promise<PlanResult> {
+export async function createPlans(plans: PlanInput[], o: PlanOpts, recId?: string): Promise<PlanResult> {
   const me = await teacher();
   if (!me) return { error: 'Yetkiniz yok.' };
   if (!(o.kind in KIND_LABEL)) return { error: 'Çalışma türü geçersiz.' };
@@ -84,9 +84,11 @@ export async function createPlans(plans: PlanInput[], o: PlanOpts): Promise<Plan
     }));
     if (qErr) { await sb.from('study_plans').delete().eq('id', plan.id); return { error: 'Sorular eklenemedi: ' + qErr.message, ids: created }; }
     created.push(plan.id);
+    // Öneriden oluşturulduysa öneriyi "onaylandı" yap ve planla ilişkilendir (yalnızca o öneri bu öğrenciye aitse)
+    if (isUuid(recId)) await sb.from('study_recommendations').update({ status: 'approved', plan_id: plan.id, decided_at: new Date().toISOString() }).eq('id', recId).eq('student_id', pl.studentId).eq('status', 'pending');
   }
   if (!created.length) return { error: 'Plan oluşturulamadı: geçerli soru ya da öğrenci yok.' };
-  revalidatePath('/ogretmen/ogrenme-planlari'); revalidatePath('/ogrenci/calisma');
+  revalidatePath('/ogretmen/ogrenme-planlari'); revalidatePath('/ogrenci/calisma'); revalidatePath('/ogretmen/oneriler');
   return { ok: o.assign ? `${created.length} çalışma öğrencilere atandı.` : `${created.length} çalışma taslak olarak kaydedildi.`, ids: created };
 }
 

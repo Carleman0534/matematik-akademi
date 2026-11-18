@@ -26,7 +26,7 @@ export default async function StudyPlanPage({ params }: { params: Promise<{ id: 
   return (
     <div className="space-y-3">
       <Link href="/ogrenci/calisma" className="text-sm text-slate-500 hover:underline">← Çalışmalarım</Link>
-      <StudyRunner title={plan.title} note={plan.note} solutionMode={plan.solution_mode} initial={items} dueLabel={plan.due_on ? fmtDate(plan.due_on) : null} />
+      <StudyRunner planId={plan.id} title={plan.title} note={plan.note} solutionMode={plan.solution_mode} initial={items} dueLabel={plan.due_on ? fmtDate(plan.due_on) : null} />
     </div>
   );
 }

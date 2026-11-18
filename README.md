@@ -1,73 +1,74 @@
-﻿# Matematik Akademi â€“ AkÄ±llÄ± Soru BankasÄ± ve Online Deneme
+# Matematik Akademi – Akıllı Soru Bankası ve Online Deneme
 
-Ã–zel ders Ã¶ÄŸrencilerinin **yanlÄ±ÅŸ ve boÅŸ bÄ±raktÄ±ÄŸÄ± sorularÄ±** biriktirip tekrar ettiÄŸi, Ã¶ÄŸretmenin **online deneme** yapÄ±p
-deneme biter bitmez kimin hangi soruyu ve hangi konuyu yanlÄ±ÅŸ yaptÄ±ÄŸÄ±nÄ± gÃ¶rdÃ¼ÄŸÃ¼ web uygulamasÄ±.
-Birden Ã§ok Ã¶ÄŸretmen, her Ã¶ÄŸretmenin kendi Ã¶ÄŸrencileri; matematik mÃ¼fredatÄ± hazÄ±r.
+Özel ders öğrencilerinin **yanlış ve boş bıraktığı soruları** biriktirip tekrar ettiği, öğretmenin **online deneme** yapıp
+deneme biter bitmez kimin hangi soruyu ve hangi konuyu yanlış yaptığını gördüğü web uygulaması.
+Birden çok öğretmen, her öğretmenin kendi öğrencileri; matematik müfredatı hazır.
 
-CanlÄ±: <https://matematik-akademi-alpha.vercel.app>
+Canlı: <https://matematik-akademi-alpha.vercel.app>
 
 ## Neler var
 
-| Alan | Ã–zellikler |
+| Alan | Özellikler |
 |---|---|
-| Hesaplar | GiriÅŸ ekranÄ±nda **Beni hatÄ±rla** (varsayÄ±lan aÃ§Ä±k): iÅŸaretliyse oturum bu cihazda uzun sÃ¼re (yaklaÅŸÄ±k 400 gÃ¼n) aÃ§Ä±k kalÄ±r ve son kullanÄ±cÄ± adÄ± kendiliÄŸinden dolar (ÅŸifre asla saklanmaz); iÅŸaretli deÄŸilse tarayÄ±cÄ± kapanÄ±nca oturum biter. Ã–ÄŸretmen e-postayla, Ã¶ÄŸrenci kullanÄ±cÄ± adÄ±yla girer. **YÃ¶netici** (ilk Ã¶ÄŸretmen) Ã¶ÄŸretmen davet kodu Ã¼retir. Ã–ÄŸretmen **sÄ±nÄ±f kodu** verir; Ã¶ÄŸrenci `/kayit` sayfasÄ±nda kodla kendi kaydolur ya da Ã¶ÄŸretmen hesabÄ±nÄ± aÃ§ar. |
-| MÃ¼fredat | **LGS (8. sÄ±nÄ±f) matematik** konu aÄŸacÄ± (12 Ã¼nite, 48 alt konu) ve MEB kazanÄ±mlarÄ± (52) hazÄ±r; 9â€“12. sÄ±nÄ±f lise konularÄ± da var. Ã–ÄŸretmen konu ekler, adlandÄ±rÄ±r, sÄ±ralar, **pasifleÅŸtirir** (eski sorular konusunu korur), kazanÄ±m ekler/dÃ¼zenler. Bir soru **ana konu + yardÄ±mcÄ± konulara** ve bir kazanÄ±ma baÄŸlanabilir; soru bankasÄ± filtresi yardÄ±mcÄ± konularÄ± da bulur. |
-| Soru bankasÄ± | FotoÄŸrafla (toplu, sayfadan kÄ±rparak) soru ekleme, yanlÄ±ÅŸ/boÅŸ, kaynak, konu, zorluk, hata tÃ¼rÃ¼; filtreler; Ã§Ã¶zÃ¼m geÃ§miÅŸi; Ã¶ÄŸrenme durumu ve aralÄ±klÄ± tekrar. |
-| Denemeler | PDF ya da fotoÄŸraftan deneme (PDF sayfalarÄ± telefonda net gÃ¶rÃ¼nsÃ¼n diye gÃ¶rsele Ã§evrilir). Cevap anahtarÄ± + konu + sayfa. **CanlÄ± oturum** (Ã¶ÄŸretmen baÅŸlatÄ±r, sÃ¼re herkes iÃ§in birlikte) ya da **sÃ¼reli Ã¶dev** (tarih aralÄ±ÄŸÄ±). SÄ±nÄ±fa, bÃ¼tÃ¼n Ã¶ÄŸrencilere ya da **seÃ§ili Ã¶ÄŸrencilere** atama. |
-| Ã–ÄŸrenci deneme ekranÄ± | Sayfalar + optik form; her iÅŸaret anÄ±nda kaydedilir, internet kesilirse kaldÄ±ÄŸÄ± yerden devam; sÃ¼re sunucuda tutulur, bitince kendiliÄŸinden teslim. |
-| CanlÄ± izleme | 4 sn'de bir: kim Ã§Ã¶zÃ¼yor / baÄŸlantÄ±sÄ± koptu / teslim etti, kaÃ§Ä±ncÄ± soruda, anlÄ±k D/Y/B ve net, soru bazÄ±nda doÄŸru oranÄ±. Ã–ÄŸrencinin Ã§Ã¶zÃ¼mÃ¼nÃ¼ sÄ±fÄ±rlama. |
-| SonuÃ§lar | SÄ±ralÄ± net tablosu, Ã¶ÄŸrencinin optiÄŸi ile cevap anahtarÄ± karÅŸÄ±laÅŸtÄ±rmasÄ±, soru analizi (ÅŸÄ±k daÄŸÄ±lÄ±mÄ±, Ã§eldirici, yanlÄ±ÅŸ yapanlar), konu analizi. **YanlÄ±ÅŸ ve boÅŸlarÄ± tek tuÅŸla Ã¶ÄŸrencinin soru bankasÄ±na** (sayfa gÃ¶rseliyle) aktarma. |
-| KÃ¢ÄŸÄ±t sÄ±nav | Ã–ÄŸrenci adlarÄ±yla optik form yazdÄ±rma; kÃ¢ÄŸÄ±ttaki cevaplarÄ± hÄ±zlÄ± girme (ABCD-â€¦ yazÄ±p Enter). SonuÃ§lar online Ã§Ã¶zenlerle birlikte hesaplanÄ±r. |
-| PDF Analiz Merkezi | Birden Ã§ok PDF sÃ¼rÃ¼kle-bÄ±rak yÃ¼klenir (aynÄ± iÃ§erik SHA-256 ile tanÄ±nÄ±p ikinci kez yÃ¼klenmez); her dosyaya kaynak, yayÄ±nevi, deneme no, tarih. Ã‡ok dersli kitapÃ§Ä±klarda (TÃ¼rkÃ§e, Fen â€¦) **yalnÄ±zca Matematik bÃ¶lÃ¼mÃ¼** alÄ±nÄ±r; her sorunun **konusu/alt konusu soru metninden otomatik seÃ§ilir**, emin olunamazsa soru "konusuz" kalÄ±r (Ã¶ÄŸretmen onaydan Ã¶nce kontrol eder/seÃ§er; yapay zekÃ¢ kullanÄ±lmaz, anahtar sÃ¶zcÃ¼k kurallarÄ±dÄ±r). PDF yÃ¼klenince sorular **otomatik ayÄ±klanÄ±r** (kapatÄ±labilir; sade dizilmiÅŸ testlerde numara gÃ¶vdeyle aynÄ± boyutta olsa da ÅŸÄ±klÄ± ardÄ±ÅŸÄ±k sorular bulunur). **Analiz et**: sorular bulunur, kÄ±rpÄ±lÄ±r, kitapÃ§Ä±ÄŸÄ±n cevap anahtarÄ± okunur, gÃ¶rsel parmak iziyle benzer sorular iÅŸaretlenir; iÅŸ durumu (bekliyor/iÅŸleniyor/onay bekliyor/tamamlandÄ±/hata) veritabanÄ±nda, aynÄ± PDF aynÄ± anda iki kez analiz edilemez, yeniden analiz mÃ¼kerrer soru eklemez. |
-| **Soru havuzu** | Ã–ÄŸretmen sorunun konusunu/alt konusunu, zorluÄŸunu (1â€“5), tÃ¼rÃ¼nÃ¼, ÅŸekil olup olmadÄ±ÄŸÄ±nÄ± ve doÄŸru cevabÄ± verir (tek tek ya da toplu) ve **onaylar** (konusuz soru onaylanamaz). Havuzda konu/alt konu, kaynak, yayÄ±nevi, zorluk, tÃ¼r, ÅŸekil sÃ¼zgeÃ§leri; mÃ¼kerrerler gizlenebilir; seÃ§ilen sorulardan tek tuÅŸla online deneme. **Deneme konu analizi**: PDF'ler arasÄ± Ã¼nite Ã¼nite soru sayÄ±sÄ±, alt konu kapsamÄ±, soru tipi Ã§eÅŸitliliÄŸi, zorluk daÄŸÄ±lÄ±mÄ± ve uyarÄ±lar. |
-| **KiÅŸisel Ã¶ÄŸrenme** | **Ã–ÄŸrenci Analizleri**: konu bazlÄ± baÅŸarÄ± (zorluk aÄŸÄ±rlÄ±klÄ±, yeni kanÄ±t daha deÄŸerli, az veride "Yeterli veri yok", yalnÄ±z kolay soruda gÃ¼ven sÄ±nÄ±rÄ±), gÃ¼ven dÃ¼zeyi, eÄŸilim ve Ã¶neri. **Ã–ÄŸrenme PlanlarÄ±**: Ã¶ÄŸrenci/Ã¼nite/PDF/tÃ¼r/soru sayÄ±sÄ± seÃ§ilir; sistem her Ã¶ÄŸrenciye eksik konusuna orantÄ±lÄ±, Ã§Ã¶zmediÄŸi, Ã§eÅŸitli (tÃ¼r/kaynak/dÃ¼zey) sorulardan **kiÅŸiye Ã¶zel** set Ã§Ä±karÄ±r, her soruda "Neden bu soru?" gerekÃ§esi; Ã¶ÄŸretmen soru Ã§Ä±karabilir, taslak kaydeder ya da Ã¶ÄŸrencilere atar. Ã–ÄŸrenci **Ã‡alÄ±ÅŸmam**'da Ã§Ã¶zer (cevap bir kez, doÄŸru cevap Ã¶ÄŸretmenin ayarÄ±na gÃ¶re), yanlÄ±ÅŸ/boÅŸlar kendiliÄŸinden **Soru Bankam**'a eklenir; **Konu Durumum**'da kendi durumunu gÃ¶rÃ¼r. Cevap anahtarÄ± Ã¶ÄŸrenciden gizlidir. Yapay zekÃ¢ ile soru Ã¼retimi henÃ¼z yok. |
-| PDF arÅŸivi | Deneme, soru bankasÄ±, cevap anahtarÄ± PDF'leri gizli kovada. ArÅŸivden tek tÄ±kla online deneme ya da **PDF'ten soru kÄ±rpma** (Ã¶ÄŸrencinin bankasÄ±na ya da yeni denemeye). |
-| Raporlar | Son 8 denemede Ã¶ÄŸrenci netleri ve deÄŸiÅŸim; **eksiklik haritasÄ±** (Ã¶ÄŸrenci Ã— Ã¼nite doÄŸru oranÄ± + bankada biriken soru); Ã¶ncelikli Ã¼niteler. YazdÄ±rÄ±labilir. |
+| Hesaplar | Giriş ekranında **Beni hatırla** (varsayılan açık): işaretliyse oturum bu cihazda uzun süre (yaklaşık 400 gün) açık kalır ve son kullanıcı adı kendiliğinden dolar (şifre asla saklanmaz); işaretli değilse tarayıcı kapanınca oturum biter. Öğretmen e-postayla, öğrenci kullanıcı adıyla girer. **Yönetici** (ilk öğretmen) öğretmen davet kodu üretir. Öğretmen **sınıf kodu** verir; öğrenci `/kayit` sayfasında kodla kendi kaydolur ya da öğretmen hesabını açar. |
+| Müfredat | **LGS (8. sınıf) matematik** konu ağacı (12 ünite, 48 alt konu) ve MEB kazanımları (52) hazır; 9–12. sınıf lise konuları da var. Öğretmen konu ekler, adlandırır, sıralar, **pasifleştirir** (eski sorular konusunu korur), kazanım ekler/düzenler. Bir soru **ana konu + yardımcı konulara** ve bir kazanıma bağlanabilir; soru bankası filtresi yardımcı konuları da bulur. |
+| Soru bankası | Fotoğrafla (toplu, sayfadan kırparak) soru ekleme, yanlış/boş, kaynak, konu, zorluk, hata türü; filtreler; çözüm geçmişi; öğrenme durumu ve aralıklı tekrar. |
+| Denemeler | PDF ya da fotoğraftan deneme (PDF sayfaları telefonda net görünsün diye görsele çevrilir). Cevap anahtarı + konu + sayfa. **Canlı oturum** (öğretmen başlatır, süre herkes için birlikte) ya da **süreli ödev** (tarih aralığı). Sınıfa, bütün öğrencilere ya da **seçili öğrencilere** atama. |
+| Öğrenci deneme ekranı | Sayfalar + optik form; her işaret anında kaydedilir, internet kesilirse kaldığı yerden devam; süre sunucuda tutulur, bitince kendiliğinden teslim. |
+| Canlı izleme | 4 sn'de bir: kim çözüyor / bağlantısı koptu / teslim etti, kaçıncı soruda, anlık D/Y/B ve net, soru bazında doğru oranı. Öğrencinin çözümünü sıfırlama. |
+| Sonuçlar | Sıralı net tablosu, öğrencinin optiği ile cevap anahtarı karşılaştırması, soru analizi (şık dağılımı, çeldirici, yanlış yapanlar), konu analizi. **Yanlış ve boşları tek tuşla öğrencinin soru bankasına** (sayfa görseliyle) aktarma. |
+| Kâğıt sınav | Öğrenci adlarıyla optik form yazdırma; kâğıttaki cevapları hızlı girme (ABCD-… yazıp Enter). Sonuçlar online çözenlerle birlikte hesaplanır. |
+| PDF Analiz Merkezi | Birden çok PDF sürükle-bırak yüklenir (aynı içerik SHA-256 ile tanınıp ikinci kez yüklenmez); her dosyaya kaynak, yayınevi, deneme no, tarih. Çok dersli kitapçıklarda (Türkçe, Fen …) **yalnızca Matematik bölümü** alınır; her sorunun **konusu/alt konusu soru metninden otomatik seçilir**, emin olunamazsa soru "konusuz" kalır (öğretmen onaydan önce kontrol eder/seçer; yapay zekâ kullanılmaz, anahtar sözcük kurallarıdır). PDF yüklenince sorular **otomatik ayıklanır** (kapatılabilir; sade dizilmiş testlerde numara gövdeyle aynı boyutta olsa da şıklı ardışık sorular bulunur). **Analiz et**: sorular bulunur, kırpılır, kitapçığın cevap anahtarı okunur, görsel parmak iziyle benzer sorular işaretlenir; iş durumu (bekliyor/işleniyor/onay bekliyor/tamamlandı/hata) veritabanında, aynı PDF aynı anda iki kez analiz edilemez, yeniden analiz mükerrer soru eklemez. |
+| **Soru havuzu** | Öğretmen sorunun konusunu/alt konusunu, zorluğunu (1–5), türünü, şekil olup olmadığını ve doğru cevabı verir (tek tek ya da toplu) ve **onaylar** (konusuz soru onaylanamaz). Havuzda konu/alt konu, kaynak, yayınevi, zorluk, tür, şekil süzgeçleri; mükerrerler gizlenebilir; seçilen sorulardan tek tuşla online deneme. **Deneme konu analizi**: PDF'ler arası ünite ünite soru sayısı, alt konu kapsamı, soru tipi çeşitliliği, zorluk dağılımı ve uyarılar. |
+| **Kişisel öğrenme** | **Öğrenci Analizleri**: konu bazlı başarı (zorluk ağırlıklı, yeni kanıt daha değerli, az veride "Yeterli veri yok", yalnız kolay soruda güven sınırı), güven düzeyi, eğilim ve öneri. **Öğrenme Planları**: öğrenci/ünite/PDF/tür/soru sayısı seçilir; sistem her öğrenciye eksik konusuna orantılı, çözmediği, çeşitli (tür/kaynak/düzey) sorulardan **kişiye özel** set çıkarır, her soruda "Neden bu soru?" gerekçesi; öğretmen soru çıkarabilir, taslak kaydeder ya da öğrencilere atar. Öğrenci **Çalışmam**'da çözer (cevap bir kez, doğru cevap öğretmenin ayarına göre), yanlış/boşlar kendiliğinden **Soru Bankam**'a eklenir; **Konu Durumum**'da kendi durumunu görür. Cevap anahtarı öğrenciden gizlidir. Yapay zekâ ile soru üretimi henüz yok. |
+| **Uyarlanabilir öğrenme** | Sistem cevapları izler ve **Çalışma Önerileri** üretir: zorlanılan konuya *eksik tamamlama*, bir süredir çalışılmayan konuya *aralıklı tekrar* (zayıfsa 7, iyiyse 14, güçlüyse 30 gün), güçlü konuya *daha zor sorular*. Öğrenci bir çalışmayı bitirince öneriler kendiliğinden yenilenir (öğretmen "Önerileri yenile" ile de tarar). Öneriler **kendiliğinden atanmaz**: öğretmen önizler, düzenler, onaylar ya da reddeder; onaylanan/reddedilen konu için 7 gün yeni öneri üretilmez. Öğrenciye çalışma sonunda sonuca göre geri bildirim, **günlük soru hedefi** (öğretmen belirler) ve gün serisi, Konu Durumum'da "Sıradaki hedeflerin" gösterilir. |
+| PDF arşivi | Deneme, soru bankası, cevap anahtarı PDF'leri gizli kovada. Arşivden tek tıkla online deneme ya da **PDF'ten soru kırpma** (öğrencinin bankasına ya da yeni denemeye). |
+| Raporlar | Son 8 denemede öğrenci netleri ve değişim; **eksiklik haritası** (öğrenci × ünite doğru oranı + bankada biriken soru); öncelikli üniteler. Yazdırılabilir. |
 
 ## Teknoloji
 
-Next.js 16 (App Router) Â· TypeScript Â· Tailwind CSS 4 Â· Supabase (PostgreSQL, Auth, Storage) Â· pdf.js (tarayÄ±cÄ±da) Â· Vercel.
-AyrÄ± bir arka uÃ§ yok: bÃ¼tÃ¼n yetki kurallarÄ± veritabanÄ±nda (Row Level Security) ve depolama kurallarÄ±ndadÄ±r.
-Ã–ÄŸrenci cevaplarÄ± yalnÄ±zca veritabanÄ± fonksiyonlarÄ±yla (`start_exam`, `save_answer`, `submit_exam`) ve sÃ¼re iÃ§inde yazÄ±labilir.
-Dosyalar tarayÄ±cÄ±dan doÄŸrudan gizli kovalara yÃ¼klenir (sunucuya bÃ¼yÃ¼k istek gitmez).
+Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (PostgreSQL, Auth, Storage) · pdf.js (tarayıcıda) · Vercel.
+Ayrı bir arka uç yok: bütün yetki kuralları veritabanında (Row Level Security) ve depolama kurallarındadır.
+Öğrenci cevapları yalnızca veritabanı fonksiyonlarıyla (`start_exam`, `save_answer`, `submit_exam`) ve süre içinde yazılabilir.
+Dosyalar tarayıcıdan doğrudan gizli kovalara yüklenir (sunucuya büyük istek gitmez).
 
 ## Kurulum
 
-1. Supabase projesi aÃ§Ä±n; SQL Editor'de **sÄ±rayla** Ã§alÄ±ÅŸtÄ±rÄ±n: `supabase/migrations/0001_init.sql` â€¦ `0008_ogrenme_planlari.sql`.
-2. Authentication â†’ "Allow new users to sign up" **kapalÄ±** (kayÄ±t yalnÄ±zca kodla, sunucuda yapÄ±lÄ±r).
-3. Ã–ÄŸretmen hesabÄ±: Authentication â†’ Users â†’ Add user (Auto Confirm), sonra SQL Editor'de:
+1. Supabase projesi açın; SQL Editor'de **sırayla** çalıştırın: `supabase/migrations/0001_init.sql` … `0010_siniflar_ozyineleme_duzeltme.sql`.
+2. Authentication → "Allow new users to sign up" **kapalı** (kayıt yalnızca kodla, sunucuda yapılır).
+3. Öğretmen hesabı: Authentication → Users → Add user (Auto Confirm), sonra SQL Editor'de:
    ```sql
-   update public.profiles set role = 'teacher', full_name = 'AdÄ±nÄ±z SoyadÄ±nÄ±z'
+   update public.profiles set role = 'teacher', full_name = 'Adınız Soyadınız'
    where id = (select id from auth.users where email = 'sizin@epostaniz.com');
    ```
-   Ä°lk Ã¶ÄŸretmen 0003 Ã§alÄ±ÅŸÄ±nca otomatik **yÃ¶netici** olur. DiÄŸer Ã¶ÄŸretmenleri Ã–ÄŸretmenler sayfasÄ±ndaki davet koduyla ekleyin.
-4. `.env.example` â†’ `.env.local`: Project URL, `anon` ve `service_role` anahtarlarÄ± (`service_role` yalnÄ±zca sunucuda; kayÄ±t ve ÅŸifre sÄ±fÄ±rlamada kullanÄ±lÄ±r).
-5. `npm install` â†’ `npm run dev`. Vercel'de aynÄ± Ã¼Ã§ deÄŸiÅŸkeni Environment Variables'a girin.
+   İlk öğretmen 0003 çalışınca otomatik **yönetici** olur. Diğer öğretmenleri Öğretmenler sayfasındaki davet koduyla ekleyin.
+4. `.env.example` → `.env.local`: Project URL, `anon` ve `service_role` anahtarları (`service_role` yalnızca sunucuda; kayıt ve şifre sıfırlamada kullanılır).
+5. `npm install` → `npm run dev`. Vercel'de aynı üç değişkeni Environment Variables'a girin.
 
-## Veri modeli (Ã¶zet)
+## Veri modeli (özet)
 
-`profiles` (rol, yÃ¶netici) Â· `students` (Ã¶ÄŸretmen, sÄ±nÄ±f) Â· `classes` (kayÄ±t kodu) Â· `teacher_invites` Â·
-`questions`, `question_images`, `question_attempts` (soru bankasÄ±) Â·
-`curriculum_outcomes`, `question_topic_relations` (mÃ¼fredat) Â· `pool_questions`, `pool_question_topics`, `pdf_analysis_jobs` (soru havuzu) Â· `study_plans`, `study_plan_questions` (Ã¶ÄŸrenme planlarÄ±; Ã¶ÄŸrenci yalnÄ±zca RPC ile eriÅŸir) Â· `exams`, `exam_pages`, `exam_key` (Ã¶ÄŸrenciye sonuÃ§lar aÃ§Ä±lana kadar kapalÄ±), `exam_assignees`, `exam_sessions`, `exam_answers` Â·
-`pdf_documents`. Kovalar: `question-images`, `exam-pages`, `pdf-library`, `question-pool` (hepsi gizli; sÃ¼reli adreslerle gÃ¶sterilir).
+`profiles` (rol, yönetici) · `students` (öğretmen, sınıf) · `classes` (kayıt kodu) · `teacher_invites` ·
+`questions`, `question_images`, `question_attempts` (soru bankası) ·
+`curriculum_outcomes`, `question_topic_relations` (müfredat) · `pool_questions`, `pool_question_topics`, `pdf_analysis_jobs` (soru havuzu) · `study_plans`, `study_plan_questions` (öğrenme planları; öğrenci yalnızca RPC ile erişir), `study_recommendations` (uyarlanabilir öneriler; yalnızca öğretmen) · `exams`, `exam_pages`, `exam_key` (öğrenciye sonuçlar açılana kadar kapalı), `exam_assignees`, `exam_sessions`, `exam_answers` ·
+`pdf_documents`. Kovalar: `question-images`, `exam-pages`, `pdf-library`, `question-pool` (hepsi gizli; süreli adreslerle gösterilir).
 
 ## Komutlar
 
 | Komut | Ne yapar |
 |---|---|
-| `npm run dev` | GeliÅŸtirme sunucusu |
-| `npm test` | Ã–ÄŸrenme durumu, puanlama (net, iptal, Ã§eldirici, konu analizi), deneme aÅŸamasÄ±, filtre ve kullanÄ±cÄ± adÄ± testleri |
-| `npm run rls` | **GerÃ§ek Supabase'e karÅŸÄ± 92 gÃ¼venlik kontrolÃ¼** (geÃ§ici hesaplar aÃ§ar, sonunda siler) |
-| `npm run check` | TÃ¼r denetimi + lint + testler + Ã¼retim derlemesi |
-| `node scripts/e2e-accounts.mjs create <dosya> / delete` | Elle deneme iÃ§in geÃ§ici Ã¶ÄŸretmen + Ã¶ÄŸrenci hesabÄ± |
+| `npm run dev` | Geliştirme sunucusu |
+| `npm test` | Öğrenme durumu, puanlama (net, iptal, çeldirici, konu analizi), deneme aşaması, filtre ve kullanıcı adı testleri |
+| `npm run rls` | **Gerçek Supabase'e karşı 108 güvenlik kontrolü** (geçici hesaplar açar, sonunda siler) |
+| `npm run check` | Tür denetimi + lint + testler + üretim derlemesi |
+| `node scripts/e2e-accounts.mjs create <dosya> / delete` | Elle deneme için geçici öğretmen + öğrenci hesabı |
 
-## Test durumu (18 KasÄ±m 2026)
+## Test durumu (18 Kasım 2026)
 
-- âœ… TÃ¼r denetimi, lint, 34 birim testi, Ã¼retim derlemesi.
-- âœ… `npm run rls` 92/92 (kazanÄ±m, yardÄ±mcÄ± konu, soru havuzu, analiz iÅŸi ve Ã¶ÄŸrenme planÄ± yalÄ±tÄ±mÄ± dahil; Ã¶ÄŸrenci plan sorularÄ±nÄ±n cevap anahtarÄ±nÄ± okuyamaz, Ã§ifte cevap veremez): Ã¶ÄŸrenciler ve Ã¶ÄŸretmenler arasÄ± yalÄ±tÄ±m; Ã¶ÄŸrenci cevap anahtarÄ±nÄ± deneme bitmeden gÃ¶remez,
-  sÃ¼resini uzatamaz, cevap tablosuna doÄŸrudan yazamaz, teslimden sonra cevap deÄŸiÅŸtiremez; baÅŸka Ã¶ÄŸretmen sonuÃ§larÄ±,
-  kÃ¢ÄŸÄ±t giriÅŸini, PDF arÅŸivini gÃ¶remez; Ã¶ÄŸretmen kendini yÃ¶netici yapamaz.
-- âœ… TarayÄ±cÄ±da uÃ§tan uca: PDF'ten deneme â†’ cevap anahtarÄ± â†’ canlÄ± baÅŸlatma â†’ Ã¶ÄŸrenci katÄ±lÄ±p Ã§Ã¶zme â†’ canlÄ± izleme â†’
-  teslim â†’ bitirme â†’ sonuÃ§/analiz â†’ yanlÄ±ÅŸlarÄ± bankaya aktarma (sayfa gÃ¶rseliyle) â†’ Ã¶ÄŸrenci sonucu ve bankasÄ±; PDF arÅŸivi â†’
-  online deneme; kÃ¢ÄŸÄ±t optik giriÅŸi; optik yazdÄ±rma; raporlar.
-- âš ï¸ GerÃ§ek telefonda kamera ile soru ekleme ve deneme Ã§Ã¶zme denenmeli.
+- ✅ Tür denetimi, lint, 36 birim testi, üretim derlemesi.
+- ✅ `npm run rls` 108/108 (kazanım, yardımcı konu, soru havuzu, analiz işi, öğrenme planı, öneri ve sınıf yalıtımı dahil; öğrenci plan sorularının cevap anahtarını okuyamaz, çifte cevap veremez): öğrenciler ve öğretmenler arası yalıtım; öğrenci cevap anahtarını deneme bitmeden göremez,
+  süresini uzatamaz, cevap tablosuna doğrudan yazamaz, teslimden sonra cevap değiştiremez; başka öğretmen sonuçları,
+  kâğıt girişini, PDF arşivini göremez; öğretmen kendini yönetici yapamaz.
+- ✅ Tarayıcıda uçtan uca: PDF'ten deneme → cevap anahtarı → canlı başlatma → öğrenci katılıp çözme → canlı izleme →
+  teslim → bitirme → sonuç/analiz → yanlışları bankaya aktarma (sayfa görseliyle) → öğrenci sonucu ve bankası; PDF arşivi →
+  online deneme; kâğıt optik girişi; optik yazdırma; raporlar.
+- ⚠️ Gerçek telefonda kamera ile soru ekleme ve deneme çözme denenmeli.

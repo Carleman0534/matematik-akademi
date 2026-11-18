@@ -226,6 +226,37 @@ test('çok dersli kitapçık: yalnızca matematik sayfaları alınır', () => {
   assert.equal(single.keep.size, 2);   // bölüm başlığı yoksa (tek dersli PDF) hepsi alınır
 });
 
+import { buildRecommendations, planOutcome, dailyProgress, trDay } from './adaptive.ts';
+import { computePerf as cPerf, type Evidence as Ev, type UnitPerf } from './studyEngine.ts';
+
+test('uyarlanabilir öneriler: eksik, tekrar zamanı, ilerletme; yetersiz veri ve yeni çalışılan konu önerilmez', () => {
+  const NOW = Date.parse('2026-11-18T12:00:00Z'), D = 86400000;
+  const ev = (res: 'correct' | 'incorrect', daysAgo: number, diff = 3): Ev => ({ topic_id: 't', result: res, difficulty: diff, type: null, at: new Date(NOW - daysAgo * D).toISOString(), source: 'study' });
+  const mk = (id: string, name: string, list: Ev[]): UnitPerf => ({ unitId: id, name, perf: cPerf(list, NOW), subs: [] });
+  const weak = mk('u1', 'Çarpanlar ve Katlar', [ev('incorrect', 2), ev('incorrect', 2), ev('incorrect', 3), ev('incorrect', 3), ev('correct', 4), ev('incorrect', 4)]);
+  const idleOk = mk('u2', 'Üslü İfadeler', [ev('correct', 20), ev('correct', 21), ev('correct', 22), ev('incorrect', 23), ev('correct', 24), ev('correct', 25)]);   // iyi ama 20 gündür çalışılmadı
+  const fresh = mk('u3', 'Veri Analizi', [ev('correct', 1), ev('correct', 1), ev('correct', 2), ev('correct', 2), ev('correct', 3, 4), ev('correct', 3, 4), ev('correct', 3, 4)]);   // güçlü ve yakın
+  const few = mk('u4', 'Üçgenler', [ev('incorrect', 1)]);
+  const recs = buildRecommendations([weak, idleOk, fresh, few], NOW);
+  assert.deepEqual(recs.map(r => [r.unitId, r.trigger]), [['u1', 'eksik'], ['u2', 'tekrar_zamani'], ['u3', 'ilerlet']]);
+  assert.equal(recs[0].kind, 'eksik_tamamlama'); assert.equal(recs[1].kind, 'pekistirme'); assert.equal(recs[2].kind, 'zorlayici');
+  assert.match(recs[1].text, /20 gündür|gün/);
+  assert.ok(recs.every(r => r.count >= 3 && r.count <= 60 && r.goal.length > 0));
+  assert.deepEqual(buildRecommendations([few], NOW), []);          // 3'ten az kanıt → öneri yok
+});
+
+test('çalışma sonucu zorluk yönü ve günlük hedef/seri hesabı', () => {
+  assert.equal(planOutcome(10, 9).direction, 'yukari');
+  assert.equal(planOutcome(10, 7).direction, 'ayni');
+  assert.equal(planOutcome(10, 2).direction, 'asagi');
+  const NOW = Date.parse('2026-11-18T10:00:00Z'), D = 86400000;
+  const t = (d: number) => new Date(NOW - d * D).toISOString();
+  assert.deepEqual(dailyProgress([t(0), t(0), t(0.01), t(1), t(2)], NOW), { today: 3, streak: 3 });
+  assert.deepEqual(dailyProgress([t(1), t(2), t(5)], NOW), { today: 0, streak: 2 });   // bugün henüz yok: dünden geriye sayılır
+  assert.deepEqual(dailyProgress([t(3)], NOW), { today: 0, streak: 0 });             // seri koptu
+  assert.equal(trDay('2026-11-18T22:30:00Z'), '2026-11-19');                          // Türkiye saati (UTC+3) ertesi gün
+});
+
 test('bölüm, alt bilgi ve iki sütunlu kutular', () => {
   assert.equal(detectSection([t('FEN BİLİMLERİ', 100, 60, 11)], H), 'Fen Bilimleri');
   assert.equal(detectSection([t('MATEMATİK', 100, 400, 11)], H), null); // sayfa ortasında değil, başlıkta aranır

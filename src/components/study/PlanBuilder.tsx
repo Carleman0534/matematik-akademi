@@ -7,7 +7,7 @@ import { QUESTION_TYPES } from '@/lib/pool';
 
 interface Props {
   students: { id: string; name: string; cls: string | null }[]; units: { id: string; name: string }[]; pdfs: { id: string; title: string }[];
-  grade: number; initial: { students: string[]; units: string[]; kind: Kind; count: number };
+  grade: number; initial: { students: string[]; units: string[]; kind: Kind; count: number; rec?: string };
 }
 
 const KIND_HINT: Record<Kind, string> = {
@@ -43,7 +43,7 @@ export function PlanBuilder({ students, units, pdfs, grade, initial }: Props) {
   const remove = (sid: string, id: string) => setPreviews(prev => (prev || []).map(p => (p.studentId === sid ? { ...p, items: p.items.filter(i => i.id !== id) } : p)));
   const save = (assign: boolean) => start(async () => {
     const plans = (previews || []).filter(p => p.items.length).map(p => ({ studentId: p.studentId, title: title.trim() ? (previews!.length > 1 ? `${title.trim()} – ${p.name}` : title.trim()) : `${KIND_LABEL[kind]} – ${p.name}`, items: p.items.map(i => ({ id: i.id, reason: i.reason })) }));
-    const r = await createPlans(plans, { kind, solution_mode: mode, due_on: due, note, assign });
+    const r = await createPlans(plans, { kind, solution_mode: mode, due_on: due, note, assign }, initial.rec);
     if (r.error) { setMsg({ error: r.error }); return; }
     router.push('/ogretmen/ogrenme-planlari?yeni=' + (r.ids || []).length);
   });
