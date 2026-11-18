@@ -9,7 +9,13 @@ export const metadata: Metadata = { title: 'Yeni deneme' };
 
 export default async function NewExamPage() {
   const me = await requireTeacher();
-  const classes = await getClasses(await supabaseServer(), me.userId);
+  let classes: any[] = [];
+  try {
+    classes = await getClasses(await supabaseServer(), me.userId);
+  } catch (err) {
+    console.error('getClasses error:', err);
+    classes = [];
+  }
   return (
     <div className="space-y-6">
       <Link href="/ogretmen/denemeler" className="text-sm text-slate-500 hover:underline">← Denemeler</Link>

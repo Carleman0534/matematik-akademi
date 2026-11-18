@@ -40,7 +40,8 @@ export default function DenemeAnalizleriPage() {
           setSelectedExamId(list[0].id);
           loadAnalytics(list[0].id);
         } else {
-          setLoading(false);
+          // Eğer henüz yüklenmiş PDF denemesi yoksa, zengin demo analizi otomatik yükle
+          loadAnalytics('demo-exam');
         }
       } catch (err) {
         console.error(err);
