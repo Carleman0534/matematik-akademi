@@ -866,6 +866,15 @@ CREATE TABLE IF NOT EXISTS system_audit_logs (
   ip_address TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- 16. Büyük PDF Dosyaları İçin Parçalı Yükleme (Chunked Upload)
+CREATE TABLE IF NOT EXISTS upload_chunks (
+  id TEXT PRIMARY KEY,
+  upload_id TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  chunk_data TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `;
 
 async function initDatabase(): Promise<Database> {

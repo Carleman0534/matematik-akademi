@@ -56,6 +56,7 @@ export default function PdfArsiviPage() {
   const [answerKey, setAnswerKey] = useState('');
   const [questionCount, setQuestionCount] = useState('40');
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusText, setUploadStatusText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -117,41 +118,116 @@ export default function PdfArsiviPage() {
     }
     setError('');
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(5);
+    setUploadStatusText('Yükleme başlatılıyor...');
 
     try {
       const total = fileQueue.length;
+      const CHUNK_SIZE = 2.5 * 1024 * 1024; // 2.5 MB (Vercel 4.5MB sınırını asla aşmaz)
+
       for (let i = 0; i < total; i++) {
         const item = fileQueue[i];
-        const formData = new FormData();
-        formData.append('file', item.file);
-        formData.append('title', item.title);
-        formData.append('fileType', item.fileType);
-        formData.append('gradeLevel', item.gradeLevel);
-        formData.append('subject', subject);
-        formData.append('topic', topic);
-        formData.append('publisher', publisher);
-        formData.append('description', description);
-        formData.append('answerKey', answerKey);
-        formData.append('questionCount', questionCount);
+        const file = item.file;
+        const filePrefix = total > 1 ? `[${i + 1}/${total}] ` : '';
 
-        const res = await fetch('/api/pdf-documents', {
-          method: 'POST',
-          body: formData,
-        });
+        // 3 MB'den büyük dosyalar için otomatik Parçalı Yükleme (Chunked Upload)
+        if (file.size > 3 * 1024 * 1024) {
+          const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+          const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || `"${item.title}" yüklenemedi.`);
+          for (let c = 0; c < totalChunks; c++) {
+            const start = c * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, file.size);
+            const chunkBlob = file.slice(start, end);
+
+            const chunkForm = new FormData();
+            chunkForm.append('chunk', chunkBlob, file.name);
+            chunkForm.append('uploadId', uploadId);
+            chunkForm.append('chunkIndex', String(c));
+            chunkForm.append('totalChunks', String(totalChunks));
+            chunkForm.append('fileName', file.name);
+            chunkForm.append('title', item.title);
+            chunkForm.append('fileType', item.fileType);
+            chunkForm.append('gradeLevel', item.gradeLevel);
+            chunkForm.append('subject', subject);
+            chunkForm.append('topic', topic);
+            chunkForm.append('publisher', publisher);
+            chunkForm.append('description', description);
+            chunkForm.append('answerKey', answerKey);
+            chunkForm.append('questionCount', questionCount);
+
+            const chunkPercent = Math.round(((c + 0.5) / totalChunks) * 100);
+            const overallPercent = Math.round(((i + (c / totalChunks)) / total) * 100);
+            setUploadProgress(Math.max(5, overallPercent));
+            setUploadStatusText(`${filePrefix}Parça ${c + 1}/${totalChunks} yükleniyor (%${chunkPercent})...`);
+
+            const res = await fetch('/api/pdf-documents/upload-chunk', {
+              method: 'POST',
+              body: chunkForm,
+            });
+
+            const text = await res.text();
+            let d: any = null;
+            try {
+              d = JSON.parse(text);
+            } catch {
+              if (res.status === 413 || text.includes('Request Entity Too Large')) {
+                throw new Error('Dosya parçası sunucu sınırını aştı (4.5 MB). Lütfen sayfayı yenileyip tekrar deneyin.');
+              }
+              throw new Error(text.slice(0, 120) || `Sunucu hatası (${res.status})`);
+            }
+
+            if (!res.ok) {
+              throw new Error(d?.error || `${filePrefix}Parça ${c + 1} yüklenemedi.`);
+            }
+          }
+        } else {
+          // 3 MB altındaki küçük dosyalar için doğrudan yükleme
+          setUploadStatusText(`${filePrefix}"${item.title}" yükleniyor...`);
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('title', item.title);
+          formData.append('fileType', item.fileType);
+          formData.append('gradeLevel', item.gradeLevel);
+          formData.append('subject', subject);
+          formData.append('topic', topic);
+          formData.append('publisher', publisher);
+          formData.append('description', description);
+          formData.append('answerKey', answerKey);
+          formData.append('questionCount', questionCount);
+
+          const res = await fetch('/api/pdf-documents', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const text = await res.text();
+          let d: any = null;
+          try {
+            d = JSON.parse(text);
+          } catch {
+            if (res.status === 413 || text.includes('Request Entity Too Large')) {
+              throw new Error('Dosya boyutu sunucu sınırını aştı (4.5 MB). Lütfen parçalı yükleme için sayfayı yenileyin.');
+            }
+            throw new Error(text.slice(0, 120) || `Sunucu hatası (${res.status})`);
+          }
+
+          if (!res.ok) {
+            throw new Error(d?.error || `"${item.title}" yüklenemedi.`);
+          }
         }
 
         setUploadProgress(Math.round(((i + 1) / total) * 100));
       }
 
+      setUploadStatusText('Yükleme tamamlandı!');
+      setUploadProgress(100);
+
       setTimeout(() => {
         setShowUploadModal(false);
         setIsUploading(false);
         setUploadProgress(0);
+        setUploadStatusText('');
         setFileQueue([]);
         setDescription('');
         setAnswerKey('');
@@ -161,6 +237,7 @@ export default function PdfArsiviPage() {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || 'Yükleme başarısız oldu.');
       setIsUploading(false);
+      setUploadStatusText('');
     }
   };
 
@@ -637,7 +714,7 @@ export default function PdfArsiviPage() {
               {isUploading && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                    <span>Yükleniyor...</span>
+                    <span className="truncate pr-2">{uploadStatusText || 'Yükleniyor...'}</span>
                     <span>%{uploadProgress}</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2.5 dark:bg-slate-800 overflow-hidden">
