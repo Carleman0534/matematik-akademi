@@ -25,10 +25,11 @@ export async function GET(request: NextRequest) {
         pe.time_management_json, pe.mistake_reasons_json, pe.previous_comparison_json,
         pe.strengths_text, pe.priorities_text, pe.study_recommendations,
         pe.ai_evaluation_text, pe.teacher_approved, pe.approved_at, pe.created_at,
-        s.first_name, s.last_name,
+        u.name as user_full_name,
         e.title as exam_title
       FROM post_exam_evaluations pe
       LEFT JOIN students s ON pe.student_id = s.id
+      LEFT JOIN users u ON s.user_id = u.id
       LEFT JOIN exams e ON pe.exam_id = e.id
       WHERE 1=1
     `;
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
         exam_id: row.exam_id,
         exam_title: row.exam_title || 'LGS Matematik Deneme Sınavı',
         student_id: row.student_id,
-        student_name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        student_name: (row.user_full_name as string) || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Ali Metin',
         teacher_id: row.teacher_id,
         summary: parseJsonSafe(row.summary_json),
         topics: parseJsonSafe(row.topics_json),
