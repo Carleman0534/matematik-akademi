@@ -18,9 +18,12 @@ import {
   Minimize2,
   Plus,
   BookOpen,
-  FileCheck
+  FileCheck,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import type { PdfDocument } from '@/lib/pdfDocs';
+import { SubTabBar } from '@/components/SubTabBar';
 
 interface FileQueueItem {
   file: File;
@@ -196,8 +199,22 @@ export default function PdfArsiviPage() {
     diger: { label: 'Diğer', color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
   };
 
+  const PDF_TABS = [
+    { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi & Yükleme', icon: '📁', count: docs.length },
+    { href: '/ogretmen/pdf-analiz', label: 'LGS PDF Analiz & Soru Çıkarıcı', icon: '🔍', badge: 'AI Destekli' },
+    { href: '/ogretmen/lgs-mufredat', label: 'LGS Müfredat Haritası', icon: '📚' },
+    { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="PDF & Doküman Arşivi"
+        description="Deneme sınavları, soru bankaları, cevap anahtarları ve AI analiz merkezi"
+        tabs={PDF_TABS}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
@@ -344,18 +361,32 @@ export default function PdfArsiviPage() {
                 </div>
 
                 {/* Aksiyon Butonları */}
-                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                   <button
-                    onClick={() => setPreviewDoc({ url: doc.file_path, title: doc.title })}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition"
+                    onClick={() => {
+                      const safeUrl = doc.file_path && (doc.file_path.startsWith('/api') || doc.file_path.startsWith('http') || doc.file_path.startsWith('data:'))
+                        ? doc.file_path
+                        : `/api/pdf-documents/${doc.id}/file`;
+                      setPreviewDoc({ url: safeUrl, title: doc.title });
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Önizle</span>
                   </button>
 
                   <Link
+                    href={`/ogretmen/pdf-analiz?pdfId=${doc.id}`}
+                    className="inline-flex items-center gap-1 py-2 px-2.5 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold transition"
+                    title="LGS Yapay Zekâ Analizine Gönder"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    <span className="hidden sm:inline">AI</span>
+                  </Link>
+
+                  <Link
                     href={`/ogretmen/denemeler/toplu-ata?pdfId=${doc.id}&title=${encodeURIComponent(doc.title)}`}
-                    className="inline-flex items-center gap-1.5 py-2 px-3 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-bold transition"
+                    className="inline-flex items-center gap-1.5 py-2 px-2.5 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-bold transition"
                     title="Bu PDF'yi Öğrencilere Sınav Olarak Ata"
                   >
                     <Play className="w-3.5 h-3.5" />

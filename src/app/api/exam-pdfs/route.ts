@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getDb, saveDb } from '@/lib/db/database';
+import { saveUploadedPdf } from '@/lib/pdfStorage';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
 // GET: Tüm PDF denemeleri listele
 export async function GET(request: NextRequest) {
@@ -64,25 +63,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Başlık ve PDF dosyası zorunludur.' }, { status: 400 });
     }
 
-    // PDF dosyasını kaydet
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'pdfs');
-    await mkdir(uploadsDir, { recursive: true });
-
-    const originalName = file.name || 'deneme.pdf';
-    const fileExt = originalName.split('.').pop() || 'pdf';
-    const uniqueFileName = `${uuidv4()}.${fileExt}`;
-    const filePath = path.join(uploadsDir, uniqueFileName);
-
-    await writeFile(filePath, buffer);
-
-    const fileSizeMb = parseFloat((file.size / (1024 * 1024)).toFixed(2));
-    const publicUrl = `/uploads/pdfs/${uniqueFileName}`;
+    const newId = uuidv4();
+    const saved = await saveUploadedPdf(file, newId);
 
     const db = await getDb();
-    const newId = uuidv4();
 
     db.run(
       `CREATE TABLE IF NOT EXISTS exam_pdfs (
@@ -96,21 +80,22 @@ export async function POST(request: NextRequest) {
         question_count INTEGER DEFAULT 40,
         answer_key TEXT,
         uploaded_by TEXT NOT NULL,
+        file_data TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       )`
     );
 
     db.run(
-      `INSERT INTO exam_pdfs (id, title, description, category, file_path, file_name, file_size_mb, question_count, answer_key, uploaded_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [newId, title, description, category, publicUrl, originalName, fileSizeMb, questionCount, answerKey, userId]
+      `INSERT INTO exam_pdfs (id, title, description, category, file_path, file_name, file_size_mb, question_count, answer_key, uploaded_by, file_data)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, title, description, category, saved.publicUrl, saved.fileName, saved.fileSizeMb, questionCount, answerKey, userId, saved.base64Data || null]
     );
 
     // Also insert into pdf_documents for unified access
     db.run(
-      `INSERT OR REPLACE INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, file_size_mb, question_count, answer_key, description)
-       VALUES (?, ?, ?, ?, ?, 'deneme', 'Matematik', ?, ?, ?, ?, ?)`,
-      [newId, userId, title, originalName, publicUrl, category, fileSizeMb, questionCount, answerKey, description]
+      `INSERT OR REPLACE INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, file_size_mb, question_count, answer_key, description, file_data)
+       VALUES (?, ?, ?, ?, ?, 'deneme', 'Matematik', ?, ?, ?, ?, ?, ?)`,
+      [newId, userId, title, saved.fileName, saved.publicUrl, category, saved.fileSizeMb, questionCount, answerKey, description, saved.base64Data || null]
     );
 
     saveDb();
@@ -122,9 +107,9 @@ export async function POST(request: NextRequest) {
         title,
         description,
         category,
-        filePath: publicUrl,
-        fileName: originalName,
-        fileSizeMb,
+        filePath: saved.publicUrl,
+        fileName: saved.fileName,
+        fileSizeMb: saved.fileSizeMb,
         questionCount,
         answerKey,
       },

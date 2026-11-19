@@ -5,6 +5,7 @@ import {
   FileText, CheckCircle2, AlertTriangle, Plus, Save,
   Users, Calendar, Heart, Share2, Sparkles, Filter, Check
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 interface Student {
   id: string;
@@ -189,8 +190,22 @@ export default function VeliRaporlariYonetimPage() {
     }
   };
 
+  const REPORTS_TABS = [
+    { href: '/ogretmen/raporlar', label: 'Raporlama Merkezi', icon: '📋' },
+    { href: '/ogretmen/veli-raporlari', label: 'Veli Gelişim Raporları', icon: '🌱', badge: 'Haftalık' },
+    { href: '/ogretmen/veri-aktar', label: 'Veri Dışa Aktarma & Yedek', icon: '📥' },
+    { href: '/ogretmen/eksiklik-haritasi', label: 'Eksiklik Haritası', icon: '🗺️' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Raporlar ve Veri Yönetimi"
+        description="Akademi performans raporları, veli bilgilendirme mektupları ve veri yedekleme"
+        tabs={REPORTS_TABS}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>

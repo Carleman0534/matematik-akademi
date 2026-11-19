@@ -18,6 +18,7 @@ import {
   Laptop,
   Check
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function CanliSinavlarPage() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -203,8 +204,23 @@ export default function CanliSinavlarPage() {
     return true;
   });
 
+  const EXAM_TABS = [
+    { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝' },
+    { href: '/ogretmen/denemeler/canli', label: 'Canlı Takip', icon: '⏱️', badge: 'Canlı' },
+    { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
+    { href: '/ogretmen/deneme-analizleri', label: 'Deneme Sonuçları', icon: '📊' },
+    { href: '/ogretmen/deneme-degerlendirme', label: 'Akıllı Deneme Raporu', icon: '📑' },
+  ];
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Deneme Sınavları Yönetimi"
+        description="Canlı oturumlar, ödevler, şablonlar ve öğrenci sonuç analizleri"
+        tabs={EXAM_TABS}
+      />
+
       {/* Başlık Başlık Bilgisi */}
       <div className="text-center space-y-1 py-2">
         <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-wide uppercase">

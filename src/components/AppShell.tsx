@@ -126,18 +126,28 @@ export function AppShell({
           {displayedGroups ? (
             displayedGroups.map(group => {
               const isOpen = searchQuery.trim().length > 0 || !!openGroups[group.title];
+              const hasActiveItem = group.items.some(n => isActive(n.href));
               return (
                 <div key={group.title} className="space-y-1">
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.title)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider hover:text-slate-700 dark:hover:text-slate-300 transition rounded-lg"
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition rounded-lg ${
+                      hasActiveItem
+                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/30 font-black'
+                        : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    }`}
                   >
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 min-w-0 truncate">
                       {group.icon && <span>{group.icon}</span>}
-                      <span>{group.title}</span>
+                      <span className="truncate">{group.title}</span>
                     </span>
-                    {isOpen ? <ChevronDown className="w-3.5 h-3.5 opacity-60" /> : <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        {group.items.length}
+                      </span>
+                      {isOpen ? <ChevronDown className="w-3.5 h-3.5 opacity-60" /> : <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+                    </span>
                   </button>
 
                   {isOpen && (

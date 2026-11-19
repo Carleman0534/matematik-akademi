@@ -6,8 +6,17 @@ import { EXAM_SELECT, type ExamRow } from '@/lib/examData';
 import { examPhase, PHASE_LABEL, MODE_LABEL } from '@/lib/exams';
 import { PHASE_STYLE } from '@/components/exams/phaseStyle';
 import { fmtDateTime } from '@/lib/labels';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export const metadata: Metadata = { title: 'Denemeler' };
+
+const EXAM_TABS = [
+  { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝' },
+  { href: '/ogretmen/denemeler/canli', label: 'Canlı Takip', icon: '⏱️', badge: 'Canlı' },
+  { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
+  { href: '/ogretmen/deneme-analizleri', label: 'Deneme Sonuçları', icon: '📊' },
+  { href: '/ogretmen/deneme-degerlendirme', label: 'Akıllı Deneme Raporu', icon: '📑' },
+];
 
 
 export default async function ExamsPage() {
@@ -27,6 +36,12 @@ export default async function ExamsPage() {
   });
   return (
     <div className="space-y-6">
+      <SubTabBar
+        title="Deneme Sınavları Yönetimi"
+        description="Canlı oturumlar, ödevler, şablonlar ve öğrenci sonuç analizleri"
+        tabs={EXAM_TABS}
+      />
+
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-black">Denemeler</h1>
         <Link href="/ogretmen/denemeler/yeni" className="btn-primary ml-auto">＋ Yeni deneme</Link>

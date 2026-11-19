@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS pdf_documents (
   description TEXT,
   answer_key TEXT,
   question_count INTEGER DEFAULT 40,
+  file_data TEXT,
   is_archived INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -900,6 +901,14 @@ async function initDatabase(): Promise<Database> {
   // Enable foreign keys and create tables
   database.run('PRAGMA foreign_keys=ON;');
   database.run(CREATE_TABLES_SQL);
+
+  // Safe migrations for file_data storage
+  try {
+    database.run('ALTER TABLE pdf_documents ADD COLUMN file_data TEXT;');
+  } catch {}
+  try {
+    database.run('ALTER TABLE exam_pdfs ADD COLUMN file_data TEXT;');
+  } catch {}
 
   // Check and seed users/students if empty and database_export.json exists
   const exportPath = path.join(process.cwd(), 'data', 'database_export.json');

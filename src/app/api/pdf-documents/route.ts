@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getPdfDocuments, createPdfDocument, deletePdfDocument, archivePdfDocument, type PdfDocument } from '@/lib/pdfDocs';
+import { saveUploadedPdf } from '@/lib/pdfStorage';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
 // GET: Filtreli PDF Doküman Listesi
 export async function GET(request: NextRequest) {
@@ -51,38 +50,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lütfen dosya ve başlık belirtin.' }, { status: 400 });
     }
 
-    // Dosyayı kaydet
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'pdfs');
-    await mkdir(uploadsDir, { recursive: true });
-
-    const originalName = file.name || 'belge.pdf';
-    const fileExt = originalName.split('.').pop() || 'pdf';
-    const uniqueFileName = `${uuidv4()}.${fileExt}`;
-    const filePath = path.join(uploadsDir, uniqueFileName);
-
-    await writeFile(filePath, buffer);
-
-    const fileSizeMb = parseFloat((file.size / (1024 * 1024)).toFixed(2));
-    const publicUrl = `/uploads/pdfs/${uniqueFileName}`;
+    const docId = uuidv4();
+    const saved = await saveUploadedPdf(file, docId);
 
     const newDoc = await createPdfDocument({
+      id: docId,
       teacher_id: teacherId,
       title,
-      file_name: originalName,
-      file_path: publicUrl,
+      file_name: saved.fileName,
+      file_path: saved.publicUrl,
       file_type: fileType,
       subject,
       grade_level: gradeLevel,
       topic,
       publisher,
-      file_size_mb: fileSizeMb,
-      page_count: Math.max(1, Math.round(fileSizeMb * 4)), // Tahmini veya PDF sayfa sayısı
+      file_size_mb: saved.fileSizeMb,
+      page_count: Math.max(1, Math.round(saved.fileSizeMb * 4)),
       description,
       answer_key: answerKey,
       question_count: questionCount,
+      file_data: saved.base64Data,
     });
 
     return NextResponse.json({ success: true, doc: newDoc }, { status: 201 });

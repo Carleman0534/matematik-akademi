@@ -5,6 +5,7 @@ import {
   ShieldCheck, AlertTriangle, CheckCircle2, XCircle, RefreshCw,
   Search, SlidersHorizontal, Check, Edit3, Eye, Sparkles, AlertCircle
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 interface AuditItem {
   id: string;
@@ -166,8 +167,23 @@ export default function KaliteDenetimPage() {
     }
   };
 
+  const QUESTION_AI_TABS = [
+    { href: '/ogretmen/soru-havuzu', label: 'Soru Havuzu', icon: '🗄️' },
+    { href: '/ogretmen/ai-soru-uret', label: 'Yapay Zekâ ile Soru Üret', icon: '✨', badge: 'AI' },
+    { href: '/ogretmen/ai-uretim-gecmisi', label: 'AI Üretim Geçmişi', icon: '⚡' },
+    { href: '/ogretmen/kalite-denetim', label: 'Soru Kalite Denetimi', icon: '🛡️' },
+    { href: '/ogretmen/konular', label: 'Konular & Kazanımlar', icon: '🗂️' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Soru Bankası & AI Merkezi"
+        description="LGS soru havuzu, yapay zekâ soru üretimi, kalite denetimi ve konu kazanım eşleme"
+        tabs={QUESTION_AI_TABS}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>

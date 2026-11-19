@@ -5,6 +5,7 @@ import {
   FileText, Sparkles, CheckCircle2, AlertCircle, RefreshCw, 
   Layers, Filter, Eye, Check, X, ArrowRight, ShieldCheck 
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function PdfAnalizMerkeziPage() {
   const [loading, setLoading] = useState(true);
@@ -74,8 +75,22 @@ export default function PdfAnalizMerkeziPage() {
     ? extractedQuestions.filter(q => q.primary_topic_id === filterTopic || q.topic_name === filterTopic)
     : extractedQuestions;
 
+  const PDF_TABS = [
+    { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi & Yükleme', icon: '📁' },
+    { href: '/ogretmen/pdf-analiz', label: 'LGS PDF Analiz & Soru Çıkarıcı', icon: '🔍', badge: 'AI Destekli' },
+    { href: '/ogretmen/lgs-mufredat', label: 'LGS Müfredat Haritası', icon: '📚' },
+    { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="PDF & Doküman Arşivi"
+        description="Deneme sınavları, soru bankaları, cevap anahtarları ve AI analiz merkezi"
+        tabs={PDF_TABS}
+      />
+
       {/* Başlık Kartı */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 p-6 text-white shadow-lg">
         <div>

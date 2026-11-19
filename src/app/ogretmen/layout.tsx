@@ -52,17 +52,23 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
+    title: 'PDF & Arşiv Merkezi',
+    icon: '📁',
+    items: [
+      { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi & Yükleme', icon: '📁' },
+      { href: '/ogretmen/pdf-analiz', label: 'LGS PDF Analiz & Soru Çıkarma', icon: '🔍' },
+      { href: '/ogretmen/lgs-mufredat', label: 'LGS Müfredat Haritası', icon: '📚' },
+    ]
+  },
+  {
     title: 'Soru Bankası & AI',
     icon: '🗄️',
     items: [
       { href: '/ogretmen/soru-havuzu', label: 'Soru Havuzu', icon: '🗄️' },
       { href: '/ogretmen/ai-soru-uret', label: 'Yapay Zekâ ile Soru Üret', icon: '✨' },
-      { href: '/ogretmen/kalite-denetim', label: 'Soru Kalite Denetimi', icon: '🛡️' },
       { href: '/ogretmen/ai-uretim-gecmisi', label: 'AI Üretim Geçmişi', icon: '⚡' },
-      { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi', icon: '📁' },
-      { href: '/ogretmen/pdf-analiz', label: 'PDF Analiz Merkezi', icon: '🔍' },
-      { href: '/ogretmen/lgs-mufredat', label: 'LGS Müfredatı', icon: '📚' },
-      { href: '/ogretmen/konular', label: 'Konular', icon: '🗂️' },
+      { href: '/ogretmen/kalite-denetim', label: 'Soru Kalite Denetimi', icon: '🛡️' },
+      { href: '/ogretmen/konular', label: 'Konular & Kazanımlar', icon: '🗂️' },
     ]
   },
   {

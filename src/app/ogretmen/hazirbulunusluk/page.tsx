@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Target, Award, Brain, Clock, ChevronRight, AlertCircle, Sparkles, TrendingUp } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 interface Student {
   id: string;
@@ -91,8 +92,23 @@ export default function HazirbulunuslukPage() {
     }
   };
 
+  const ANALYSIS_TABS = [
+    { href: '/ogretmen/hazirbulunusluk', label: 'Hazırbulunuşluk & Seviye', icon: '🎯' },
+    { href: '/ogretmen/yanlis-analizi', label: 'Akıllı Yanlış Analizi', icon: '🔍' },
+    { href: '/ogretmen/unutma-riski', label: 'Aralıklı Tekrar & Risk', icon: '🔁' },
+    { href: '/ogretmen/eksiklik-haritasi', label: 'Eksiklik Haritası', icon: '🗺️' },
+    { href: '/ogretmen/ogrenci-konu-analizleri', label: 'Öğrenci Konu Analizleri', icon: '📈' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Akıllı Analiz ve Öğrenci Gelişimi"
+        description="Hazırbulunuşluk, kök neden analizi, aralıklı tekrar ve eksiklik haritaları"
+        tabs={ANALYSIS_TABS}
+      />
+
       {/* Başlık ve Öğrenci Seçici */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
         <div>

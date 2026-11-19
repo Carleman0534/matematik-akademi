@@ -17,6 +17,7 @@ export interface PdfDocument {
   description?: string;
   answer_key?: string;
   question_count?: number;
+  file_data?: string;
   is_archived?: boolean | number;
   created_at: string;
 }
@@ -99,12 +100,12 @@ export async function getPdfDocument(id: string): Promise<PdfDocument | null> {
   return doc;
 }
 
-export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_at'>): Promise<PdfDocument> {
+export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_at'> & { id?: string }): Promise<PdfDocument> {
   const db = await getDb();
-  const id = uuidv4();
+  const id = data.id || uuidv4();
   db.run(
-    `INSERT INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count, is_archived)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count, file_data, is_archived)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.teacher_id,
@@ -121,6 +122,7 @@ export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_
       data.description || '',
       data.answer_key || '',
       data.question_count || 40,
+      data.file_data || null,
       data.is_archived ? 1 : 0,
     ]
   );

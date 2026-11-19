@@ -21,6 +21,7 @@ import {
   ArrowRight,
   RefreshCw
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function DenemeAnalizleriPage() {
   const searchParams = useSearchParams();
@@ -183,8 +184,23 @@ export default function DenemeAnalizleriPage() {
   // Ortak Hata Analizi Listesi (Sınıfın yarısından fazlasının yanlış yaptığı sorular)
   const commonErrors = analytics?.questionStats?.filter((q: any) => q.wrong_rate >= 40 || q.is_defect_warning) || [];
 
+  const EXAM_TABS = [
+    { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝' },
+    { href: '/ogretmen/denemeler/canli', label: 'Canlı Takip', icon: '⏱️', badge: 'Canlı' },
+    { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
+    { href: '/ogretmen/deneme-analizleri', label: 'Deneme Sonuçları', icon: '📊' },
+    { href: '/ogretmen/deneme-degerlendirme', label: 'Akıllı Deneme Raporu', icon: '📑' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Deneme Sınavları Yönetimi"
+        description="Canlı oturumlar, ödevler, şablonlar ve öğrenci sonuç analizleri"
+        tabs={EXAM_TABS}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>

@@ -5,6 +5,7 @@ import {
   FileText, CheckCircle2, AlertTriangle, Clock, TrendingUp,
   Target, Award, ArrowUpRight, ArrowDownRight, Share2, Printer, Save, Sparkles, BookOpen
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 interface PostExamEval {
   id: string;
@@ -147,8 +148,25 @@ export default function DenemeDegerlendirmePage() {
     window.print();
   };
 
+  const EXAM_TABS = [
+    { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝' },
+    { href: '/ogretmen/denemeler/canli', label: 'Canlı Takip', icon: '⏱️', badge: 'Canlı' },
+    { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
+    { href: '/ogretmen/deneme-analizleri', label: 'Deneme Sonuçları', icon: '📊' },
+    { href: '/ogretmen/deneme-degerlendirme', label: 'Akıllı Deneme Raporu', icon: '📑' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <div className="print:hidden">
+        <SubTabBar
+          title="Deneme Sınavları Yönetimi"
+          description="Canlı oturumlar, ödevler, şablonlar ve öğrenci sonuç analizleri"
+          tabs={EXAM_TABS}
+        />
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden">
         <div>

@@ -5,6 +5,7 @@ import {
   Sparkles, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, 
   Layers, RefreshCw, Eye, Check, Sliders, Image as ImageIcon 
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function AiSoruUretPage() {
   const [topicId, setTopicId] = useState('top_carpanlar_katlar');
@@ -64,8 +65,23 @@ export default function AiSoruUretPage() {
     setGeneratedList(prev => prev.map((q, i) => i === idx ? { ...q, status: 'approved' } : q));
   };
 
+  const QUESTION_AI_TABS = [
+    { href: '/ogretmen/soru-havuzu', label: 'Soru Havuzu', icon: '🗄️' },
+    { href: '/ogretmen/ai-soru-uret', label: 'Yapay Zekâ ile Soru Üret', icon: '✨', badge: 'AI' },
+    { href: '/ogretmen/ai-uretim-gecmisi', label: 'AI Üretim Geçmişi', icon: '⚡' },
+    { href: '/ogretmen/kalite-denetim', label: 'Soru Kalite Denetimi', icon: '🛡️' },
+    { href: '/ogretmen/konular', label: 'Konular & Kazanımlar', icon: '🗂️' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Soru Bankası & AI Merkezi"
+        description="LGS soru havuzu, yapay zekâ soru üretimi, kalite denetimi ve konu kazanım eşleme"
+        tabs={QUESTION_AI_TABS}
+      />
+
       {/* Başlık */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-indigo-800 p-6 text-white shadow-lg">
         <div>

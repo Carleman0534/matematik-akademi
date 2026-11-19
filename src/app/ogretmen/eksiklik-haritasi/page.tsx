@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, TrendingUp, BarChart3, AlertCircle, ArrowRight, Download, Filter, HelpCircle } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function EksiklikHaritasiPage() {
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -54,8 +55,23 @@ export default function EksiklikHaritasiPage() {
     }
   };
 
+  const ANALYSIS_TABS = [
+    { href: '/ogretmen/hazirbulunusluk', label: 'Hazırbulunuşluk & Seviye', icon: '🎯' },
+    { href: '/ogretmen/yanlis-analizi', label: 'Akıllı Yanlış Analizi', icon: '🔍' },
+    { href: '/ogretmen/unutma-riski', label: 'Aralıklı Tekrar & Risk', icon: '🔁' },
+    { href: '/ogretmen/eksiklik-haritasi', label: 'Eksiklik Haritası', icon: '🗺️' },
+    { href: '/ogretmen/ogrenci-konu-analizleri', label: 'Öğrenci Konu Analizleri', icon: '📈' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Akıllı Analiz ve Öğrenci Gelişimi"
+        description="Hazırbulunuşluk, kök neden analizi, aralıklı tekrar ve eksiklik haritaları"
+        tabs={ANALYSIS_TABS}
+      />
+
       {/* Üst Başlık & Eylemler */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>

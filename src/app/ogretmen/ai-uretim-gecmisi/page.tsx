@@ -5,6 +5,7 @@ import {
   Zap, ShieldCheck, DollarSign, Cpu, Clock, CheckCircle2, 
   Layers, Sparkles, Filter 
 } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function AiUretimGecmisiPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -29,8 +30,23 @@ export default function AiUretimGecmisiPage() {
     loadLogs();
   }, []);
 
+  const QUESTION_AI_TABS = [
+    { href: '/ogretmen/soru-havuzu', label: 'Soru Havuzu', icon: '🗄️' },
+    { href: '/ogretmen/ai-soru-uret', label: 'Yapay Zekâ ile Soru Üret', icon: '✨', badge: 'AI' },
+    { href: '/ogretmen/ai-uretim-gecmisi', label: 'AI Üretim Geçmişi', icon: '⚡' },
+    { href: '/ogretmen/kalite-denetim', label: 'Soru Kalite Denetimi', icon: '🛡️' },
+    { href: '/ogretmen/konular', label: 'Konular & Kazanımlar', icon: '🗂️' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Soru Bankası & AI Merkezi"
+        description="LGS soru havuzu, yapay zekâ soru üretimi, kalite denetimi ve konu kazanım eşleme"
+        tabs={QUESTION_AI_TABS}
+      />
+
       {/* Başlık */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-lg">
         <div>

@@ -3,10 +3,25 @@
 import React from 'react';
 import Link from 'next/link';
 import { BarChart3, TrendingUp, Map, Award, AlertTriangle, ArrowRight, Download, Users, CheckCircle2, FileText } from 'lucide-react';
+import { SubTabBar } from '@/components/SubTabBar';
 
 export default function RaporlarPage() {
+  const REPORTS_TABS = [
+    { href: '/ogretmen/raporlar', label: 'Raporlama Merkezi', icon: '📋' },
+    { href: '/ogretmen/veli-raporlari', label: 'Veli Gelişim Raporları', icon: '🌱', badge: 'Haftalık' },
+    { href: '/ogretmen/veri-aktar', label: 'Veri Dışa Aktarma & Yedek', icon: '📥' },
+    { href: '/ogretmen/eksiklik-haritasi', label: 'Eksiklik Haritası', icon: '🗺️' },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Üst Alt-Sekme Şeridi */}
+      <SubTabBar
+        title="Raporlar ve Veri Yönetimi"
+        description="Akademi performans raporları, veli bilgilendirme mektupları ve veri yedekleme"
+        tabs={REPORTS_TABS}
+      />
+
       {/* Başlık */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
