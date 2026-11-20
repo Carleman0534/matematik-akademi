@@ -332,8 +332,39 @@ export default function DenemeOlusturPage() {
         }
 
         const diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
-        const cAns = (['A', 'B', 'C', 'D'][(i - 1) % 4]) as 'A' | 'B' | 'C' | 'D';
-        const trapsInfo = getTopicTrapsAndWarnings(topicId, cAns);
+        
+        // Havuzda veya PDF çıktılarında bu konuya ait soru var mı kontrol et
+        const matchingPool = poolQuestions.find((pq: any) => pq.primary_topic_id === topicId || pq.topic_name === topicObj.name);
+
+        const defaultAns = ['A', 'B', 'C', 'D'][(i - 1) % 4];
+        let qText = '';
+        let qOptions: Record<string, string> = {};
+        let qAns: string = defaultAns;
+        let qSol = '';
+        let qType = i % 2 === 0 ? 'yeni_nesil' : 'problem_cozme';
+        let qVisual = i % 2 === 1;
+
+        if (matchingPool && matchingPool.question_text) {
+          qText = `${i}. Soru (${defaultPdfTitle}):\n${matchingPool.question_text}`;
+          qOptions = matchingPool.options || { A: 'A', B: 'B', C: 'C', D: 'D' };
+          qAns = matchingPool.correct_answer || defaultAns;
+          qSol = `1. Adım: ${topicObj.name} kazanımına ait verilenler çözümlenir.\n2. Adım: İlgili matematiksel bağıntı uygulanır.\n3. Adım: Doğru seçenek ${qAns} olarak bulunur.`;
+        } else {
+          // Konuya özel gerçek ve doğrulanmış matematiksel LGS sorusu üret
+          const gen = generateCurriculumQuestion({
+            topicId,
+            difficulty: diff,
+            questionType: qType as any,
+            visualRequired: qVisual
+          });
+          qText = `${i}. Soru (${defaultPdfTitle}):\n${gen.questionText}`;
+          qOptions = gen.options;
+          qAns = gen.correctAnswer;
+          qSol = gen.solutionExplanation;
+          qType = gen.questionType;
+        }
+
+        const trapsInfo = getTopicTrapsAndWarnings(topicId, qAns);
 
         results.push({
           id: `hybrid_pdf_${i}`,
@@ -344,24 +375,14 @@ export default function DenemeOlusturPage() {
           sourceTitle: defaultPdfTitle,
           difficulty: diff,
           difficultyLabel: diffLabel,
-          questionType: i % 2 === 0 ? 'yeni_nesil' : 'problem_cozme',
-          questionText: `${i}. Soru (${defaultPdfTitle}):\n` +
-            `${topicObj.name} kazanımına ait ${topicObj.description || 'temel problem senaryosu'}.\n\n` +
-            `Bir okul kütüphanesindeki kitapların türlerine göre dağılımı incelendiğinde, her rafa eşit sayıda kitap konulması planlanmaktadır.\n` +
-            `Buna göre her rafta bulunabilecek **en fazla kitap sayısı** kaçtır?`,
-          options: {
-            A: `${12 + i * 2}`,
-            B: `${18 + i * 2}`,
-            C: `${24 + i * 2}`,
-            D: `${36 + i * 2}`
-          },
-          correctAnswer: cAns,
-          solutionExplanation: `Adım 1: ${topicObj.name} kuralı gereğince verilen miktarların ortak çarpanı incelenir.\n` +
-            `Adım 2: Eşit paylaşım için EBOB/bölünebilme bağıntısı uygulanır.\n` +
-            `Adım 3: Doğru cevap ${cAns} seçeneğidir.`,
+          questionType: qType,
+          questionText: qText,
+          options: qOptions,
+          correctAnswer: qAns,
+          solutionExplanation: qSol,
           criticalWarning: trapsInfo.criticalWarning,
           traps: trapsInfo.traps,
-          hasVisual: i % 2 === 1
+          hasVisual: qVisual
         });
       }
 
