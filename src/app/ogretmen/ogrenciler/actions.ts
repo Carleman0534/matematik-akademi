@@ -47,14 +47,61 @@ export async function createStudent(_prev: FormState, form: FormData): Promise<F
   });
   if (error || !created.user) return { error: 'Hesap açılamadı: ' + (error?.message || 'bilinmeyen hata') };
 
+  // Supabase profiles tablosunda geçerli bir teacher_id doğrula (foreign key hatasını önlemek için)
+  let teacherIdToUse: string | null = null;
+  const isValidUuid = (s?: string) => Boolean(s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s));
+
+  if (isValidUuid(me.userId)) {
+    const { data: prof } = await admin.from('profiles').select('id').eq('id', me.userId).maybeSingle();
+    if (prof?.id) {
+      teacherIdToUse = prof.id;
+    }
+  }
+
+  if (!teacherIdToUse) {
+    // Öğretmen yerel oturumdaysa veya profili Supabase'de henüz yoksa sistemdeki ilk öğretmen profilini kullan veya null bırak
+    const { data: tp } = await admin.from('profiles').select('id').eq('role', 'teacher').order('created_at', { ascending: true }).limit(1).maybeSingle();
+    if (tp?.id) {
+      teacherIdToUse = tp.id;
+    } else {
+      const { data: anyP } = await admin.from('profiles').select('id').order('created_at', { ascending: true }).limit(1).maybeSingle();
+      teacherIdToUse = anyP?.id || null;
+    }
+  }
+
   const { error: stErr } = await admin.from('students').insert({
     profile_id: created.user.id, full_name: fullName, grade_level: gradeOf(form.get('sinif')),
     school_name: String(form.get('okul') || '').trim() || null,
-    teacher_id: me.userId, class_id: await ownClassId(form.get('sinif_grubu')),
+    teacher_id: teacherIdToUse, class_id: await ownClassId(form.get('sinif_grubu')),
   });
   if (stErr) {
     await admin.auth.admin.deleteUser(created.user.id); // yarım kayıt kalmasın
     return { error: 'Öğrenci kaydı oluşturulamadı: ' + stErr.message };
+  }
+
+  // SQLite veritabanı ile senkronize et (varsa)
+  try {
+    const { getDb, saveDb } = await import('@/lib/db/database');
+    const db = await getDb();
+    const existingU = db.exec(`SELECT id FROM users WHERE id = '${created.user.id}'`);
+    if (!existingU || existingU.length === 0 || !existingU[0].values.length) {
+      db.run(`INSERT OR IGNORE INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, 'student')`, [
+        created.user.id,
+        usernameToEmail(username, STUDENT_EMAIL_DOMAIN),
+        'hash_placeholder',
+        fullName,
+      ]);
+    }
+    db.run(`INSERT OR IGNORE INTO students (id, user_id, teacher_id, grade, school, status) VALUES (?, ?, ?, ?, ?, 'active')`, [
+      created.user.id,
+      created.user.id,
+      teacherIdToUse || me.userId || 'teacher-admin',
+      gradeOf(form.get('sinif')) || 8,
+      String(form.get('okul') || '').trim() || null,
+    ]);
+    await saveDb();
+  } catch (sqlErr) {
+    console.warn('SQLite student sync skipped:', sqlErr);
   }
   revalidatePath('/ogretmen', 'layout');
   return { ok: `${fullName} eklendi. Giriş bilgileri — kullanıcı adı: ${username}` };

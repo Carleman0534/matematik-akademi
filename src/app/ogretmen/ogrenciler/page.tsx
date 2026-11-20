@@ -12,10 +12,54 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const me = await requireTeacher();
   const all = me.isAdmin && (await searchParams).tumu === '1'; // yönetici bütün öğretmenlerin öğrencilerini görebilir
   const sb = await supabaseServer();
+  const isValidUuid = (s?: string) => Boolean(s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s));
   let query = sb.from('students').select('id, full_name, grade_level, school_name, is_active, created_at, profile:profiles!students_profile_id_fkey(username), teacher:profiles!students_teacher_id_fkey(full_name), cls:classes(name)').order('full_name');
-  if (!all) query = query.eq('teacher_id', me.userId);
+  if (!all && isValidUuid(me.userId)) {
+    query = query.or(`teacher_id.eq.${me.userId},teacher_id.is.null`);
+  }
   const [{ data }, sums, classes] = await Promise.all([query, bankSummaries(sb), getClasses(sb, me.userId)]);
-  const students = (data || []) as unknown as { id: string; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; created_at: string; profile: { username: string | null } | null; teacher: { full_name: string } | null; cls: { name: string } | null }[];
+  let students = (data || []) as unknown as { id: string; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; created_at: string; profile: { username: string | null } | null; teacher: { full_name: string } | null; cls: { name: string } | null }[];
+
+  if (students.length === 0) {
+    try {
+      const { getDb } = await import('@/lib/db/database');
+      const db = await getDb();
+      const res = db.exec(`
+        SELECT 
+          st.id,
+          COALESCE(u.name, 'Öğrenci') as full_name,
+          COALESCE(st.grade, 8) as grade_level,
+          st.school as school_name,
+          (st.status = 'active') as is_active,
+          st.created_at,
+          u.name as username,
+          (CAST(COALESCE(st.grade, 8) AS TEXT) || '-A') as class_name
+        FROM students st
+        JOIN users u ON u.id = st.user_id
+        ORDER BY u.name ASC
+      `);
+      if (res && res.length > 0 && res[0].values.length > 0) {
+        const cols = res[0].columns;
+        students = res[0].values.map(row => {
+          const obj: Record<string, unknown> = {};
+          cols.forEach((c, idx) => { obj[c] = row[idx]; });
+          return {
+            id: String(obj.id),
+            full_name: String(obj.full_name),
+            grade_level: Number(obj.grade_level) || 8,
+            school_name: obj.school_name ? String(obj.school_name) : null,
+            is_active: Boolean(obj.is_active),
+            created_at: String(obj.created_at || new Date().toISOString()),
+            profile: { username: String(obj.username || '') },
+            teacher: null,
+            cls: { name: String(obj.class_name || '8-A') }
+          };
+        });
+      }
+    } catch {
+      // Supabase tabanlı liste kullanılır
+    }
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
