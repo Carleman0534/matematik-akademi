@@ -24,6 +24,13 @@ import {
 } from 'lucide-react';
 import type { PdfDocument } from '@/lib/pdfDocs';
 import { SubTabBar } from '@/components/SubTabBar';
+import {
+  saveClientPdfDoc,
+  getClientPdfDocs,
+  getClientPdfBlob,
+  removeClientPdfDoc,
+  mergeClientAndServerDocs,
+} from '@/lib/clientPdfStorage';
 
 interface FileQueueItem {
   file: File;
@@ -69,6 +76,8 @@ export default function PdfArsiviPage() {
       const res = await fetch(url);
       if (!res.ok) {
         console.warn('PDF dokümanları yüklenirken sunucu yanıt vermedi:', res.status);
+        const local = getClientPdfDocs();
+        if (local.length > 0) setDocs(local);
         return;
       }
       const text = await res.text();
@@ -77,11 +86,21 @@ export default function PdfArsiviPage() {
         data = JSON.parse(text);
       } catch {
         console.warn('PDF yanıtı JSON olarak ayrıştırılamadı.');
+        const local = getClientPdfDocs();
+        if (local.length > 0) setDocs(local);
         return;
       }
-      if (data?.docs) setDocs(data.docs);
+      if (data?.docs) {
+        const merged = mergeClientAndServerDocs(data.docs);
+        setDocs(merged);
+      } else {
+        const local = getClientPdfDocs();
+        if (local.length > 0) setDocs(local);
+      }
     } catch (err) {
       console.error('fetchDocs hatası:', err);
+      const local = getClientPdfDocs();
+      if (local.length > 0) setDocs(local);
     } finally {
       setLoading(false);
     }
@@ -141,6 +160,8 @@ export default function PdfArsiviPage() {
         const file = item.file;
         const filePrefix = total > 1 ? `[${i + 1}/${total}] ` : '';
 
+        let savedDoc: PdfDocument | null = null;
+
         // 2 MB'den büyük dosyalar için otomatik Parçalı Yükleme (Chunked Upload)
         if (file.size > 2 * 1024 * 1024) {
           const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
@@ -191,9 +212,13 @@ export default function PdfArsiviPage() {
             if (!res.ok) {
               throw new Error(d?.error || `${filePrefix}Parça ${c + 1} yüklenemedi.`);
             }
+
+            if (c === totalChunks - 1 && d?.doc) {
+              savedDoc = d.doc;
+            }
           }
         } else {
-          // 3 MB altındaki küçük dosyalar için doğrudan yükleme
+          // 2 MB altındaki küçük dosyalar için doğrudan yükleme
           setUploadStatusText(`${filePrefix}"${item.title}" yükleniyor...`);
           const formData = new FormData();
           formData.append('file', file);
@@ -226,7 +251,38 @@ export default function PdfArsiviPage() {
           if (!res.ok) {
             throw new Error(d?.error || `"${item.title}" yüklenemedi.`);
           }
+
+          if (d?.doc) {
+            savedDoc = d.doc;
+          }
         }
+
+        // Eğer sunucu bir doc nesnesi döndüyse veya oluşturulduysa yerel hafızaya kaydet
+        const finalDoc: PdfDocument = savedDoc || {
+          id: `doc_${Date.now()}_${i}`,
+          teacher_id: 'teacher-admin',
+          title: item.title,
+          file_name: file.name,
+          file_path: `/api/pdf-documents/doc_${Date.now()}_${i}/file`,
+          file_type: item.fileType as any,
+          grade_level: item.gradeLevel,
+          subject: subject || 'Matematik',
+          topic: topic || '',
+          publisher: publisher || '',
+          file_size_mb: item.sizeMb,
+          page_count: Math.max(1, Math.round(item.sizeMb * 4)),
+          description: description || '',
+          answer_key: answerKey || '',
+          question_count: parseInt(questionCount, 10) || 40,
+          is_archived: 0,
+          created_at: new Date().toISOString(),
+        };
+
+        // Yerel depolamaya (IndexedDB + localStorage) anında kaydet
+        await saveClientPdfDoc(finalDoc, file);
+
+        // React durumuna anında ekle (kullanıcı hemen listede görsün)
+        setDocs((prev) => [finalDoc, ...prev.filter((d) => d.id !== finalDoc.id)]);
 
         setUploadProgress(Math.round(((i + 1) / total) * 100));
       }
@@ -254,6 +310,8 @@ export default function PdfArsiviPage() {
 
   const handleDelete = async (id: string) => {
     try {
+      await removeClientPdfDoc(id);
+      setDocs((prev) => prev.filter((d) => d.id !== id));
       const res = await fetch(`/api/pdf-documents?id=${id}&action=delete`, {
         method: 'DELETE',
       });
@@ -451,10 +509,16 @@ export default function PdfArsiviPage() {
                 {/* Aksiyon Butonları */}
                 <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                   <button
-                    onClick={() => {
-                      const safeUrl = doc.file_path && (doc.file_path.startsWith('/api') || doc.file_path.startsWith('http') || doc.file_path.startsWith('data:'))
-                        ? doc.file_path
-                        : `/api/pdf-documents/${doc.id}/file`;
+                    onClick={async () => {
+                      let safeUrl = '';
+                      const blob = await getClientPdfBlob(doc.id);
+                      if (blob) {
+                        safeUrl = URL.createObjectURL(blob);
+                      } else {
+                        safeUrl = doc.file_path && (doc.file_path.startsWith('/api') || doc.file_path.startsWith('http') || doc.file_path.startsWith('data:'))
+                          ? doc.file_path
+                          : `/api/pdf-documents/${doc.id}/file`;
+                      }
                       setPreviewDoc({ url: safeUrl, title: doc.title });
                     }}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition"

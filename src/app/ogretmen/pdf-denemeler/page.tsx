@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   BookOpen
 } from 'lucide-react';
+import { saveClientPdfDoc, getClientPdfDocs } from '@/lib/clientPdfStorage';
 
 export default function OgretmenPdfDenemelerPage() {
   const [pdfs, setPdfs] = useState<any[]>([]);
@@ -43,8 +44,32 @@ export default function OgretmenPdfDenemelerPage() {
       try {
         const url = categoryFilter === 'ALL' ? '/api/exam-pdfs' : `/api/exam-pdfs?category=${categoryFilter}`;
         const res = await fetch(url);
-        const data = await res.json();
-        if (!ignore && data.pdfs) setPdfs(data.pdfs);
+        const text = await res.text();
+        let serverPdfs: any[] = [];
+        try {
+          const data = JSON.parse(text);
+          if (data.pdfs) serverPdfs = data.pdfs;
+        } catch {}
+
+        const localDocs = getClientPdfDocs().map(d => ({
+          id: d.id,
+          title: d.title,
+          description: d.description,
+          category: d.grade_level,
+          file_path: d.file_path,
+          file_name: d.file_name,
+          file_size_mb: d.file_size_mb,
+          question_count: d.question_count,
+          answer_key: d.answer_key,
+        }));
+
+        const mergedMap = new Map();
+        localDocs.forEach(d => mergedMap.set(d.id, d));
+        serverPdfs.forEach(d => {
+          if (!mergedMap.has(d.id)) mergedMap.set(d.id, d);
+        });
+
+        if (!ignore) setPdfs(Array.from(mergedMap.values()));
       } catch (err) {
         console.error(err);
       } finally {
@@ -79,6 +104,30 @@ export default function OgretmenPdfDenemelerPage() {
       });
 
       if (res.ok) {
+        const text = await res.text();
+        let newDocData: any = null;
+        try {
+          const d = JSON.parse(text);
+          if (d.pdf) newDocData = d.pdf;
+        } catch {}
+
+        const newId = newDocData?.id || `exam_${Date.now()}`;
+        await saveClientPdfDoc({
+          id: newId,
+          teacher_id: 'teacher-admin',
+          title: title || file.name,
+          file_name: file.name,
+          file_path: `/api/pdf-documents/${newId}/file`,
+          file_type: 'deneme',
+          grade_level: category,
+          subject: 'Matematik',
+          file_size_mb: parseFloat((file.size / (1024 * 1024)).toFixed(2)),
+          question_count: parseInt(questionCount, 10) || 40,
+          answer_key: answerKey,
+          description: description,
+          created_at: new Date().toISOString()
+        }, file);
+
         setShowUploadModal(false);
         setTitle('');
         setDescription('');
