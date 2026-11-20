@@ -105,7 +105,65 @@ export function generateCurriculumQuestion(params: GenerateQuestionParams): Gene
       D: `${alan / 4} ile ${(alan / 4) + 1}`
     };
     correct = 'B';
-    solution = `1. Adım: Karenin alanı ${alan} cm² ise bir kenar uzunluğu a = √${alan} cm'dir.\n2. Adım: ${alt}² = ${alt * alt} ve ${ust}² = ${ust * ust} olduğundan;\n${alt * alt} < ${alan} < ${ust * ust} eşitsizliği sağlanır.\n3. Adım: Bu nedenle √${alan} sayısı ${alt} ile ${ust} tam sayıları arasındadır.`;
+    if (visualRequired || true) {
+      svgContent = generateMathematicalSvg({
+        type: 'square_area',
+        title: 'Kare Şeklinde Arsa Alan ve Kenar İlişkisi',
+        params: { area: alan, side: `√${alan} cm` }
+      });
+    }
+  } else if (topicId.includes('veri') || topicId.includes('04')) {
+    skill = 'Veri Analizi: Daire ve Sütun Grafiği Yorumlama';
+    qText = `Bir öğrencinin 3 günde çözdüğü matematik sorularının türlerine göre dağılımı yandaki daire grafiğinde gösterilmiştir.\nÖğrenci toplam 360 soru çözdüğüne göre, **en çok soru çözülen kategoriye ait soru sayısı** kaçtır?`;
+    options = {
+      A: '120',
+      B: '150',
+      C: '180',
+      D: '90'
+    };
+    correct = 'B';
+    solution = `1. Adım: Daire grafiğinin tamamı 360° dir. Toplam 360 soru olduğu için her 1° tam olarak 1 soruya denk gelir.\n2. Adım: En büyük merkez açı 150° olduğundan, bu kategoriye ait soru sayısı 150 × 1 = 150 tanedir.`;
+    if (visualRequired || true) {
+      svgContent = generateMathematicalSvg({
+        type: 'pie_chart',
+        title: '360° Soru Dağılımı Daire Grafiği',
+        labels: ['Cebir (120°)', 'Geometri (90°)', 'Sayılar (150°)']
+      });
+    }
+  } else if (topicId.includes('olasilik') || topicId.includes('05')) {
+    skill = 'Basit Olayların Olma Olasılığı';
+    qText = `Yanda 4 eş bölgeye ayrılmış bir şans çarkı verilmiştir. Çark bir kez döndürüldüğünde ibrenin **Kırmızı veya Mavi** bölgede durma olasılığı kaçtır?`;
+    options = {
+      A: '1/4',
+      B: '1/2',
+      C: '3/4',
+      D: '1'
+    };
+    correct = 'B';
+    solution = `1. Adım: Olasılık = (İstenen olası durumların sayısı) / (Tüm olası durumların sayısı)\n2. Adım: Çarkta 4 eş dilim vardır. Kırmızı (1) ve Mavi (1) olmak üzere istenen durum sayısı 2'dir.\n3. Adım: Olasılık = 2 / 4 = 1/2'dir.`;
+    if (visualRequired || true) {
+      svgContent = generateMathematicalSvg({
+        type: 'probability_spinner',
+        title: 'LGS Şans Çarkı Olasılık Deneyi'
+      });
+    }
+  } else if (topicId.includes('cebirsel') || topicId.includes('06')) {
+    skill = 'Cebirsel İfadeler ve Özdeşlikler: Geometrik Modelleme';
+    qText = `Yanda verilen cebir karolarıyla modellenen dikdörtgensel bölgenin toplam alanını veren **cebirsel ifade** aşağıdakilerden hangisidir?`;
+    options = {
+      A: 'x² + 2x + 1',
+      B: 'x² + 3x + 2',
+      C: '2x² + 3x + 1',
+      D: '(x + 2)²'
+    };
+    correct = 'B';
+    solution = `1. Adım: Modellenen bölge bir adet x² karesi, üç adet x dikdörtgeni ve iki adet 1 birim kareden oluşmaktadır.\n2. Adım: Kenar uzunlukları (x + 1) ve (x + 2)'dir.\n3. Adım: Alan = (x + 1)·(x + 2) = x² + 2x + x + 2 = x² + 3x + 2 bulunur.`;
+    if (visualRequired || true) {
+      svgContent = generateMathematicalSvg({
+        type: 'algebraic_tiles',
+        title: 'Cebir Karoları ile Özdeşlik ve Çarpanlara Ayırma'
+      });
+    }
   } else if (topicId.includes('ucgen') || topicId.includes('09')) {
     skill = 'Pisagor Bağıntısı ve Uzamsal Geometrik Düşünme';
     const k1 = 3 * (difficulty + 1);
@@ -142,11 +200,46 @@ export function generateCurriculumQuestion(params: GenerateQuestionParams): Gene
     correct = 'B';
     solution = `1. Adım: Doğrunun eğimi m = dikey değişim / yatay değişim (y₂ - y₁) / (x₂ - x₁) formülü ile bulunur.\n2. Adım: Orijin O(0,0) ve A(2, ${2 * m}) noktaları için;\nm = (${2 * m} - 0) / (2 - 0) = ${2 * m} / 2 = ${m}.\nDoğrunun eğimi ${m} olarak bulunur.`;
 
-    if (visualRequired) {
+    if (visualRequired || true) {
       svgContent = generateMathematicalSvg({
         type: 'coordinate_system',
         title: 'Doğrunun Eğimi Grafiği',
         params: { slope: m, intercept: 0 }
+      });
+    }
+  } else if (topicId.includes('esitsizlik') || topicId.includes('08')) {
+    skill = 'Birinci Dereceden Bir Bilinmeyenli Eşitsizlikler ve Sayı Doğrusu';
+    qText = `Yandaki sayı doğrusunda yeşil renkle taranarak gösterilen eşitsizlik çözümü aşağıdakilerden hangisidir?`;
+    options = {
+      A: '3 < x ≤ 7',
+      B: '3 ≤ x < 7',
+      C: '3 < x < 7',
+      D: '3 ≤ x ≤ 7'
+    };
+    correct = 'B';
+    solution = `1. Adım: Sayı doğrusunda 3 noktasının içi dolu olduğundan eşitlik vardır (x ≥ 3).\n2. Adım: 7 noktasının içi boş olduğundan eşitlik yoktur (x < 7).\n3. Adım: Dolayısıyla gösterilen aralık 3 ≤ x < 7 eşitsizliğidir.`;
+    if (visualRequired || true) {
+      svgContent = generateMathematicalSvg({
+        type: 'number_line',
+        title: 'Sayı Doğrusunda Eşitsizlik Aralığı',
+        params: { aVal: 3, bVal: 7, rangeLabel: '3 ≤ x < 7' }
+      });
+    }
+  } else if (topicId.includes('cisim') || topicId.includes('12')) {
+    skill = 'Geometrik Cisimler: Silindir Açınımı';
+    qText = `Taban yarıçapı r ve yüksekliği h olan dik dairesel bir silindirin açınımı yanda verilmiştir.\nSilindirin yan yüzeyinin açınımı bir dikdörtgen olduğuna göre, bu dikdörtgenin **uzun kenarı** hangi formülle hesaplanır?`;
+    options = {
+      A: 'π·r²',
+      B: '2·π·r',
+      C: '2·π·r·h',
+      D: 'π·r·h'
+    };
+    correct = 'B';
+    solution = `1. Adım: Silindirin yan yüzeyi açıldığında bir dikdörtgen elde edilir.\n2. Adım: Bu dikdörtgenin bir kenarı silindirin yüksekliği (h), diğer kenarı ise tabandaki dairenin çevresine eşittir.\n3. Adım: Taban dairesinin çevresi 2·π·r olduğundan, dikdörtgenin kenarı 2·π·r olur.`;
+    if (visualRequired || true) {
+      svgContent = generateMathematicalSvg({
+        type: 'cylinder_net',
+        title: 'LGS Dik Dairesel Silindir Açınımı'
       });
     }
   } else {

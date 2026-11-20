@@ -39,12 +39,21 @@ export default function OzelCalismamPage() {
     async function loadPlans() {
       try {
         setLoading(true);
-        const res = await fetch('/api/lgs/study-plans?studentId=50fa22f6-1021-4dde-8278-2339fa65030d');
+        const searchParams = new URLSearchParams(window.location.search);
+        const planIdFromUrl = searchParams.get('planId');
+
+        if (planIdFromUrl) {
+          await loadPlanSession(planIdFromUrl);
+        }
+
+        const res = await fetch('/api/lgs/study-plans');
         const data = await res.json();
         if (data.success && data.plans.length > 0) {
           setPlans(data.plans);
-          // İlk planı aktif yap
-          loadPlanSession(data.plans[0].id);
+          // URL'den planId verilmemişse ilk planı aktif yap
+          if (!planIdFromUrl) {
+            loadPlanSession(data.plans[0].id);
+          }
         }
       } catch (e) {
         console.error(e);

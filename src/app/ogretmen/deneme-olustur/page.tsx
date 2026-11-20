@@ -7,7 +7,8 @@ import {
   Play, Printer, Download, RefreshCw, Filter, Check, 
   Sliders, HelpCircle, ChevronRight, AlertCircle, ArrowRight,
   Users, UserCheck, Search, Clock, Pause, Plus, Lightbulb,
-  AlertTriangle, ShieldAlert, Award, Eye, X, Zap, Target
+  AlertTriangle, ShieldAlert, Award, Eye, X, Zap, Target,
+  Image as ImageIcon, MessageCircle, Share2, FileSpreadsheet
 } from 'lucide-react';
 import { SubTabBar } from '@/components/SubTabBar';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
@@ -31,6 +32,8 @@ interface HybridQuestionItem {
   criticalWarning?: string;
   traps?: { option: string; reason: string }[];
   hasVisual?: boolean;
+  svgContent?: string;
+  imageUrl?: string;
 }
 
 function getTopicTrapsAndWarnings(topicId: string, correctAnswer: string) {
@@ -138,6 +141,139 @@ export default function DenemeOlusturPage() {
   const [liveSecondsRemaining, setLiveSecondsRemaining] = useState<number>(40 * 60);
   const [isLiveTimerRunning, setIsLiveTimerRunning] = useState<boolean>(false);
   const [liveStudentProgress, setLiveStudentProgress] = useState<any[]>([]);
+
+  // 4. Şekilli Soru, Optik Okuyucu & WhatsApp Durumları
+  const [visualRatio, setVisualRatio] = useState<number>(50); // %0 Metin, %25, %50, %75, %100 Tamamı Şekilli
+  const [showOpticModal, setShowOpticModal] = useState<boolean>(false);
+  const [opticStudentId, setOpticStudentId] = useState<string>('student_ali_metin');
+  const [opticAnswers, setOpticAnswers] = useState<Record<number, string>>({});
+  const [opticInputString, setOpticInputString] = useState<string>('');
+  const [opticResult, setOpticResult] = useState<any>(null);
+  const [opticSaved, setOpticSaved] = useState<boolean>(false);
+
+  // Soruya özel resim yükleme işleyicisi (Öğretmen dosya seçtiğinde)
+  const handleAttachImage = (qId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result as string;
+      setCompiledQuestions(prev => prev.map(q => q.id === qId ? { ...q, imageUrl: dataUrl, hasVisual: true } : q));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = (qId: string) => {
+    setCompiledQuestions(prev => prev.map(q => q.id === qId ? { ...q, imageUrl: undefined } : q));
+  };
+
+  // Hızlı Optik Cevap Stringi Girişi (örn: BACDABBCA...)
+  const handleOpticStringChange = (val: string) => {
+    const clean = val.toUpperCase().replace(/[^A-D_ -]/g, '');
+    setOpticInputString(clean);
+    const newAnswers: Record<number, string> = { ...opticAnswers };
+    for (let i = 0; i < clean.length && i < compiledQuestions.length; i++) {
+      const ch = clean[i];
+      if (['A', 'B', 'C', 'D'].includes(ch)) {
+        newAnswers[i + 1] = ch;
+      }
+    }
+    setOpticAnswers(newAnswers);
+  };
+
+  const handleToggleOpticAnswer = (qNo: number, choice: string) => {
+    setOpticAnswers(prev => {
+      const copy = { ...prev };
+      if (copy[qNo] === choice) {
+        delete copy[qNo];
+      } else {
+        copy[qNo] = choice;
+      }
+      return copy;
+    });
+  };
+
+  // Optik Sonuç Hesaplama
+  const handleCalculateOptic = () => {
+    if (compiledQuestions.length === 0) return;
+    let correct = 0;
+    let wrong = 0;
+    let blank = 0;
+    const details: any[] = [];
+
+    compiledQuestions.forEach(q => {
+      const studentAns = opticAnswers[q.questionNo] || '';
+      const isBlank = !studentAns;
+      const isCorrect = studentAns === q.correctAnswer;
+      if (isBlank) blank++;
+      else if (isCorrect) correct++;
+      else wrong++;
+
+      details.push({
+        qNo: q.questionNo,
+        topic: q.topicName,
+        correctAnswer: q.correctAnswer,
+        studentAnswer: studentAns || '-',
+        isCorrect,
+        isBlank
+      });
+    });
+
+    const rawNet = correct - (wrong / 3);
+    const net = Math.max(0, Number(rawNet.toFixed(2)));
+
+    const resultObj = {
+      correct,
+      wrong,
+      blank,
+      net,
+      details,
+      timestamp: new Date().toISOString()
+    };
+    setOpticResult(resultObj);
+    setOpticSaved(false);
+  };
+
+  // Optik Sonucu Kaydetme
+  const handleSaveOpticResult = () => {
+    setOpticSaved(true);
+    alert('Öğrencinin optik form sonuçları başarıyla kaydedildi! İsterseniz aşağıdaki butondan velisine WhatsApp karnesi gönderebilirsiniz.');
+  };
+
+  // WhatsApp Veli Karne Mesajı Gönderme
+  const handleShareWhatsApp = () => {
+    if (!opticResult) return;
+    const targetStudent = students.find(s => s.id === opticStudentId) || students[0];
+    const sName = targetStudent?.full_name || 'Ali Metin';
+
+    const weakTopics = Array.from(new Set(
+      opticResult.details
+        .filter((d: any) => !d.isCorrect && !d.isBlank)
+        .map((d: any) => d.topic)
+    ));
+
+    const strongTopics = Array.from(new Set(
+      opticResult.details
+        .filter((d: any) => d.isCorrect)
+        .map((d: any) => d.topic)
+    ));
+
+    const text = `📚 *MATEMATİK AKADEMİ — LGS DENEME SINAV KARNESİ*
+👤 *Öğrenci:* ${sName}
+📝 *Sınav:* ${examTitle}
+📅 *Tarih:* ${new Date().toLocaleDateString('tr-TR')}
+━━━━━━━━━━━━━━━━━━━━
+✅ *Doğru:* ${opticResult.correct}
+❌ *Yanlış:* ${opticResult.wrong}
+⚪ *Boş:* ${opticResult.blank}
+🎯 *LGS Net:* ${opticResult.net} Net (Başarı: %${Math.round((opticResult.correct / compiledQuestions.length) * 100)})
+━━━━━━━━━━━━━━━━━━━━
+${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3).join(', ')}\n` : ''}${weakTopics.length > 0 ? `⚠️ *Tekrar Edilmesi Gereken Konular:* ${weakTopics.slice(0, 3).join(', ')}\n` : '🌟 Tebrikler, tüm sorular doğru çözüldü!\n'}━━━━━━━━━━━━━━━━━━━━
+Öğrencimizi tebrik eder, çalışmalarında başarılar dileriz!`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -342,7 +478,16 @@ export default function DenemeOlusturPage() {
         let qAns: string = defaultAns;
         let qSol = '';
         let qType = i % 2 === 0 ? 'yeni_nesil' : 'problem_cozme';
-        let qVisual = i % 2 === 1;
+        let qVisual = visualRatio === 100 
+          ? true 
+          : visualRatio === 0 
+            ? false 
+            : visualRatio === 75 
+              ? (i % 4 !== 0) 
+              : visualRatio === 50 
+                ? (i % 2 === 1) 
+                : (i % 4 === 1);
+        let qSvgContent: string | undefined = undefined;
 
         if (matchingPool && matchingPool.question_text) {
           qText = `${i}. Soru (${defaultPdfTitle}):\n${matchingPool.question_text}`;
@@ -362,6 +507,7 @@ export default function DenemeOlusturPage() {
           qAns = gen.correctAnswer;
           qSol = gen.solutionExplanation;
           qType = gen.questionType;
+          qSvgContent = gen.svgContent;
         }
 
         const trapsInfo = getTopicTrapsAndWarnings(topicId, qAns);
@@ -382,7 +528,8 @@ export default function DenemeOlusturPage() {
           solutionExplanation: qSol,
           criticalWarning: trapsInfo.criticalWarning,
           traps: trapsInfo.traps,
-          hasVisual: qVisual
+          hasVisual: Boolean(qSvgContent) || qVisual,
+          svgContent: qSvgContent
         });
       }
 
@@ -403,12 +550,22 @@ export default function DenemeOlusturPage() {
 
         const diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
 
+        const isAiVisual = visualRatio === 100 
+          ? true 
+          : visualRatio === 0 
+            ? false 
+            : visualRatio === 75 
+              ? (j % 4 !== 0) 
+              : visualRatio === 50 
+                ? (j % 2 === 0) 
+                : (j % 4 === 0);
+
         // Motorumuzdan otomatik matematiksel soru türet
         const generated = generateCurriculumQuestion({
           topicId,
           difficulty: diff,
           questionType: 'yeni_nesil',
-          visualRequired: j % 2 === 0
+          visualRequired: isAiVisual
         });
 
         const trapsInfo = getTopicTrapsAndWarnings(topicId, generated.correctAnswer);
@@ -429,7 +586,8 @@ export default function DenemeOlusturPage() {
           solutionExplanation: generated.solutionExplanation,
           criticalWarning: trapsInfo.criticalWarning,
           traps: trapsInfo.traps,
-          hasVisual: Boolean(generated.svgContent)
+          hasVisual: Boolean(generated.svgContent),
+          svgContent: generated.svgContent
         });
       }
 
@@ -557,7 +715,8 @@ export default function DenemeOlusturPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6 print:hidden">
       {/* Üst Sekmeler */}
       <SubTabBar
         title="Deneme ve Çalışma Merkezi"
@@ -913,6 +1072,44 @@ export default function DenemeOlusturPage() {
               </div>
             </div>
 
+            {/* 🎨 Şekilli / Görsel Soru Ağırlığı */}
+            <div>
+              <div className="flex justify-between items-center text-xs font-bold mb-1.5">
+                <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Şekilli / Görsel Soru Ağırlığı</span>
+                </span>
+                <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">
+                  %{visualRatio} Şekilli
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5 text-center text-[11px]">
+                {[
+                  { val: 0, label: 'Metin', icon: '📝' },
+                  { val: 50, label: '%50 Şekilli', icon: '📐' },
+                  { val: 75, label: '%75 Şekilli', icon: '📊' },
+                  { val: 100, label: 'Tamamı', icon: '✨' },
+                ].map(item => (
+                  <button
+                    key={item.val}
+                    type="button"
+                    onClick={() => setVisualRatio(item.val)}
+                    className={`p-2 rounded-xl border transition ${
+                      visualRatio === item.val
+                        ? 'border-purple-500 bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 font-bold'
+                        : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    <span className="block text-xs">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Matbaa kalitesinde SVG şekiller (üçgen, daire grafiği, koordinat sistemi, kare alanı, silindir ve terazi modelleri).
+              </p>
+            </div>
+
             {/* Derle Butonu */}
             <button
               type="button"
@@ -984,6 +1181,19 @@ export default function DenemeOlusturPage() {
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>Yazdır / PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOpticModal(true);
+                      handleCalculateOptic();
+                    }}
+                    className="flex-1 sm:flex-initial px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
+                    title="Kağıttan Çözen Öğrencinin Optik Cevaplarını Hızlıca Gir, Otomatik Puanla ve Veliye Gönder"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-yellow-300" />
+                    <span>⚡ Hızlı Optik Giriş</span>
                   </button>
 
                   <button
@@ -1093,6 +1303,19 @@ export default function DenemeOlusturPage() {
                         </div>
                       </div>
 
+                      {/* Soru Görseli / Vektörel Şekil veya Yüklenen Resim */}
+                      {q.imageUrl && (
+                        <div className="my-2.5 flex justify-center bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                          <img src={q.imageUrl} alt="Soru Şekli" className="max-h-60 rounded-xl object-contain shadow-xs" />
+                        </div>
+                      )}
+                      {q.svgContent && !q.imageUrl && (
+                        <div 
+                          className="my-2.5 flex justify-center overflow-x-auto"
+                          dangerouslySetInnerHTML={{ __html: q.svgContent }}
+                        />
+                      )}
+
                       {/* Soru Metni */}
                       <p className="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
                         {q.questionText}
@@ -1112,6 +1335,29 @@ export default function DenemeOlusturPage() {
                             <span className="font-bold mr-1.5">{opt})</span> {val}
                           </div>
                         ))}
+                      </div>
+
+                      {/* Soruya Resim Yükleme / Şekil Değiştirme Butonu */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition">
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>📷 {q.imageUrl || q.svgContent ? 'Görseli Değiştir / Fotoğraf Seç' : 'Şekil / Fotoğraf Ekle'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleAttachImage(q.id, e)}
+                          />
+                        </label>
+                        {q.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(q.id)}
+                            className="text-rose-500 hover:text-rose-700 text-[11px] font-semibold"
+                          >
+                            Görseli Kaldır
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1368,6 +1614,296 @@ export default function DenemeOlusturPage() {
           </div>
         </div>
       )}
+
+      {/* ⚡ 3. ÖNERİ: Hızlı Optik Cevap Girişi Modalı (Kağıttan Çözen Öğrenci İçin) */}
+      {showOpticModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-4xl w-full p-6 space-y-6 my-8 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Başlık */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold">
+                  <Zap className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Hızlı Optik Cevap Girişi & Anında Karneleme</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-bold">
+                      Kağıt Sınav Değerlendirici
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Öğrencinin kağıttan veya kitaptan çözdüğü denemenin cevaplarını saniyeler içinde girin.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowOpticModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Öğrenci Seçimi & Hızlı Dize Girişi */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Öğrenci Seçimi */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Sınavı Çözen Öğrenci:
+                </label>
+                <select
+                  value={opticStudentId}
+                  onChange={(e) => setOpticStudentId(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold"
+                >
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.full_name} ({s.class_name || '8-A'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Hızlı Tek Satır Dize Girişi */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <span>Tek Satırda Hızlı Giriş (Klavye):</span>
+                  <span className="text-[11px] text-slate-400 font-mono">Örn: BACDABBC...</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Cevapları arka arkaya yazın (Örn: BACDBADC...)"
+                  value={opticInputString}
+                  onChange={(e) => handleOpticStringChange(e.target.value)}
+                  className="w-full text-xs font-mono tracking-widest uppercase p-2.5 rounded-xl border border-teal-300 focus:ring-2 focus:ring-teal-500 dark:border-teal-800 dark:bg-slate-800 dark:text-white font-bold"
+                />
+              </div>
+            </div>
+
+            {/* 20 Soruluk İnteraktif Optik Matris */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span>Optik Cevap Kodlama Tablosu ({compiledQuestions.length} Soru):</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpticAnswers({});
+                    setOpticInputString('');
+                    setOpticResult(null);
+                  }}
+                  className="text-[11px] text-rose-500 hover:underline font-semibold"
+                >
+                  Temizle
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-60 overflow-y-auto p-1">
+                {compiledQuestions.map((q) => {
+                  const currentSelected = opticAnswers[q.questionNo];
+                  return (
+                    <div
+                      key={q.id}
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-slate-900 dark:text-white w-4 text-[11px]">
+                          {q.questionNo}.
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-mono">
+                          (Anahtar: {q.correctAnswer})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {['A', 'B', 'C', 'D'].map((ch) => (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => {
+                              handleToggleOpticAnswer(q.questionNo, ch);
+                              setTimeout(handleCalculateOptic, 50);
+                            }}
+                            className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center transition ${
+                              currentSelected === ch
+                                ? 'bg-teal-600 text-white shadow-xs scale-105'
+                                : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:border-teal-400'
+                            }`}
+                          >
+                            {ch}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Hesaplama & Canlı Sonuç Kartı */}
+            <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-4 text-xs font-bold">
+                  <span className="text-emerald-700 dark:text-emerald-300">
+                    ✅ Doğru: <strong>{opticResult?.correct ?? 0}</strong>
+                  </span>
+                  <span className="text-rose-700 dark:text-rose-300">
+                    ❌ Yanlış: <strong>{opticResult?.wrong ?? 0}</strong>
+                  </span>
+                  <span className="text-slate-500">
+                    ⚪ Boş: <strong>{opticResult?.blank ?? compiledQuestions.length}</strong>
+                  </span>
+                  <span className="text-teal-900 dark:text-teal-100 font-black text-sm bg-teal-200/60 dark:bg-teal-900 px-3 py-1 rounded-xl">
+                    🎯 Net: {opticResult?.net ?? 0}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCalculateOptic}
+                  className="px-3 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 transition"
+                >
+                  Tekrar Hesapla
+                </button>
+              </div>
+            </div>
+
+            {/* Alt Butonlar & WhatsApp Karnesi */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowOpticModal(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition"
+              >
+                Kapat
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveOpticResult}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{opticSaved ? '✓ Kaydedildi' : 'Sonucu Kaydet'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  disabled={!opticResult}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                  title="Veliye WhatsApp Sonuç Mesajı Gönder"
+                >
+                  <MessageCircle className="w-4 h-4 text-emerald-200" />
+                  <span>📲 Veliye WhatsApp Karnesi Gönder</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
-  );
+
+    {/* 🖨️ 2. KRİTİK EKSİK ÇÖZÜMÜ: MEB Formatında Gerçek A4 Sınav Kitapçığı & Optik Form */}
+    <div className="hidden print:block print:w-full print:bg-white print:text-black font-sans p-2">
+      {/* Sınav Kapağı & MEB Anteti */}
+      <div className="border-b-2 border-black pb-3 mb-4">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-black">
+          <div className="text-left text-[11px] leading-tight">
+            <p className="font-black text-xs">T.C. MİLLÎ EĞİTİM BAKANLIĞI</p>
+            <p>Ölçme, Değerlendirme ve Sınav Hizmetleri Genel Müdürlüğü</p>
+          </div>
+          <div className="text-center font-black text-sm tracking-wider border-2 border-black px-4 py-1">
+            LGS MATEMATİK BRANŞ DENEME SINAVI
+          </div>
+          <div className="text-right text-[11px] leading-tight">
+            <p className="font-bold">8. SINIF SAYISAL BÖLÜM</p>
+            <p>Süre: {durationMin} Dakika · {compiledQuestions.length} Soru</p>
+          </div>
+        </div>
+
+        {/* Öğrenci Bilgi Doldurma Kutusu */}
+        <div className="grid grid-cols-3 gap-2 text-xs border border-black p-2 bg-slate-50">
+          <div><strong>Adı ve Soyadı:</strong> _______________________</div>
+          <div><strong>Sınıfı / Şubesi:</strong> 8 / _____</div>
+          <div><strong>Öğrenci No:</strong> _________</div>
+        </div>
+      </div>
+
+      {/* Sorular: 2 Sütunlu MEB Düzeninde */}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+        {compiledQuestions.map((q) => (
+          <div key={`print_${q.id}`} className="break-inside-avoid border-b border-slate-300 pb-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-black text-white text-[11px] font-black flex items-center justify-center">
+                {q.questionNo}
+              </span>
+              <span className="font-bold uppercase text-[10px] text-slate-800">
+                {q.topicName}
+              </span>
+            </div>
+
+            {/* Vektörel Şekil veya Yüklenen Resim */}
+            {q.imageUrl && (
+              <div className="my-2 flex justify-center">
+                <img src={q.imageUrl} alt="Soru Şekli" className="max-h-48 object-contain" />
+              </div>
+            )}
+            {q.svgContent && !q.imageUrl && (
+              <div 
+                className="my-2 flex justify-center scale-90 origin-center"
+                dangerouslySetInnerHTML={{ __html: q.svgContent }}
+              />
+            )}
+
+            <p className="leading-relaxed font-serif text-slate-900 whitespace-pre-line text-[11px]">
+              {q.questionText}
+            </p>
+
+            <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
+              {Object.entries(q.options).map(([opt, val]) => (
+                <div key={opt} className="flex items-start gap-1">
+                  <span className="font-bold">{opt})</span>
+                  <span>{val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Resmî MEB LGS Optik Cevap Kağıdı (Son Sayfada) */}
+      <div className="break-before-page border-2 border-black p-4 mt-8 rounded-lg space-y-4">
+        <div className="text-center border-b border-black pb-2">
+          <h3 className="font-black text-sm tracking-wide">T.C. MEB LGS MATEMATİK CEVAP KÂĞIDI</h3>
+          <p className="text-[10px] text-slate-600">Cevaplarınızı kurşun kalemle dairelerin dışına taşırmadan doldurunuz.</p>
+        </div>
+
+        <div className="grid grid-cols-4 gap-3">
+          {[0, 5, 10, 15].map(startIdx => (
+            <div key={startIdx} className="border border-black p-2 space-y-1 bg-slate-50 text-xs">
+              {compiledQuestions.slice(startIdx, startIdx + 5).map(q => (
+                <div key={`optic_paper_${q.id}`} className="flex items-center justify-between px-1 py-0.5 border-b border-slate-200">
+                  <span className="font-black w-4 text-[11px]">{q.questionNo}.</span>
+                  <div className="flex gap-1.5">
+                    {['A', 'B', 'C', 'D'].map(choice => (
+                      <span key={choice} className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[9px] font-bold">
+                        {choice}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </>
+);
 }
