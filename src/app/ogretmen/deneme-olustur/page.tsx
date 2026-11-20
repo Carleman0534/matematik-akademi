@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { 
   Sparkles, FileText, CheckCircle2, Layers, BookOpen, 
   Play, Printer, Download, RefreshCw, Filter, Check, 
-  Sliders, HelpCircle, ChevronRight, AlertCircle, ArrowRight
+  Sliders, HelpCircle, ChevronRight, AlertCircle, ArrowRight,
+  Users, UserCheck, Search
 } from 'lucide-react';
 import { SubTabBar } from '@/components/SubTabBar';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
@@ -42,8 +43,13 @@ export default function DenemeOlusturPage() {
   const [pdfRatio, setPdfRatio] = useState<number>(50); // %50 PDF, %50 AI
   const [difficultyDistribution, setDifficultyDistribution] = useState<'balanced' | 'challenging' | 'foundation'>('balanced');
   const [durationMin, setDurationMin] = useState<number>(40);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('student_ali_metin');
-  const [students, setStudents] = useState<any[]>([]);
+
+  // Öğrenci Seçimi
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['student_ali_metin']);
+  const [studentSearch, setStudentSearch] = useState<string>('');
+  const [students, setStudents] = useState<any[]>([
+    { id: 'student_ali_metin', full_name: 'Ali Metin (Ali Tarlasüren)', grade_level: 8, class_name: '8-A LGS', school_name: 'Atatürk OO' },
+  ]);
 
   // 2. Derleme Durumu
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
@@ -58,8 +64,27 @@ export default function DenemeOlusturPage() {
       try {
         const res = await fetch('/api/students');
         const d = await res.json();
-        if (d.success && d.students) {
-          setStudents(d.students);
+        const list = d.students || d.data || [];
+        if (Array.isArray(list) && list.length > 0) {
+          const normalized = list.map((s: any) => ({
+            id: String(s.id),
+            full_name: s.full_name || s.name || s.user_name || 'Öğrenci',
+            grade_level: s.grade_level || s.grade || 8,
+            class_name: s.class_name || (s.grade_level ? `${s.grade_level}-A` : '8-A'),
+            school_name: s.school_name || s.school || ''
+          }));
+
+          const hasAli = normalized.some(s => s.full_name.toLowerCase().includes('ali metin'));
+          if (!hasAli) {
+            normalized.unshift({
+              id: 'student_ali_metin',
+              full_name: 'Ali Metin (Ali Tarlasüren)',
+              grade_level: 8,
+              class_name: '8-A LGS',
+              school_name: 'Atatürk OO'
+            });
+          }
+          setStudents(normalized);
         }
       } catch (e) {
         console.warn('Could not load students:', e);
@@ -67,6 +92,38 @@ export default function DenemeOlusturPage() {
     }
     loadStudents();
   }, []);
+
+  // Öğrenci Seçim Yardımcıları
+  const toggleStudent = (id: string) => {
+    setSelectedStudentIds(prev => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev; // En az bir öğrenci seçili kalsın
+        return prev.filter(x => x !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const selectAllStudents = () => {
+    setSelectedStudentIds(students.map(s => s.id));
+  };
+
+  const selectOnlyAli = () => {
+    const ali = students.find(s => s.id === 'student_ali_metin' || s.full_name.toLowerCase().includes('ali metin')) || students[0];
+    if (ali) setSelectedStudentIds([ali.id]);
+  };
+
+  const filteredStudents = students.filter(s => {
+    if (!studentSearch.trim()) return true;
+    const q = studentSearch.toLowerCase();
+    return s.full_name.toLowerCase().includes(q) || (s.class_name && s.class_name.toLowerCase().includes(q));
+  });
+
+  const selectedStudentsInfo = students.filter(s => selectedStudentIds.includes(s.id));
+  const primaryStudentName = selectedStudentsInfo.length === 1 
+    ? selectedStudentsInfo[0].full_name 
+    : `${selectedStudentsInfo.length} Öğrenci`;
 
   // Konu Seçim Yardımcıları
   const toggleTopic = (id: string) => {
@@ -230,9 +287,13 @@ export default function DenemeOlusturPage() {
     }
   };
 
-  // Öğrenciye Ata
+  // Öğrenciye / Öğrencilere Ata
   const handleAssignToStudent = async () => {
     if (compiledQuestions.length === 0) return;
+    if (selectedStudentIds.length === 0) {
+      alert('Lütfen denemenin atanacağı en az bir öğrenci seçin.');
+      return;
+    }
     setIsAssigning(true);
     setAssignSuccess('');
 
@@ -243,7 +304,7 @@ export default function DenemeOlusturPage() {
         body: JSON.stringify({
           title: examTitle,
           description: `${compiledQuestions.length} Soruluk Hibrit Deneme Sınavı (${selectedTopics.length} Konu).`,
-          studentIds: [selectedStudentId],
+          studentIds: selectedStudentIds,
           topicIds: selectedTopics,
           questions: compiledQuestions.map(q => ({
             id: q.id,
@@ -262,7 +323,8 @@ export default function DenemeOlusturPage() {
 
       const d = await res.json();
       if (d.success) {
-        setAssignSuccess(`🎉 Deneme başarıyla oluşturuldu ve Ali Metin'e atandı! Öğrenci panelinde hemen çözülebilir.`);
+        const assignedNames = selectedStudentsInfo.map(s => s.full_name).join(', ');
+        setAssignSuccess(`🎉 Deneme başarıyla oluşturuldu ve ${selectedStudentIds.length} öğrenciye (${assignedNames}) atandı! Öğrenci panelinde hemen çözülebilir.`);
       } else {
         alert(d.error || 'Atama başarısız.');
       }
@@ -310,11 +372,11 @@ export default function DenemeOlusturPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* SOL KOLON: Deneme Yapılandırma Paneli (5 Kolon) */}
         <div className="lg:col-span-5 space-y-5">
-          {/* 1. Sınav Başlığı ve Öğrenci */}
+          {/* 1. Sınav Künyesi & Süre */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
               <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">1</span>
-              <span>Sınav Künyesi & Hedef Öğrenci</span>
+              <span>Sınav Künyesi & Süre</span>
             </h3>
 
             <div>
@@ -330,42 +392,115 @@ export default function DenemeOlusturPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Hedef Öğrenci
-                </label>
-                <select
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold"
-                >
-                  <option value="student_ali_metin">Ali Metin (Ali Tarlasüren)</option>
-                  {students.map(s => (
-                    <option key={s.id} value={s.id}>{s.name || s.user_name || 'Öğrenci'}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Süre (Dakika)
-                </label>
-                <input
-                  type="number"
-                  value={durationMin}
-                  onChange={(e) => setDurationMin(Number(e.target.value))}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Sınav Süresi (Dakika)
+              </label>
+              <input
+                type="number"
+                value={durationMin}
+                onChange={(e) => setDurationMin(Number(e.target.value))}
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold"
+              />
             </div>
           </div>
 
-          {/* 2. Konu Seçimi */}
+          {/* 2. Hedef Öğrenci Seçimi */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">2</span>
+                <Users className="w-4 h-4 text-indigo-600" />
+                <span>Hedef Öğrenci Seçimi</span>
+              </h3>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                {selectedStudentIds.length} Öğrenci Seçili
+              </span>
+            </div>
+
+            {/* Hızlı Seçim Butonları */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={selectOnlyAli}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
+              >
+                <span>⭐ Ali Metin</span>
+              </button>
+              <button
+                type="button"
+                onClick={selectAllStudents}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 transition"
+              >
+                Tümünü Seç ({students.length})
+              </button>
+              {selectedStudentIds.length > 1 && (
+                <button
+                  type="button"
+                  onClick={selectOnlyAli}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-slate-500 hover:text-slate-700 transition"
+                >
+                  Sıfırla
+                </button>
+              )}
+            </div>
+
+            {/* Arama */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder="Öğrenci adı veya sınıf ara..."
+                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+
+            {/* Öğrenci Listesi */}
+            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+              {filteredStudents.map(st => {
+                const isSelected = selectedStudentIds.includes(st.id);
+                return (
+                  <div
+                    key={st.id}
+                    onClick={() => toggleStudent(st.id)}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition text-xs select-none ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold shadow-xs'
+                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${
+                        isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs shrink-0">
+                        {st.full_name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-slate-900 dark:text-white font-medium">{st.full_name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{st.class_name} {st.school_name ? `· ${st.school_name}` : ''}</p>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                        Seçili
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Konu Seçimi */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">3</span>
                 <span>LGS Konularını Seç ({selectedTopics.length})</span>
               </h3>
             </div>
@@ -432,10 +567,10 @@ export default function DenemeOlusturPage() {
             </div>
           </div>
 
-          {/* 3. Soru Sayısı, PDF / AI Oranı & Zorluk Seviyesi */}
+          {/* 4. Soru Sayısı, PDF / AI Oranı & Zorluk Seviyesi */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">3</span>
+              <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">4</span>
               <span>Kaynak Oranı & Zorluk Dengesi</span>
             </h3>
 
@@ -588,7 +723,13 @@ export default function DenemeOlusturPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  {/* Seçili Hedef Öğrenci Rozeti */}
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Hedef: <strong className="font-bold text-indigo-600 dark:text-indigo-400">{primaryStudentName}</strong></span>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => window.print()}
@@ -602,11 +743,17 @@ export default function DenemeOlusturPage() {
                   <button
                     type="button"
                     onClick={handleAssignToStudent}
-                    disabled={isAssigning}
+                    disabled={isAssigning || selectedStudentIds.length === 0}
                     className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     <Play className="w-3.5 h-3.5" />
-                    <span>{isAssigning ? 'Atanıyor...' : 'Ali Metin\'e Ata'}</span>
+                    <span>
+                      {isAssigning 
+                        ? 'Atanıyor...' 
+                        : selectedStudentIds.length === 1 
+                          ? `${primaryStudentName}'e Ata` 
+                          : `${selectedStudentIds.length} Öğrenciye Ata`}
+                    </span>
                   </button>
                 </div>
               </div>
