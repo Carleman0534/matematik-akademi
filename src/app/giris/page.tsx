@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { LoginForm } from './LoginForm';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SetupNotice } from '@/components/SetupNotice';
@@ -13,6 +14,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const s = await getSession();
   if (s) redirect(s.role === 'teacher' ? '/ogretmen' : s.role === 'parent' ? '/veli' : '/ogrenci');
   const sp = await searchParams;
+  const store = await cookies();
+  const initialKimlik = store.get('remembered_kimlik')?.value || '';
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <ThemeToggle className="fixed right-3 top-3" />
@@ -23,7 +27,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-sm text-slate-500">Yanlışlarını biriktir, tekrar et, eksiklerini kapat.</p>
         </div>
         <div className="card">
-          <LoginForm notice={sp.hata === 'pasif' ? 'Hesabınız pasif durumda. Öğretmeninizle iletişime geçin.' : undefined} />
+          <LoginForm 
+            initialKimlik={initialKimlik}
+            notice={sp.hata === 'pasif' ? 'Hesabınız pasif durumda. Öğretmeninizle iletişime geçin.' : undefined} 
+          />
         </div>
       </div>
     </div>

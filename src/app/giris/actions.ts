@@ -12,7 +12,17 @@ export interface LoginState { error?: string }
 export async function login(_prev: LoginState, form: FormData): Promise<LoginState> {
   const id = String(form.get('kimlik') || '').trim();
   const password = String(form.get('sifre') || '');
+  const remember = form.get('beni_hatirla') === '1' || form.get('beni_hatirla') === 'on' || form.get('beni_hatirla') === 'true';
   if (!id || !password) return { error: 'Kullanıcı adınızı (ya da e-postanızı) ve şifrenizi girin.' };
+
+  const sessionMaxAge = remember ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // Beni hatırla seçilmişse 30 gün, değilse 1 gün
+  const store = await cookies();
+
+  if (remember) {
+    store.set('remembered_kimlik', id, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
+  } else {
+    store.delete('remembered_kimlik');
+  }
 
   // 1. Önce Veritabanı / Demo Hesapları Kontrolü
   try {
@@ -51,7 +61,6 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
           }
         }
 
-        const store = await cookies();
         store.set('local_session', JSON.stringify({
           userId: user.id,
           fullName: user.name,
@@ -61,7 +70,7 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
         }), {
           httpOnly: true,
           path: '/',
-          maxAge: 60 * 60 * 24 * 7
+          maxAge: sessionMaxAge
         });
 
         if (user.role === 'teacher') redirect('/ogretmen');
