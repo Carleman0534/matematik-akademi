@@ -222,6 +222,24 @@ test('yapay zekâ soru motoru: LGS formatında özgün soru ve çözüm üretimi
   assert.equal(q.mathValidationStatus, 'verified');
 });
 
+test('yapay zekâ soru motoru: aynı konudan üretilen çoklu sorular birbirini tekrar etmez (arşetip çeşitliliği)', () => {
+  const q0 = generateCurriculumQuestion({ topicId: 'top_carpanlar_katlar', difficulty: 3, questionType: 'yeni_nesil', variationIndex: 0 });
+  const q1 = generateCurriculumQuestion({ topicId: 'top_carpanlar_katlar', difficulty: 3, questionType: 'yeni_nesil', variationIndex: 1 });
+  const q2 = generateCurriculumQuestion({ topicId: 'top_carpanlar_katlar', difficulty: 3, questionType: 'yeni_nesil', variationIndex: 2 });
+  const q3 = generateCurriculumQuestion({ topicId: 'top_carpanlar_katlar', difficulty: 3, questionType: 'yeni_nesil', variationIndex: 3 });
+
+  // Farklı arşetip metinleri kesinlikle eşit olmamalı
+  assert.notEqual(q0.questionText, q1.questionText);
+  assert.notEqual(q1.questionText, q2.questionText);
+  assert.notEqual(q2.questionText, q3.questionText);
+
+  // Metin benzerlikleri eşik değerinin çok altında olmalı (farklı bağlamlar: zeytinyağı, otobüs, fidan direk, fayans)
+  const dupCheck01 = checkDuplicateQuestion(q0.questionText, [{ id: 'q1', text: q1.questionText }], 0.35);
+  const dupCheck12 = checkDuplicateQuestion(q1.questionText, [{ id: 'q2', text: q2.questionText }], 0.35);
+  assert.equal(dupCheck01.isDuplicate, false);
+  assert.equal(dupCheck12.isDuplicate, false);
+});
+
 test('uyarlanabilir (adaptive) öğrenme: doğru/yanlış serisine göre zorluk ayarı', () => {
   // Üst üste 2 doğru -> zorluk 1 kademe artmalı (örn: 3 -> 4)
   const nextUp = getNextAdaptiveDifficulty(3, true, 2);
