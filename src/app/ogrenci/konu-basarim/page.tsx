@@ -15,7 +15,7 @@ export default function KonuBasarimPage() {
     async function load() {
       try {
         setLoading(true);
-        const res = await fetch('/api/lgs/student-analytics?studentId=50fa22f6-1021-4dde-8278-2339fa65030d');
+        const res = await fetch('/api/lgs/student-analytics');
         const resData = await res.json();
         if (resData.success) {
           setData(resData);

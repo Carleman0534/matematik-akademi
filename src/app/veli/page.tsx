@@ -14,7 +14,8 @@ export default function VeliAnaEkranPage() {
   const fetchStudentData = async () => {
     try {
       setLoading(true);
-      const studentId = localStorage.getItem('parent_active_student_id') || '50fa22f6-1021-4dde-8278-2339fa65030d';
+      const saved = localStorage.getItem('parent_active_student_id');
+      const studentId = (saved && saved !== '50fa22f6-1021-4dde-8278-2339fa65030d') ? saved : 'student_ali_metin';
       const res = await fetch(`/api/parent/student-data?studentId=${studentId}`);
       const json = await res.json();
       if (json.success) {

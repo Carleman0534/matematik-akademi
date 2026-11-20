@@ -29,6 +29,74 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    // Sorular boşsa (ör. yeni atanan veya şablon plan), yapay zekâ motorundan otomatik özgün sorular üret
+    if (questions.length === 0) {
+      let topicIds: string[] = ['top_carpanlar_katlar'];
+      try {
+        topicIds = typeof plan.topic_ids_json === 'string' 
+          ? JSON.parse(plan.topic_ids_json || '["top_carpanlar_katlar"]') 
+          : (plan.topic_ids_json || ['top_carpanlar_katlar']);
+      } catch {}
+      if (!Array.isArray(topicIds) || topicIds.length === 0) topicIds = ['top_carpanlar_katlar', 'top_karekoklu_ifadeler'];
+
+      const count = Math.min(20, Math.max(5, Number(plan.total_questions) || 10));
+      const { generateCurriculumQuestion } = await import('@/lib/ai/questionGenerator');
+      const stmt = db.prepare(`
+        INSERT INTO study_plan_questions
+        (id, plan_id, question_source, source_question_id, question_text, options_json, correct_answer, solution_explanation, svg_content, topic_id, difficulty, question_type, sort_order)
+        VALUES (?, ?, 'ai_generated', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (let i = 0; i < count; i++) {
+        const tId = topicIds[i % topicIds.length];
+        const qId = `spq_${planId}_${i + 1}`;
+        const gen = generateCurriculumQuestion({
+          topicId: tId,
+          difficulty: 3,
+          questionType: 'yeni_nesil',
+          visualRequired: i % 2 === 1,
+          variationIndex: i
+        });
+
+        stmt.run([
+          qId,
+          planId,
+          gen.id,
+          gen.questionText,
+          JSON.stringify(gen.options),
+          gen.correctAnswer,
+          gen.solutionExplanation,
+          gen.svgContent || null,
+          tId,
+          3,
+          gen.questionType,
+          i + 1
+        ]);
+
+        questions.push({
+          id: qId,
+          plan_id: planId,
+          question_source: 'ai_generated',
+          source_question_id: gen.id,
+          question_text: gen.questionText,
+          options_json: JSON.stringify(gen.options),
+          options: gen.options,
+          correct_answer: gen.correctAnswer,
+          solution_explanation: gen.solutionExplanation,
+          svg_content: gen.svgContent || null,
+          topic_id: tId,
+          difficulty: 3,
+          question_type: gen.questionType,
+          sort_order: i + 1
+        });
+      }
+      stmt.free();
+      try {
+        const { saveDb } = await import('@/lib/db/database');
+        await saveDb();
+      } catch {}
+    }
+
     return NextResponse.json({
       success: true,
       plan,

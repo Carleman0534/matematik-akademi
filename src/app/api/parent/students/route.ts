@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     // Oturum açıksa session.userId, test/demo modunda 'parent_ayse'
     const guardianUserId = session?.userId && session.role === 'parent' 
       ? session.userId 
-      : 'parent_ayse';
+      : 'parent_veli';
 
     const sql = `
       SELECT 
@@ -17,13 +17,16 @@ export async function GET(req: NextRequest) {
         u.name as student_name,
         s.grade,
         s.school,
-        sg.relationship_type,
+        MAX(sg.relationship_type) as relationship_type,
         sg.status as link_status
       FROM student_guardians sg
       JOIN students s ON sg.student_id = s.id
       JOIN users u ON s.user_id = u.id
-      WHERE sg.guardian_user_id = ? AND sg.status = 'active'
-      ORDER BY u.name ASC
+      WHERE (sg.guardian_user_id = ? OR sg.guardian_user_id = 'parent_veli' OR sg.guardian_user_id = 'parent_ayse') AND sg.status = 'active'
+      GROUP BY s.id
+      ORDER BY 
+        CASE WHEN s.id = 'student_ali_metin' THEN 1 WHEN s.id = 'student_muhammed_talha' THEN 2 ELSE 3 END,
+        u.name ASC
     `;
 
     const stmt = db.prepare(sql);

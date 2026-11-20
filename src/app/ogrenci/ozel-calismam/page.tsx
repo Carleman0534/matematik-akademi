@@ -79,7 +79,7 @@ export default function OzelCalismamPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           questionId: currentQ.id,
-          studentId: '50fa22f6-1021-4dde-8278-2339fa65030d',
+          studentId: (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_ali_metin',
           studentAnswer: selectedOption,
           durationSeconds: 45,
           streak

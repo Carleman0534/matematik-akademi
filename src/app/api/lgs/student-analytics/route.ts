@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db/database';
+import { getSession } from '@/lib/auth';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
 
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
-    const studentId = searchParams.get('studentId') || '50fa22f6-1021-4dde-8278-2339fa65030d'; // Varsayılan Elif
+    const session = await getSession();
+    const studentId = searchParams.get('studentId') || session?.studentId || 'student_ali_metin';
 
     // 1. Öğrenci bilgisi
     const sRes = db.exec(`
