@@ -32,6 +32,18 @@ export async function GET(req: NextRequest) {
         qSql += ' AND q.difficulty = ?';
         qParams.push(Number(difficulty));
       }
+      const pdfId = searchParams.get('pdfId');
+      const pdfIds = searchParams.get('pdfIds');
+      if (pdfId) {
+        qSql += ' AND q.pdf_id = ?';
+        qParams.push(pdfId);
+      } else if (pdfIds) {
+        const idsList = pdfIds.split(',').map(s => s.trim()).filter(Boolean);
+        if (idsList.length > 0) {
+          qSql += ` AND q.pdf_id IN (${idsList.map(() => '?').join(',')})`;
+          qParams.push(...idsList);
+        }
+      }
 
       const qStmt = db.prepare(qSql);
       qStmt.bind(qParams);

@@ -151,6 +151,11 @@ export default function DenemeOlusturPage() {
   const [opticResult, setOpticResult] = useState<any>(null);
   const [opticSaved, setOpticSaved] = useState<boolean>(false);
 
+  // 5. Kaynak PDF Seçimi (Seçmece Deneme) Durumları
+  const [availablePdfs, setAvailablePdfs] = useState<any[]>([]);
+  const [selectedPdfIds, setSelectedPdfIds] = useState<string[]>(['pdf_lgs_2024']);
+  const [pdfSearch, setPdfSearch] = useState<string>('');
+
   // Soruya özel resim yükleme işleyicisi (Öğretmen dosya seçtiğinde)
   const handleAttachImage = (qId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -353,6 +358,92 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
     loadStudents();
   }, []);
 
+  // PDF Dokümanlarını Yükle (IndexedDB + API)
+  useEffect(() => {
+    async function loadPdfs() {
+      try {
+        const clientDocs = getClientPdfDocs() || [];
+        let serverDocs: any[] = [];
+        try {
+          const res = await fetch('/api/pdf-documents');
+          const d = await res.json();
+          if (d.docs && Array.isArray(d.docs)) serverDocs = d.docs;
+        } catch {}
+
+        const map = new Map<string, any>();
+
+        // Standart LGS Çıkmış & Resmi Örnek Soru Kaynakları
+        const defaultSources = [
+          {
+            id: 'pdf_lgs_2024',
+            title: '2024 LGS Sayısal Matematik (MEB Çıkmış Sınav)',
+            file_name: '2024_lgs_sayisal.pdf',
+            file_type: 'deneme',
+            publisher: 'T.C. Millî Eğitim Bakanlığı',
+            page_count: 8,
+            question_count: 20,
+            badge: 'MEB Çıkmış'
+          },
+          {
+            id: 'pdf_lgs_2023',
+            title: '2023 LGS Sayısal Matematik (MEB Çıkmış Sınav)',
+            file_name: '2023_lgs_sayisal.pdf',
+            file_type: 'deneme',
+            publisher: 'T.C. Millî Eğitim Bakanlığı',
+            page_count: 8,
+            question_count: 20,
+            badge: 'MEB Çıkmış'
+          },
+          {
+            id: 'pdf_lgs_odsgm',
+            title: 'LGS 1. Dönem Tekrar & Örnek Soru Fasikülü',
+            file_name: 'odsgm_ornek_sorular.pdf',
+            file_type: 'calisma_foyu',
+            publisher: 'ÖDSGM',
+            page_count: 12,
+            question_count: 25,
+            badge: 'Örnek Fasikül'
+          }
+        ];
+
+        defaultSources.forEach(s => map.set(s.id, s));
+        clientDocs.forEach((d: any) => map.set(d.id, { ...d, badge: 'Arşivinizden' }));
+        serverDocs.forEach((d: any) => map.set(d.id, { ...d, badge: 'Arşivinizden' }));
+
+        const all = Array.from(map.values());
+        setAvailablePdfs(all);
+        setSelectedPdfIds(prev => prev.length > 0 ? prev : [all[0].id]);
+      } catch (e) {
+        console.warn('PDF listesi yüklenemedi:', e);
+      }
+    }
+    loadPdfs();
+  }, []);
+
+  // PDF Seçim Yardımcıları
+  const togglePdf = (id: string) => {
+    setSelectedPdfIds(prev =>
+      prev.includes(id)
+        ? (prev.length === 1 ? prev : prev.filter(x => x !== id))
+        : [...prev, id]
+    );
+  };
+
+  const selectAllPdfs = () => {
+    setSelectedPdfIds(availablePdfs.map(p => p.id));
+  };
+
+  const selectOnlyMebPdfs = () => {
+    const meb = availablePdfs.filter(p => p.badge === 'MEB Çıkmış' || p.id.includes('2024') || p.id.includes('2023'));
+    if (meb.length > 0) setSelectedPdfIds(meb.map(p => p.id));
+  };
+
+  const filteredPdfs = availablePdfs.filter(p => {
+    if (!pdfSearch.trim()) return true;
+    const q = pdfSearch.toLowerCase();
+    return p.title.toLowerCase().includes(q) || (p.publisher && p.publisher.toLowerCase().includes(q));
+  });
+
   // Öğrenci Seçim Yardımcıları
   const toggleStudent = (id: string) => {
     setSelectedStudentIds(prev => {
@@ -433,10 +524,11 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       const pdfCount = Math.round((totalQuestions * pdfRatio) / 100);
       const aiCount = totalQuestions - pdfCount;
 
-      // 2. Sistemdeki PDF ve Havuz sorularını sorgula
+      // 2. Sistemdeki PDF ve Havuz sorularını sorgula (seçilen PDF ID'leri ile)
       let poolQuestions: any[] = [];
       try {
-        const res = await fetch('/api/lgs/question-pool?source=pdf');
+        const pdfIdsQuery = selectedPdfIds.length > 0 ? `&pdfIds=${encodeURIComponent(selectedPdfIds.join(','))}` : '';
+        const res = await fetch(`/api/lgs/question-pool?source=pdf${pdfIdsQuery}`);
         const data = await res.json();
         if (data.success && data.pool) {
           poolQuestions = data.pool;
@@ -445,10 +537,10 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         console.warn('Could not fetch pool questions, will use fallback:', err);
       }
 
-      // 3. Yüklenmiş yerel PDF dokümanlarını al
-      const localDocs = getClientPdfDocs();
-      const pdfDocTitles = localDocs.map(d => d.title);
-      const defaultPdfTitle = pdfDocTitles[0] || '2024 LGS Sayısal Matematik Kitapçığı';
+      // 3. Seçilen PDF dokümanlarını al
+      const selectedPdfList = availablePdfs.filter(p => selectedPdfIds.includes(p.id));
+      const activePdfTitles = selectedPdfList.map(p => p.title);
+      const defaultPdfTitle = activePdfTitles[0] || '2024 LGS Sayısal Matematik Kitapçığı';
 
       const results: HybridQuestionItem[] = [];
 
@@ -469,8 +561,14 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
         const diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
         
-        // Havuzda veya PDF çıktılarında bu konuya ait soru var mı kontrol et
-        const matchingPool = poolQuestions.find((pq: any) => pq.primary_topic_id === topicId || pq.topic_name === topicObj.name);
+        const targetPdf = selectedPdfList[(i - 1) % (selectedPdfList.length || 1)] || selectedPdfList[0];
+        const currentPdfName = targetPdf?.title || defaultPdfTitle;
+
+        // Havuzda veya PDF çıktılarında bu konuya ve seçilen PDF'lere ait soru var mı kontrol et
+        const matchingPool = poolQuestions.find((pq: any) => 
+          (selectedPdfIds.length === 0 || selectedPdfIds.includes(pq.pdf_id) || selectedPdfIds.includes(pq.source_id) || activePdfTitles.includes(pq.source_title)) &&
+          (pq.primary_topic_id === topicId || pq.topic_name === topicObj.name)
+        );
 
         const defaultAns = ['A', 'B', 'C', 'D'][(i - 1) % 4];
         let qText = '';
@@ -490,19 +588,19 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         let qSvgContent: string | undefined = undefined;
 
         if (matchingPool && matchingPool.question_text) {
-          qText = `${i}. Soru (${defaultPdfTitle}):\n${matchingPool.question_text}`;
+          qText = `${i}. Soru [📁 ${matchingPool.source_title || currentPdfName}]:\n${matchingPool.question_text}`;
           qOptions = matchingPool.options || { A: 'A', B: 'B', C: 'C', D: 'D' };
           qAns = matchingPool.correct_answer || defaultAns;
-          qSol = `1. Adım: ${topicObj.name} kazanımına ait verilenler çözümlenir.\n2. Adım: İlgili matematiksel bağıntı uygulanır.\n3. Adım: Doğru seçenek ${qAns} olarak bulunur.`;
+          qSol = `1. Adım: ${topicObj.name} (${diffLabel}) sorusunda verilenler çözümlenir.\n2. Adım: İlgili matematiksel bağıntı uygulanır.\n3. Adım: Doğru seçenek ${qAns} olarak bulunur.`;
         } else {
-          // Konuya özel gerçek ve doğrulanmış matematiksel LGS sorusu üret
+          // SEÇİLEN PDF'TE BU KONU/ZORLUKTA SORU YOKSA: YAPAY ZEKÂ DEVREYE GİRER & EKSİĞİ TAMAMLAR!
           const gen = generateCurriculumQuestion({
             topicId,
             difficulty: diff,
             questionType: qType as any,
             visualRequired: qVisual
           });
-          qText = `${i}. Soru (${defaultPdfTitle}):\n${gen.questionText}`;
+          qText = `${i}. Soru [🤖 Yapay Zekâ İkiz Soru (${currentPdfName} Tamamlayıcı)]:\n${gen.questionText}`;
           qOptions = gen.options;
           qAns = gen.correctAnswer;
           qSol = gen.solutionExplanation;
@@ -517,8 +615,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           questionNo: i,
           topicId,
           topicName: topicObj.name,
-          sourceType: 'pdf',
-          sourceTitle: defaultPdfTitle,
+          sourceType: matchingPool ? 'pdf' : 'ai',
+          sourceTitle: matchingPool ? (matchingPool.source_title || currentPdfName) : `🤖 AI İkiz Soru (${currentPdfName} Tamamlayıcı)`,
           difficulty: diff,
           difficultyLabel: diffLabel,
           questionType: qType,
@@ -884,11 +982,108 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
             </div>
           </div>
 
-          {/* 3. Konu Seçimi */}
+          {/* 3. 📁 Kaynak PDF Seçimi (Seçmece Deneme) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">3</span>
+                <FileText className="w-4 h-4 text-indigo-600" />
+                <span>Kaynak PDF Seçimi (Seçmece Deneme)</span>
+              </h3>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                {selectedPdfIds.length} PDF Seçili
+              </span>
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Soruların çekileceği LGS deneme ve soru bankası PDF&apos;lerini işaretleyin. Seçtiğiniz PDF&apos;lerden kolay/orta/zor ayrımı yapılarak sorular ayıklanır; eksik kalan kazanımlar yapay zekâ ikiz sorularıyla tamamlanır.
+            </p>
+
+            {/* Hızlı Seçim Butonları */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={selectAllPdfs}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition"
+              >
+                Tümünü Seç ({availablePdfs.length})
+              </button>
+              <button
+                type="button"
+                onClick={selectOnlyMebPdfs}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
+              >
+                <span>🏛️ Sadece MEB Çıkmış Sınavlar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPdfIds([])}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-slate-500 hover:text-slate-700 transition"
+              >
+                Temizle
+              </button>
+            </div>
+
+            {/* Arama */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="PDF adı veya yayıncı ara..."
+                value={pdfSearch}
+                onChange={(e) => setPdfSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+
+            {/* PDF Seçim Listesi */}
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {filteredPdfs.map((pdf) => {
+                const isSelected = selectedPdfIds.includes(pdf.id);
+                return (
+                  <div
+                    key={pdf.id}
+                    onClick={() => togglePdf(pdf.id)}
+                    className={`p-2.5 rounded-2xl border text-xs cursor-pointer transition flex items-center justify-between gap-2 select-none ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold shadow-xs'
+                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition ${
+                        isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-slate-900 dark:text-white font-medium text-[11px]">
+                          {pdf.title}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {pdf.publisher || 'LGS Yayını'} · {pdf.question_count || 20} Soru · {pdf.page_count || 8} Sayfa
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className={`px-2 py-0.5 rounded-md font-bold text-[9px] shrink-0 ${
+                      pdf.badge === 'MEB Çıkmış'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                    }`}>
+                      {pdf.badge || 'PDF'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 4. Konu Seçimi */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">4</span>
                 <span>LGS Konularını Seç ({selectedTopics.length})</span>
               </h3>
             </div>
@@ -975,8 +1170,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           {/* 4. Soru Sayısı, PDF / AI Oranı & Zorluk Seviyesi */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">4</span>
-              <span>Kaynak Oranı & Zorluk Dengesi</span>
+              <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">5</span>
+              <span>Kaynak Oranı, Zorluk & Görsel Dengesi</span>
             </h3>
 
             {/* Soru Sayısı Butonları */}
