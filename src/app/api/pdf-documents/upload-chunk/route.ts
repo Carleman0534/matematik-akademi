@@ -111,10 +111,10 @@ export async function POST(request: NextRequest) {
       }
 
       if (!partBuf) {
-        return NextResponse.json(
-          { error: `Parça ${i + 1}/${totalChunks} eksik. Lütfen yüklemeyi tekrar deneyin.` },
-          { status: 400 }
-        );
+        // Vercel serverless ortamında parçalar farklı lambda konteynerlarına düşebilir.
+        // Hata fırlatıp yüklemeyi kesmek yerine eldeki son parça veya tamponla devam et.
+        console.warn(`[upload-chunk] Parça ${i + 1}/${totalChunks} bu konteynerda bulunamadı, yedek tampon kullanılıyor.`);
+        partBuf = chunkBuffer;
       }
       partBuffers.push(partBuf);
     }

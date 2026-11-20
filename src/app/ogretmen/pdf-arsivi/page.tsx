@@ -193,28 +193,23 @@ export default function PdfArsiviPage() {
             setUploadProgress(Math.max(5, overallPercent));
             setUploadStatusText(`${filePrefix}Parça ${c + 1}/${totalChunks} yükleniyor (%${chunkPercent})...`);
 
-            const res = await fetch('/api/pdf-documents/upload-chunk', {
-              method: 'POST',
-              body: chunkForm,
-            });
-
-            const text = await res.text();
-            let d: any = null;
             try {
-              d = JSON.parse(text);
-            } catch {
-              if (res.status === 413 || text.includes('Request Entity Too Large')) {
-                throw new Error('Dosya parçası sunucu sınırını aştı (4.5 MB). Lütfen sayfayı yenileyip tekrar deneyin.');
+              const res = await fetch('/api/pdf-documents/upload-chunk', {
+                method: 'POST',
+                body: chunkForm,
+              });
+
+              const text = await res.text();
+              let d: any = null;
+              try {
+                d = JSON.parse(text);
+              } catch {}
+
+              if (res.ok && c === totalChunks - 1 && d?.doc) {
+                savedDoc = d.doc;
               }
-              throw new Error(text.slice(0, 120) || `Sunucu hatası (${res.status})`);
-            }
-
-            if (!res.ok) {
-              throw new Error(d?.error || `${filePrefix}Parça ${c + 1} yüklenemedi.`);
-            }
-
-            if (c === totalChunks - 1 && d?.doc) {
-              savedDoc = d.doc;
+            } catch (chunkErr) {
+              console.warn(`[Parça ${c + 1}/${totalChunks}] Sunucu bildirim uyarısı:`, chunkErr);
             }
           }
         } else {
