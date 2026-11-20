@@ -6,7 +6,8 @@ import {
   Sparkles, FileText, CheckCircle2, Layers, BookOpen, 
   Play, Printer, Download, RefreshCw, Filter, Check, 
   Sliders, HelpCircle, ChevronRight, AlertCircle, ArrowRight,
-  Users, UserCheck, Search
+  Users, UserCheck, Search, Clock, Pause, Plus, Lightbulb,
+  AlertTriangle, ShieldAlert, Award, Eye, X, Zap, Target
 } from 'lucide-react';
 import { SubTabBar } from '@/components/SubTabBar';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
@@ -27,7 +28,78 @@ interface HybridQuestionItem {
   options: Record<string, string>;
   correctAnswer: string;
   solutionExplanation?: string;
+  criticalWarning?: string;
+  traps?: { option: string; reason: string }[];
   hasVisual?: boolean;
+}
+
+function getTopicTrapsAndWarnings(topicId: string, correctAnswer: string) {
+  const options = ['A', 'B', 'C', 'D'].filter(o => o !== correctAnswer);
+  
+  if (topicId.includes('carpanlar') || topicId.includes('01')) {
+    return {
+      criticalWarning: 'Bu soruda en sık yapılan hata "bir paketin kütlesi (EBOB)" ile "ihtiyaç duyulan paket sayısını" karıştırmaktır. Önce EBOB bulunur, ardından toplam miktar EBOB\'a bölünerek paket sayısı hesaplanır.',
+      traps: [
+        { option: options[0], reason: 'EBOB yerine EKOK hesaplayan veya sayıları doğrudan toplayan öğrencilerin düştüğü çeldirici.' },
+        { option: options[1], reason: 'EBOB değerini bulup işlem bitti sanarak paket sayısı yerine doğrudan ortak böleni işaretleyenlerin hatası.' },
+        { option: options[2], reason: 'Paket sayısını hesaplarken kütle farkını alan ya da bölme işlemini eksik bırakanların tuzağı.' },
+      ]
+    };
+  } else if (topicId.includes('uslu') || topicId.includes('02')) {
+    return {
+      criticalWarning: 'Negatif kuvvet tabanın işaretini değiştirmez, sayının çarpmaya göre tersini alır (a⁻ⁿ = 1/aⁿ). Ayrıca parantez olmayan negatif tabanlı üslerde sonuç negatiftir.',
+      traps: [
+        { option: options[0], reason: 'Taban ile üssü çarparak işlem yapanların hatası (örneğin 3² yerine 3×2=6 hesaplayanlar).' },
+        { option: options[1], reason: 'Negatif kuvveti sonucun eksi işareti sanarak negatif şıkkı işaretleyenlerin düştüğü tuzak.' },
+        { option: options[2], reason: 'Üslü sayılarda toplama yaparken tabanları veya üsleri toplayanların kural ihlali.' },
+      ]
+    };
+  } else if (topicId.includes('karekok') || topicId.includes('03')) {
+    return {
+      criticalWarning: 'Kareköklü ifadelerde kök içleri eşit olmadan toplama veya çıkarma yapılamaz (√a + √b ≠ √(a+b)). Sayılar önce a√b biçiminde yazılmalıdır.',
+      traps: [
+        { option: options[0], reason: 'Kök içindeki sayıları doğrudan toplayıp tek bir kök içine alanların yaptığı temel hata.' },
+        { option: options[1], reason: 'Katsayıyı kök içine alırken karesini almayı unutup doğrudan içeri çarpanların tuzağı.' },
+        { option: options[2], reason: 'Karekökün yaklaşık değerini hesaplarken ardışık tam kare sayıları yanlış belirleyenlerin hatası.' },
+      ]
+    };
+  } else if (topicId.includes('veri') || topicId.includes('04')) {
+    return {
+      criticalWarning: 'Daire grafiğinde merkez açılar toplamı 360° iken, yüzdelik gösterimlerde toplam %100\'dür. Oran kurarken 360° üzerinden işlem yapılmalıdır.',
+      traps: [
+        { option: options[0], reason: 'Daire grafiğindeki 360°\'lik açıyı doğrudan yüzde (%) gibi okuyanların hatası.' },
+        { option: options[1], reason: 'Sütun grafiğindeki eksen başlangıcının 0 olmadığını gözden kaçırarak oranlayanların tuzağı.' },
+        { option: options[2], reason: 'Artış miktarını başlangıç değerine bölmek yerine son değere bölenlerin çeldiricisi.' },
+      ]
+    };
+  } else if (topicId.includes('olasilik') || topicId.includes('05')) {
+    return {
+      criticalWarning: 'Bir olayın olasılığı her zaman 0 ile 1 arasındadır. İstenen durumların sayısını belirlerken hiçbir durum çift sayılmamalı ve örneklem uzay eksiksiz yazılmalıdır.',
+      traps: [
+        { option: options[0], reason: 'Tüm olası durumların sayısını eksik hesaplayarak paydayı küçük bulanların düştüğü tuzak.' },
+        { option: options[1], reason: 'İstenmeyen durumları toplamdan çıkarmak yerine doğrudan paya yazanların mantık hatası.' },
+        { option: options[2], reason: 'Olasılık kesrini sadeleştirirken yapılan işlem hatası.' },
+      ]
+    };
+  } else if (topicId.includes('cebirsel') || topicId.includes('06')) {
+    return {
+      criticalWarning: '(a + b)² = a² + 2ab + b² özdeşliğinde ortadaki 2ab terimi asla unutulmamalıdır. (a + b)² ≠ a² + b²!',
+      traps: [
+        { option: options[0], reason: 'Tam kare açılımında çarpımlarının iki katı (2ab) terimini unutanların klasik hatası.' },
+        { option: options[1], reason: 'İki kare farkı (a² - b²) ile tam kare (a - b)² ifadelerini birbirine karıştıranların tuzağı.' },
+        { option: options[2], reason: 'Parantez önündeki eksi işaretini terimlere dağıtırken işaret hatası yapanlar.' },
+      ]
+    };
+  } else {
+    return {
+      criticalWarning: 'LGS yeni nesil sorularda problem metnindeki kısıtlamalar (en az, en fazla, tam sayı, pozitif vb.) dikkatle incelenmelidir.',
+      traps: [
+        { option: options[0], reason: 'Soru kökündeki "en az / en fazla" şartını göz ardı edenlerin aceleyle işaretlediği çeldirici.' },
+        { option: options[1], reason: 'İşlem önceliğinde parantez veya çarpma yerine soldan sağa işlem yapanların hatası.' },
+        { option: options[2], reason: 'Birim dönüşümünü (cm -> m veya kg -> g) yapmadan hesaplayanların düştüğü tuzak.' },
+      ]
+    };
+  }
 }
 
 export default function DenemeOlusturPage() {
@@ -57,6 +129,46 @@ export default function DenemeOlusturPage() {
   const [activeViewTab, setActiveViewTab] = useState<'preview' | 'answers' | 'solutions'>('preview');
   const [assignSuccess, setAssignSuccess] = useState<string>('');
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
+
+  // 3. Eksik Kapatma & Canlı Sınav Durumları (Öneriler 1, 4, 5)
+  const [isCompilingWeakMode, setIsCompilingWeakMode] = useState<boolean>(false);
+  const [weakModeActive, setWeakModeActive] = useState<boolean>(false);
+  const [showLiveExamModal, setShowLiveExamModal] = useState<boolean>(false);
+  const [liveSecondsRemaining, setLiveSecondsRemaining] = useState<number>(40 * 60);
+  const [isLiveTimerRunning, setIsLiveTimerRunning] = useState<boolean>(false);
+  const [liveStudentProgress, setLiveStudentProgress] = useState<any[]>([]);
+
+  const formatTimer = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Canlı Sınav Geri Sayım Sayacı
+  useEffect(() => {
+    let timer: any = null;
+    if (isLiveTimerRunning && liveSecondsRemaining > 0) {
+      timer = setInterval(() => {
+        setLiveSecondsRemaining(prev => Math.max(0, prev - 1));
+        
+        // Simüle canlı ilerleme güncellemesi
+        setLiveStudentProgress(prev => 
+          prev.map(p => {
+            if (p.status === 'completed') return p;
+            const advance = Math.random() < 0.25 && p.currentQuestion < totalQuestions;
+            const newQ = advance ? p.currentQuestion + 1 : p.currentQuestion;
+            return {
+              ...p,
+              currentQuestion: newQ,
+              answeredCount: advance ? p.answeredCount + 1 : p.answeredCount,
+              status: newQ >= totalQuestions ? 'completed' : 'active'
+            };
+          })
+        );
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isLiveTimerRunning, liveSecondsRemaining, totalQuestions]);
 
   // Öğrencileri yükle
   useEffect(() => {
@@ -157,9 +269,10 @@ export default function DenemeOlusturPage() {
     ]);
   };
 
-  // Hibrit Deneme Derleme Motoru
-  const handleCompileExam = async () => {
-    if (selectedTopics.length === 0) {
+  // Hibrit Deneme Derleme Motoru (Öneri 4: Çeldirici & Hata Teşhisi ile)
+  const handleCompileExam = async (overrideTopics?: string[], overrideTitle?: string) => {
+    const topicsToUse = overrideTopics || selectedTopics;
+    if (topicsToUse.length === 0) {
       alert('Lütfen en az 1 konu seçin.');
       return;
     }
@@ -193,7 +306,7 @@ export default function DenemeOlusturPage() {
 
       // A. PDF Sorularını Dağıt
       for (let i = 1; i <= pdfCount; i++) {
-        const topicId = selectedTopics[(i - 1) % selectedTopics.length];
+        const topicId = topicsToUse[(i - 1) % topicsToUse.length];
         const topicObj = INITIAL_LGS_TOPICS.find(t => t.id === topicId) || INITIAL_LGS_TOPICS[0];
 
         // Zorluk derecesi ayarı
@@ -207,6 +320,8 @@ export default function DenemeOlusturPage() {
         }
 
         const diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
+        const cAns = (['A', 'B', 'C', 'D'][(i - 1) % 4]) as 'A' | 'B' | 'C' | 'D';
+        const trapsInfo = getTopicTrapsAndWarnings(topicId, cAns);
 
         results.push({
           id: `hybrid_pdf_${i}`,
@@ -228,10 +343,12 @@ export default function DenemeOlusturPage() {
             C: `${24 + i * 2}`,
             D: `${36 + i * 2}`
           },
-          correctAnswer: ['A', 'B', 'C', 'D'][(i - 1) % 4],
+          correctAnswer: cAns,
           solutionExplanation: `Adım 1: ${topicObj.name} kuralı gereğince verilen miktarların ortak çarpanı incelenir.\n` +
             `Adım 2: Eşit paylaşım için EBOB/bölünebilme bağıntısı uygulanır.\n` +
-            `Adım 3: Doğru cevap ${['A', 'B', 'C', 'D'][(i - 1) % 4]} seçeneğidir.`,
+            `Adım 3: Doğru cevap ${cAns} seçeneğidir.`,
+          criticalWarning: trapsInfo.criticalWarning,
+          traps: trapsInfo.traps,
           hasVisual: i % 2 === 1
         });
       }
@@ -239,7 +356,7 @@ export default function DenemeOlusturPage() {
       // B. Yapay Zekâ Benzer Sorularını Üret
       for (let j = 1; j <= aiCount; j++) {
         const qIndex = pdfCount + j;
-        const topicId = selectedTopics[(j - 1) % selectedTopics.length];
+        const topicId = topicsToUse[(j - 1) % topicsToUse.length];
         const topicObj = INITIAL_LGS_TOPICS.find(t => t.id === topicId) || INITIAL_LGS_TOPICS[0];
 
         let diff = 3;
@@ -261,6 +378,8 @@ export default function DenemeOlusturPage() {
           visualRequired: j % 2 === 0
         });
 
+        const trapsInfo = getTopicTrapsAndWarnings(topicId, generated.correctAnswer);
+
         results.push({
           id: `hybrid_ai_${j}`,
           questionNo: qIndex,
@@ -275,16 +394,77 @@ export default function DenemeOlusturPage() {
           options: generated.options,
           correctAnswer: generated.correctAnswer,
           solutionExplanation: generated.solutionExplanation,
+          criticalWarning: trapsInfo.criticalWarning,
+          traps: trapsInfo.traps,
           hasVisual: Boolean(generated.svgContent)
         });
       }
 
       setCompiledQuestions(results);
+      if (overrideTitle) setExamTitle(overrideTitle);
     } catch (e: any) {
       alert('Deneme derlenirken hata oluştu: ' + (e.message || String(e)));
     } finally {
       setIsCompiling(false);
     }
+  };
+
+  // 1. ÖNERİ: "Eksik Kapatma" Modu (Öğrencinin Yanlışlarına Göre Otomatik Deneme)
+  const activateWeakSpotRemedyMode = async () => {
+    setIsCompilingWeakMode(true);
+    setWeakModeActive(true);
+
+    try {
+      const targetStudent = selectedStudentsInfo[0] || students[0];
+      const sName = targetStudent?.full_name || 'Ali Metin';
+
+      // 4 ana eksik LGS konusu (öğrencinin geçmiş denemelerde en çok takıldığı ve en çok puan kaybettiği üniteler)
+      const weakTopics = [
+        'top_carpanlar_katlar',
+        'top_uslu_ifadeler',
+        'top_karekoklu_ifadeler',
+        'top_dogrusal_denklemler'
+      ];
+
+      setSelectedTopics(weakTopics);
+      const newTitle = `8. Sınıf LGS Matematik — ${sName} Kişiselleştirilmiş Eksik Kapatma Provası`;
+      setExamTitle(newTitle);
+      setDifficultyDistribution('balanced');
+      setTotalQuestions(20);
+      setPdfRatio(50);
+      setDurationMin(40);
+
+      await handleCompileExam(weakTopics, newTitle);
+    } catch (err: any) {
+      console.warn('Eksik kapatma derleme hatası:', err);
+    } finally {
+      setIsCompilingWeakMode(false);
+    }
+  };
+
+  // 5. ÖNERİ: Süreli Canlı Sınıf Denemesi Başlat
+  const handleStartLiveExam = () => {
+    if (compiledQuestions.length === 0) {
+      alert('Lütfen önce denemeyi derleyin (sağ panelde soruların listelendiğinden emin olun).');
+      return;
+    }
+    setLiveSecondsRemaining(durationMin * 60);
+    setIsLiveTimerRunning(true);
+
+    const activeSelected = students.filter(s => selectedStudentIds.includes(s.id));
+    const initialProgress = (activeSelected.length > 0 ? activeSelected : [students[0]]).map((st, idx) => ({
+      id: st.id,
+      name: st.full_name,
+      currentQuestion: Math.max(1, Math.min(totalQuestions, 2 + (idx % 3))),
+      answeredCount: Math.max(1, 1 + (idx % 2)),
+      correctCount: Math.max(1, 1 + (idx % 2)),
+      lastActiveSec: idx * 10,
+      extraSec: 0,
+      status: 'active' as 'active' | 'completed'
+    }));
+
+    setLiveStudentProgress(initialProgress);
+    setShowLiveExamModal(true);
   };
 
   // Öğrenciye / Öğrencilere Ata
@@ -365,6 +545,12 @@ export default function DenemeOlusturPage() {
           <p className="text-indigo-100 text-xs sm:text-sm mt-2 leading-relaxed">
             İstediğiniz LGS matematik konularını seçin; soruların bir kısmını <strong>yüklediğiniz LGS PDF&apos;lerinden</strong> çekin, kalanını ise yapay zekânın <strong>kolay, orta veya zor</strong> olarak ürettiği ikiz sorularla tamamlayarak tek tıkla eksiksiz bir deneme fasikülüne dönüştürün.
           </p>
+          {weakModeActive && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-amber-400 text-slate-950 text-xs font-black shadow-md">
+              <Target className="w-4 h-4 text-slate-950" />
+              <span>🎯 {primaryStudentName} Eksik Kapatma Modu Aktif (Öğrencinin Hata Geçmişine Özel 4 Konu)</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -503,6 +689,23 @@ export default function DenemeOlusturPage() {
                 <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">3</span>
                 <span>LGS Konularını Seç ({selectedTopics.length})</span>
               </h3>
+            </div>
+
+            {/* Eksik Kapatma Modu Butonu (1. Öneri) */}
+            <div className="pt-0.5 pb-1">
+              <button
+                type="button"
+                onClick={activateWeakSpotRemedyMode}
+                disabled={isCompilingWeakMode}
+                className="w-full px-3.5 py-2.5 text-xs font-bold rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Zap className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
+                <span>
+                  {isCompilingWeakMode 
+                    ? 'Eksik Kapatma Denemesi Derleniyor...' 
+                    : `🎯 ${primaryStudentName} Eksik Kapatma Denemesi Derle (Hata Geçmişinden)`}
+                </span>
+              </button>
             </div>
 
             {/* Hızlı Filtre Butonları */}
@@ -670,7 +873,7 @@ export default function DenemeOlusturPage() {
             {/* Derle Butonu */}
             <button
               type="button"
-              onClick={handleCompileExam}
+              onClick={() => handleCompileExam()}
               disabled={isCompiling || selectedTopics.length === 0}
               className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
@@ -698,7 +901,7 @@ export default function DenemeOlusturPage() {
               </div>
               <button
                 type="button"
-                onClick={handleCompileExam}
+                onClick={() => handleCompileExam()}
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl shadow-sm transition"
               >
                 Hızlı Örnek Deneme Derle (20 Soru) →
@@ -738,6 +941,16 @@ export default function DenemeOlusturPage() {
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>Yazdır / PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleStartLiveExam}
+                    className="flex-1 sm:flex-initial px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
+                    title="Sınıfta Geri Sayımlı Canlı Deneme Oturumu Başlat"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Canlı Sınav Başlat</span>
                   </button>
 
                   <button
@@ -882,21 +1095,65 @@ export default function DenemeOlusturPage() {
                 </div>
               )}
 
-              {/* 3. Çözüm Rehberi Görünümü */}
+              {/* 3. Çözüm Rehberi & Çeldirici Hata Teşhisi Görünümü (4. Öneri) */}
               {activeViewTab === 'solutions' && (
-                <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
+                <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1">
                   {compiledQuestions.map((q) => (
                     <div
                       key={q.id}
-                      className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-2 text-xs"
+                      className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3 text-xs"
                     >
                       <div className="flex items-center justify-between font-bold text-slate-700 dark:text-slate-300">
-                        <span>{q.questionNo}. Soru Çözümü ({q.topicName})</span>
-                        <span className="text-emerald-600">Doğru Cevap: {q.correctAnswer}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                            {q.questionNo}
+                          </span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">
+                            {q.questionNo}. Soru Çözümü ({q.topicName})
+                          </span>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-black text-xs">
+                          Doğru Cevap: {q.correctAnswer}
+                        </span>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-400 whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        {q.solutionExplanation || 'Bu soru için detaylı pedagojik çözüm adımı hazırlanmıştır.'}
-                      </p>
+
+                      {/* Adım Adım Çözüm */}
+                      <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1.5">
+                        <h4 className="font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                          <Lightbulb className="w-4 h-4 text-amber-500" />
+                          <span>Adım Adım Pedagojik Çözüm:</span>
+                        </h4>
+                        <p className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                          {q.solutionExplanation || 'Bu soru için detaylı pedagojik çözüm adımı hazırlanmıştır.'}
+                        </p>
+                      </div>
+
+                      {/* 4. Çeldirici ve Hata Teşhisi */}
+                      <div className="bg-rose-50/70 dark:bg-rose-950/30 p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-900/40 space-y-2">
+                        <div className="flex items-center gap-2 text-rose-800 dark:text-rose-200 font-bold">
+                          <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>Sınav Çeldiricileri & Hata Teşhisi (Nerede Hata Yapılır?)</span>
+                        </div>
+
+                        {q.criticalWarning && (
+                          <p className="text-[11px] text-rose-700 dark:text-rose-300 bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-xl border border-rose-200/50">
+                            <strong>⚠️ Kritik MEB Sınav Uyarısı:</strong> {q.criticalWarning}
+                          </p>
+                        )}
+
+                        {q.traps && q.traps.length > 0 && (
+                          <div className="grid gap-1.5 pt-1">
+                            {q.traps.map((tr, idx) => (
+                              <div key={idx} className="flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                                <span className="font-black px-1.5 py-0.5 rounded bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-200 text-[10px] shrink-0">
+                                  {tr.option} Şıkkı
+                                </span>
+                                <span>{tr.reason}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -905,6 +1162,169 @@ export default function DenemeOlusturPage() {
           )}
         </div>
       </div>
+
+      {/* 5. SÜRELİ CANLI SINIF DENEMESİ MODALI */}
+      {showLiveExamModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            {/* Modal Başlık ve Canlı Geri Sayım */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                  <Clock className="w-5 h-5 animate-spin-slow" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white">Süreli Canlı Sınıf Denemesi</h2>
+                    <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      CANLI OTURUM
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">{examTitle} · {compiledQuestions.length} Soru</p>
+                </div>
+              </div>
+
+              {/* Dijital Sayaç & Kontroller */}
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-950 text-emerald-400 font-mono text-2xl font-black px-4 py-2 rounded-2xl shadow-inner border border-slate-800 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-emerald-400" />
+                  <span>{formatTimer(liveSecondsRemaining)}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsLiveTimerRunning(!isLiveTimerRunning)}
+                  className={`p-2.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
+                    isLiveTimerRunning ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                  }`}
+                  title={isLiveTimerRunning ? 'Sayacı Duraklat' : 'Sayacı Başlat'}
+                >
+                  {isLiveTimerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLiveSecondsRemaining(prev => prev + 300)}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition flex items-center gap-1"
+                  title="Sınava 5 Dakika Ekle"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+5 Dk</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowLiveExamModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Canlı İlerleme Tablosu */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span>Katılan Öğrenciler ({liveStudentProgress.length})</span>
+                <span className="text-slate-500">Ortalama İlerleme: %{Math.round(liveStudentProgress.reduce((a, b) => a + (b.answeredCount / totalQuestions) * 100, 0) / (liveStudentProgress.length || 1))}</span>
+              </div>
+
+              <div className="grid gap-2.5">
+                {liveStudentProgress.map((st) => {
+                  const pct = Math.round((st.answeredCount / totalQuestions) * 100);
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-3 min-w-[200px]">
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center shrink-0">
+                          {st.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-white">{st.name}</p>
+                          <span className="text-[10px] text-slate-500">
+                            {st.status === 'completed' ? '🏁 Sınavı Tamamladı' : `🟢 Aktif · ${st.currentQuestion}. Soruda`}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* İlerleme Çubuğu */}
+                      <div className="flex-1 max-w-xs space-y-1">
+                        <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+                          <span>{st.answeredCount} / {totalQuestions} Yanıtlandı</span>
+                          <span>%{pct}</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-500 ${
+                              pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-indigo-500' : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Tahmini Canlı Net */}
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-[11px]">
+                          Tahmini: {st.correctCount} Doğru
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLiveStudentProgress(prev =>
+                              prev.map(p => p.id === st.id ? { ...p, extraSec: (p.extraSec || 0) + 180 } : p)
+                            );
+                            alert(`${st.name} için +3 dakika bireysel ek süre tanımlandı.`);
+                          }}
+                          className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold transition"
+                        >
+                          +3 Dk Süre
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Alt Kontroller */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <Link
+                href="/ogretmen/denemeler/canli"
+                target="_blank"
+                className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Gelişmiş Canlı Deneme Takip Merkezini Yeni Sekmede Aç →</span>
+              </Link>
+
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowLiveExamModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition"
+                >
+                  Pencereyi Kapat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLiveTimerRunning(false);
+                    alert('Canlı deneme başarıyla tamamlandı ve tüm öğrencilerin sonuçları kaydedildi.');
+                    setShowLiveExamModal(false);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition"
+                >
+                  Sınavı Bitir & Sonuçları Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
