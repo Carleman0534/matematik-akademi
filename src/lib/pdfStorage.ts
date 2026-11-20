@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { mkdir, writeFile, readFile } from 'fs/promises';
 
 const IS_SERVERLESS = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
@@ -26,16 +27,16 @@ export async function saveUploadedPdf(file: File, id: string): Promise<SavedPdfR
 
   let localPath: string | undefined;
 
-  // 1. /tmp dizinine yazmayı dene (Vercel ve serverless ortamlarda her zaman yazılabilirdir)
+  // 1. Geçici sisteme yazmayı dene (os.tmpdir() Windows ve Linux/Vercel'de güvenle çalışır)
   try {
-    const tmpDir = path.join('/tmp', 'uploads', 'pdfs');
+    const tmpDir = path.join(os.tmpdir(), 'uploads', 'pdfs');
     if (!fs.existsSync(tmpDir)) {
       await mkdir(tmpDir, { recursive: true });
     }
     localPath = path.join(tmpDir, uniqueName);
     await writeFile(localPath, buffer);
   } catch (err) {
-    console.warn('Could not write PDF to /tmp:', err);
+    console.warn('Could not write PDF to tmpDir:', err);
   }
 
   // 2. Lokal geliştirmede public/uploads/pdfs dizinine de yazmayı dene (hata verirse sessizce geç)
@@ -93,8 +94,10 @@ export async function getPdfBuffer(doc: {
     }
   }
 
-  // 2. /tmp diskinde var mı kontrol et
+  // 2. Geçici diskte var mı kontrol et
   const tmpCandidates = [
+    path.join(os.tmpdir(), 'uploads', 'pdfs', `${doc.id}.pdf`),
+    path.join(os.tmpdir(), 'uploads', 'pdfs', path.basename(doc.file_path || '')),
     path.join('/tmp', 'uploads', 'pdfs', `${doc.id}.pdf`),
     path.join('/tmp', 'uploads', 'pdfs', path.basename(doc.file_path || '')),
   ];

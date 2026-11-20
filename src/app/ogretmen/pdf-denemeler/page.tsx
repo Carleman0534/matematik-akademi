@@ -86,11 +86,21 @@ export default function OgretmenPdfDenemelerPage() {
         setFile(null);
         setRefreshKey(k => k + 1);
       } else {
-        const d = await res.json();
-        setError(d.error || 'Yükleme başarısız.');
+        const text = await res.text();
+        let errMsg = 'Yükleme başarısız.';
+        try {
+          const d = JSON.parse(text);
+          errMsg = d.error || errMsg;
+        } catch {
+          if (res.status === 413 || text.includes('Request Entity Too Large')) {
+            errMsg = 'Dosya boyutu sunucu sınırını aştı (4.5 MB). Lütfen daha küçük bir PDF seçin veya PDF Arşivi üzerinden yükleyin.';
+          }
+        }
+        setError(errMsg);
       }
-    } catch {
-      setError('Ağ hatası oluştu.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError('Yükleme hatası: ' + msg);
     } finally {
       setUploading(false);
     }

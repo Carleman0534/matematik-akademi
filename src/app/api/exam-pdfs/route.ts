@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
 
     const db = await getDb();
-    let query = 'SELECT * FROM exam_pdfs';
+    let query = 'SELECT id, title, description, category, file_path, file_name, file_size_mb, question_count, answer_key, uploaded_by, created_at FROM exam_pdfs';
     const params: string[] = [];
 
     if (category && category !== 'ALL') {

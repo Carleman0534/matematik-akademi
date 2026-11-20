@@ -1,5 +1,8 @@
 import { getDb, saveDb } from '@/lib/db/database';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 export interface PdfDocument {
   id: string;
@@ -43,7 +46,8 @@ export async function getPdfDocuments(options: {
   isArchived?: boolean;
 } = {}): Promise<PdfDocument[]> {
   const db = await getDb();
-  let query = 'SELECT * FROM pdf_documents WHERE 1=1';
+  // Performans ve Vercel yük boyutu sınırı için listelemede devasa file_data Base64 alanı hariç tutulur
+  let query = 'SELECT id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count, is_archived, created_at FROM pdf_documents WHERE 1=1';
   const params: (string | number)[] = [];
 
   if (options.fileType && options.fileType !== 'ALL') {
@@ -127,13 +131,37 @@ export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_
     ]
   );
   saveDb();
-  return (await getPdfDocument(id))!;
+  return {
+    id,
+    teacher_id: data.teacher_id,
+    title: data.title,
+    file_name: data.file_name,
+    file_path: data.file_path,
+    file_type: data.file_type || 'deneme',
+    subject: data.subject || 'Matematik',
+    grade_level: data.grade_level || 'TYT',
+    topic: data.topic || '',
+    publisher: data.publisher || '',
+    file_size_mb: data.file_size_mb || 0,
+    page_count: data.page_count || 1,
+    description: data.description || '',
+    answer_key: data.answer_key || '',
+    question_count: data.question_count || 40,
+    is_archived: data.is_archived ? 1 : 0,
+    created_at: new Date().toISOString(),
+  };
 }
 
 export async function deletePdfDocument(id: string): Promise<boolean> {
   const db = await getDb();
   db.run('DELETE FROM pdf_documents WHERE id = ?', [id]);
   saveDb();
+
+  // Geçici veya yerel diskteki dosyaları temizlemeyi dene
+  try {
+    const tmpCandidate = path.join(os.tmpdir(), 'uploads', 'pdfs', `${id}.pdf`);
+    if (fs.existsSync(tmpCandidate)) fs.unlinkSync(tmpCandidate);
+  } catch {}
   return true;
 }
 

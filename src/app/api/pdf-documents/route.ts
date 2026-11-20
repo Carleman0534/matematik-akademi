@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
       file_data: saved.base64Data,
     });
 
-    return NextResponse.json({ success: true, doc: newDoc }, { status: 201 });
+    const { file_data, ...docResponse } = newDoc as any;
+    return NextResponse.json({ success: true, doc: docResponse }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('Error in POST /api/pdf-documents:', msg);

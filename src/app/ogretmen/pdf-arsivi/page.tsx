@@ -67,10 +67,21 @@ export default function PdfArsiviPage() {
       let url = `/api/pdf-documents?fileType=${fileTypeFilter}&gradeLevel=${gradeFilter}&isArchived=${showArchived}`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       const res = await fetch(url);
-      const data = await res.json();
-      if (data.docs) setDocs(data.docs);
+      if (!res.ok) {
+        console.warn('PDF dokümanları yüklenirken sunucu yanıt vermedi:', res.status);
+        return;
+      }
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.warn('PDF yanıtı JSON olarak ayrıştırılamadı.');
+        return;
+      }
+      if (data?.docs) setDocs(data.docs);
     } catch (err) {
-      console.error(err);
+      console.error('fetchDocs hatası:', err);
     } finally {
       setLoading(false);
     }
@@ -123,15 +134,15 @@ export default function PdfArsiviPage() {
 
     try {
       const total = fileQueue.length;
-      const CHUNK_SIZE = 2.5 * 1024 * 1024; // 2.5 MB (Vercel 4.5MB sınırını asla aşmaz)
+      const CHUNK_SIZE = 1.8 * 1024 * 1024; // 1.8 MB (Vercel 4.5MB sınırının çok altında, güvenli ve hızlı)
 
       for (let i = 0; i < total; i++) {
         const item = fileQueue[i];
         const file = item.file;
         const filePrefix = total > 1 ? `[${i + 1}/${total}] ` : '';
 
-        // 3 MB'den büyük dosyalar için otomatik Parçalı Yükleme (Chunked Upload)
-        if (file.size > 3 * 1024 * 1024) {
+        // 2 MB'den büyük dosyalar için otomatik Parçalı Yükleme (Chunked Upload)
+        if (file.size > 2 * 1024 * 1024) {
           const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
           const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 

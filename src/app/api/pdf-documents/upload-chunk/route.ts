@@ -5,6 +5,7 @@ import { createPdfDocument, type PdfDocument } from '@/lib/pdfDocs';
 import { saveUploadedPdf } from '@/lib/pdfStorage';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { mkdir, writeFile, readFile, rm } from 'fs/promises';
 
 export const dynamic = 'force-dynamic';
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
     const chunkBytes = await chunk.arrayBuffer();
     const chunkBuffer = Buffer.from(chunkBytes);
 
-    // 1. /tmp/uploads/chunks/${uploadId} klasörüne parçayı yaz
-    const chunksDir = path.join('/tmp', 'uploads', 'chunks', uploadId);
+    // 1. Geçici klasöre parçayı yaz (os.tmpdir() hem Windows hem Vercel/Linux ile uyumludur)
+    const chunksDir = path.join(os.tmpdir(), 'uploads', 'chunks', uploadId);
     try {
       if (!fs.existsSync(chunksDir)) {
         await mkdir(chunksDir, { recursive: true });
@@ -82,10 +83,15 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < totalChunks; i++) {
       let partBuf: Buffer | null = null;
       const partPath = path.join(chunksDir, `${i}.part`);
+      const fallbackPartPath = path.join('/tmp', 'uploads', 'chunks', uploadId, `${i}.part`);
 
       if (fs.existsSync(partPath)) {
         try {
           partBuf = await readFile(partPath);
+        } catch {}
+      } else if (fs.existsSync(fallbackPartPath)) {
+        try {
+          partBuf = await readFile(fallbackPartPath);
         } catch {}
       }
 
@@ -148,10 +154,12 @@ export async function POST(request: NextRequest) {
       saveDb(db);
     } catch {}
 
+    const { file_data, ...docResponse } = newDoc as any;
+
     return NextResponse.json({
       success: true,
       complete: true,
-      doc: newDoc,
+      doc: docResponse,
     }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

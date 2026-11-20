@@ -6,8 +6,8 @@ export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
 
-    // 1. Kayıtlı PDF listesi
-    const pdfRes = db.exec("SELECT * FROM pdf_documents WHERE is_archived = 0 ORDER BY created_at DESC");
+    // 1. Kayıtlı PDF listesi (file_data hariç)
+    const pdfRes = db.exec("SELECT id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count, is_archived, created_at FROM pdf_documents WHERE is_archived = 0 ORDER BY created_at DESC");
     const pdfs: any[] = [];
     if (pdfRes.length > 0) {
       const cols = pdfRes[0].columns;
