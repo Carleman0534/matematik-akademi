@@ -120,7 +120,8 @@ export default function DenemeOlusturPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['student_ali_metin']);
   const [studentSearch, setStudentSearch] = useState<string>('');
   const [students, setStudents] = useState<any[]>([
-    { id: 'student_ali_metin', full_name: 'Ali Metin (Ali Tarlasüren)', grade_level: 8, class_name: '8-A LGS', school_name: 'Atatürk OO' },
+    { id: 'student_ali_metin', full_name: 'Ali Metin (Ali Tarlasüren)', grade_level: 8, class_name: '8-A Sayısal', school_name: 'Özel Pozitif Kişisel Gelişim Kursu' },
+    { id: 'student_muhammed_talha', full_name: 'Muhammed Talha', grade_level: 8, class_name: '8-A LGS', school_name: 'Atatürk Ortaokulu', username: 'muhammedtalha' },
   ]);
 
   // 2. Derleme Durumu
@@ -192,8 +193,19 @@ export default function DenemeOlusturPage() {
               id: 'student_ali_metin',
               full_name: 'Ali Metin (Ali Tarlasüren)',
               grade_level: 8,
+              class_name: '8-A Sayısal',
+              school_name: 'Özel Pozitif Kişisel Gelişim Kursu'
+            });
+          }
+
+          const hasTalha = normalized.some(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
+          if (!hasTalha) {
+            normalized.push({
+              id: 'student_muhammed_talha',
+              full_name: 'Muhammed Talha',
+              grade_level: 8,
               class_name: '8-A LGS',
-              school_name: 'Atatürk OO'
+              school_name: 'Atatürk Ortaokulu'
             });
           }
           setStudents(normalized);
@@ -612,6 +624,16 @@ export default function DenemeOlusturPage() {
                 className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
               >
                 <span>⭐ Ali Metin</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const talha = students.find(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
+                  if (talha) setSelectedStudentIds([talha.id]);
+                }}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition flex items-center gap-1"
+              >
+                <span>⭐ Muhammed Talha</span>
               </button>
               <button
                 type="button"
