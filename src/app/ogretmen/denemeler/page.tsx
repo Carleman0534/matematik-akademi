@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: 'Denemeler' };
 
 const EXAM_TABS = [
   { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝' },
+  { href: '/ogretmen/deneme-olustur', label: 'Akıllı Deneme Oluştur', icon: '✨', badge: 'AI & PDF' },
   { href: '/ogretmen/denemeler/canli', label: 'Canlı Takip', icon: '⏱️', badge: 'Canlı' },
   { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
   { href: '/ogretmen/deneme-analizleri', label: 'Deneme Sonuçları', icon: '📊' },
@@ -44,7 +45,12 @@ export default async function ExamsPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-black">Denemeler</h1>
-        <Link href="/ogretmen/denemeler/yeni" className="btn-primary ml-auto">＋ Yeni deneme</Link>
+        <div className="ml-auto flex items-center gap-2">
+          <Link href="/ogretmen/deneme-olustur" className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:from-violet-700 hover:to-indigo-700">
+            ✨ Akıllı Deneme Oluştur (AI & PDF)
+          </Link>
+          <Link href="/ogretmen/denemeler/yeni" className="btn-primary">＋ Yeni deneme</Link>
+        </div>
       </div>
       {exams.length === 0 ? (
         <div className="card space-y-2 text-sm text-slate-600 dark:text-slate-300">

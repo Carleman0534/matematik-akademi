@@ -44,6 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Deneme Sınavları',
     icon: '📝',
     items: [
+      { href: '/ogretmen/deneme-olustur', label: 'Akıllı Deneme Oluştur (AI & PDF)', icon: '✨', mobile: true },
       { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝', mobile: true },
       { href: '/ogretmen/denemeler/canli', label: 'Canlı Takip', icon: '⏱️' },
       { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
@@ -55,7 +56,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'PDF & Arşiv Merkezi',
     icon: '📁',
     items: [
-      { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi & Yükleme', icon: '📁' },
+      { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi & Yükleme', icon: '📁', mobile: true },
+      { href: '/ogretmen/deneme-olustur', label: 'Akıllı Deneme Oluştur (LGS)', icon: '✨' },
       { href: '/ogretmen/pdf-analiz', label: 'LGS PDF Analiz & Soru Çıkarma', icon: '🔍' },
       { href: '/ogretmen/lgs-mufredat', label: 'LGS Müfredat Haritası', icon: '📚' },
     ]

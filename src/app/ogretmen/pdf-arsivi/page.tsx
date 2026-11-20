@@ -347,6 +347,7 @@ export default function PdfArsiviPage() {
 
   const PDF_TABS = [
     { href: '/ogretmen/pdf-arsivi', label: 'PDF Arşivi & Yükleme', icon: '📁', count: docs.length },
+    { href: '/ogretmen/deneme-olustur', label: 'Akıllı Deneme Oluştur', icon: '✨', badge: 'AI & PDF' },
     { href: '/ogretmen/pdf-analiz', label: 'LGS PDF Analiz & Soru Çıkarıcı', icon: '🔍', badge: 'AI Destekli' },
     { href: '/ogretmen/lgs-mufredat', label: 'LGS Müfredat Haritası', icon: '📚' },
     { href: '/ogretmen/denemeler/toplu-ata', label: 'Toplu Deneme Ata', icon: '🚀' },
@@ -375,7 +376,15 @@ export default function PdfArsiviPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/ogretmen/deneme-olustur"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Akıllı Deneme Oluştur (AI & PDF)</span>
+          </Link>
+
           <Link
             href="/ogretmen/denemeler/toplu-ata"
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm"

@@ -28,7 +28,23 @@ export default async function TeacherDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-black">Genel Bakış</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-black">Genel Bakış</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/ogretmen/deneme-olustur"
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:from-violet-700 hover:to-indigo-700 sm:text-sm"
+          >
+            <span>✨ Akıllı Deneme Oluştur (AI & PDF)</span>
+          </Link>
+          <Link
+            href="/ogretmen/pdf-arsivi"
+            className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:text-sm"
+          >
+            <span>📁 PDF Yükle & Arşiv</span>
+          </Link>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Aktif öğrenci" value={active.length} sub={`toplam ${students.length}`} />
         <Stat label="Toplam soru" value={a.total} sub={`${a.wrong} yanlış · ${a.blank} boş`} />
