@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
     }
 
     const db = await getDb();
+    try {
+      db.run('PRAGMA foreign_keys=OFF;');
+    } catch {}
     const createdPlanIds: string[] = [];
 
     for (const sid of studentIds) {
