@@ -165,6 +165,23 @@ export async function deletePdfDocument(id: string): Promise<boolean> {
   return true;
 }
 
+// Cevap anahtarını (ve ondan çıkan soru sayısını) günceller. PDF bulunamazsa false döner.
+export async function updatePdfAnswerKey(id: string, answerKey: string, questionCount: number | null): Promise<boolean> {
+  const db = await getDb();
+  const st = db.prepare('SELECT id FROM pdf_documents WHERE id = ?');
+  st.bind([id]);
+  const exists = st.step();
+  st.free();
+  if (!exists) return false;
+  if (questionCount && questionCount > 0) {
+    db.run('UPDATE pdf_documents SET answer_key = ?, question_count = ? WHERE id = ?', [answerKey, questionCount, id]);
+  } else {
+    db.run('UPDATE pdf_documents SET answer_key = ? WHERE id = ?', [answerKey, id]);
+  }
+  saveDb(db);
+  return true;
+}
+
 export async function archivePdfDocument(id: string, isArchived: boolean = true): Promise<boolean> {
   const db = await getDb();
   db.run('UPDATE pdf_documents SET is_archived = ? WHERE id = ?', [isArchived ? 1 : 0, id]);

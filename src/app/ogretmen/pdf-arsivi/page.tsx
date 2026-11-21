@@ -23,6 +23,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import type { PdfDocument } from '@/lib/pdfDocs';
+import { parseAnswerKey } from '@/lib/pdfExtraction/answerKey';
 import { SubTabBar } from '@/components/SubTabBar';
 import {
   saveClientPdfDoc,
@@ -66,6 +67,52 @@ export default function PdfArsiviPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<PdfDocument | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
+
+  // Cevap anahtarı düzenleme
+  const [keyEditDoc, setKeyEditDoc] = useState<PdfDocument | null>(null);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [keySaving, setKeySaving] = useState(false);
+  const [keyError, setKeyError] = useState('');
+  const keyPreview = parseAnswerKey(keyDraft);
+  const keyPreviewNos = Object.keys(keyPreview).map(Number).sort((a, b) => a - b);
+
+  const openKeyEditor = (doc: PdfDocument) => {
+    setKeyEditDoc(doc);
+    setKeyDraft(doc.answer_key || '');
+    setKeyError('');
+  };
+
+  const saveAnswerKey = async () => {
+    if (!keyEditDoc) return;
+    if (keyDraft.trim() && keyPreviewNos.length === 0) {
+      setKeyError('Anahtarda A–E harfi bulunamadı.');
+      return;
+    }
+    setKeySaving(true);
+    setKeyError('');
+    try {
+      const res = await fetch(`/api/pdf-documents/${encodeURIComponent(keyEditDoc.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answerKey: keyDraft.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d?.success) throw new Error(d?.error || `Kaydedilemedi (${res.status}).`);
+      const updated: PdfDocument = {
+        ...keyEditDoc,
+        answer_key: d.answerKey,
+        question_count: d.questionCount || keyEditDoc.question_count,
+      };
+      // Tarayıcıdaki kopyayı da güncelle (sunucuda kayıt yoksa öğrenci sayfası bunu yedek olarak kullanır)
+      await saveClientPdfDoc(updated);
+      setDocs(prev => prev.map(x => (x.id === updated.id ? updated : x)));
+      setKeyEditDoc(null);
+    } catch (e) {
+      setKeyError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setKeySaving(false);
+    }
+  };
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
 
   // Upload Form & Queue State
@@ -524,6 +571,23 @@ export default function PdfArsiviPage() {
                     <span>Yayın: <strong className="text-slate-800 dark:text-slate-200">{doc.publisher || 'Belirtilmedi'}</strong></span>
                     <span>{doc.question_count ? `${doc.question_count} Soru` : ''}</span>
                   </div>
+                  {(() => {
+                    const n = Object.keys(parseAnswerKey(doc.answer_key)).length;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => openKeyEditor(doc)}
+                        className={`mt-2 w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition ${
+                          n > 0
+                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300'
+                        }`}
+                        title="Öğrencinin optik formu bu anahtarla puanlanır"
+                      >
+                        {n > 0 ? `🔑 Cevap anahtarı: ${n} soru — düzenle` : '🔑 Cevap anahtarı yok — öğrenci cevapları puanlanamaz. Ekle →'}
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 {/* Aksiyon Butonları */}
@@ -590,6 +654,62 @@ export default function PdfArsiviPage() {
           <FolderArchive className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-700 dark:text-slate-300">Arşivde PDF Bulunamadı</h3>
           <p className="text-xs text-slate-400 mt-1">Öğrencileriniz için deneme, föy veya soru bankası PDF'leri yükleyebilirsiniz.</p>
+        </div>
+      )}
+
+      {/* Cevap Anahtarı Düzenleme Modalı */}
+      {keyEditDoc && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Cevap Anahtarı</h3>
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{keyEditDoc.title}</p>
+              </div>
+              <button onClick={() => setKeyEditDoc(null)} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Harfleri sırayla yazın (<code>ABCDB…</code>) ya da numaralı girin (<code>1-A 2-C 3-B…</code>). Öğrencinin optik formu bu anahtarla puanlanır; soru sayısı anahtara göre ayarlanır.
+            </p>
+            <textarea
+              value={keyDraft}
+              onChange={e => setKeyDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="ör. CADBBACDDABCDABCADBC"
+              className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono tracking-wider focus:outline-none focus:border-indigo-500 dark:text-white"
+            />
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 mb-1.5">
+                Önizleme: {keyPreviewNos.length > 0 ? `${keyPreviewNos.length} soru` : 'anahtar yok'}
+              </p>
+              {keyPreviewNos.length > 0 && (
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-1 max-h-40 overflow-y-auto">
+                  {keyPreviewNos.map(no => (
+                    <div key={no} className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-center py-1">
+                      <div className="text-[9px] text-slate-400">{no}</div>
+                      <div className="text-xs font-black text-indigo-700 dark:text-indigo-300">{keyPreview[no]}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {keyError && <p className="text-xs font-semibold text-rose-600">{keyError}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setKeyEditDoc(null)} className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">
+                Vazgeç
+              </button>
+              <button
+                onClick={saveAnswerKey}
+                disabled={keySaving}
+                className="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm disabled:opacity-60"
+              >
+                {keySaving ? 'Kaydediliyor…' : 'Kaydet'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
