@@ -940,6 +940,8 @@ async function initDatabase(): Promise<Database> {
   try { database.run('ALTER TABLE exam_answers ADD COLUMN ai_analysis TEXT;'); } catch {}
   try { database.run('ALTER TABLE exam_results ADD COLUMN created_at TEXT DEFAULT (datetime(\'now\'));'); } catch {}
   try { database.run('ALTER TABLE exam_results ADD COLUMN completed_at TEXT;'); } catch {}
+  // Öğrenciye atanan denemelerdeki PDF soru görselleri
+  try { database.run('ALTER TABLE study_plan_questions ADD COLUMN image_url TEXT;'); } catch {}
 
   // PDF'ten kırpılan soru görselleri. Diske değil veritabanına yazılır: Vercel gibi ortamlarda
   // proje klasörü salt okunurdur. Ayrı tablo, soru listelerinin bu büyük veriyi taşımasını önler.

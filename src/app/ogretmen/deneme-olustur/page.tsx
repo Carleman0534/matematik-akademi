@@ -1058,8 +1058,13 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
             correctAnswer: q.correctAnswer,
             solutionExplanation: q.solutionExplanation,
             difficulty: q.difficulty,
+            topicId: q.topicId,
             topicName: q.topicName,
-            sourceType: 'meb_lgs'
+            questionType: q.questionType,
+            // PDF sorularının görseli ve üretilen soruların şekli öğrenciye de gitmeli
+            imageUrl: q.imageUrl,
+            svgContent: q.svgContent,
+            sourceType: q.sourceType
           })),
           durationMin,
           isAdaptive: true

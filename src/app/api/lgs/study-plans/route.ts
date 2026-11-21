@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
+import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
+
+const TOPIC_IDS = new Set(INITIAL_LGS_TOPICS.map(t => t.id));
+
+// study_plan_questions.question_source yalnızca 'extracted_pdf' | 'ai_generated' | 'bank' kabul eder (CHECK kısıtı)
+function toQuestionSource(raw: unknown): 'extracted_pdf' | 'ai_generated' | 'bank' {
+  const s = String(raw || '').toLowerCase();
+  if (s === 'pdf' || s === 'extracted_pdf' || s === 'pdf_extracted') return 'extracted_pdf';
+  if (s === 'bank') return 'bank';
+  return 'ai_generated';
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -96,8 +107,8 @@ export async function POST(req: NextRequest) {
       // Soruları plan_questions tablosuna ekle
       const qStmt = db.prepare(`
         INSERT INTO study_plan_questions
-        (id, plan_id, question_source, source_question_id, question_text, options_json, correct_answer, solution_explanation, svg_content, difficulty, question_type, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, plan_id, question_source, source_question_id, question_text, options_json, correct_answer, solution_explanation, svg_content, image_url, topic_id, difficulty, question_type, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       questions.forEach((q: any, idx: number) => {
@@ -109,16 +120,19 @@ export async function POST(req: NextRequest) {
           .replace(/^\[[^\]]+\]:\s*/gi, '')
           .trim();
 
+        const topicId = q.topic_id || q.topicId;
         qStmt.run([
           sqId,
           planId,
-          q.source_type || 'lgs_curriculum',
-          q.id,
+          toQuestionSource(q.source_type || q.sourceType),
+          String(q.id || sqId),
           cleanText || rawText,
-          JSON.stringify(q.options),
+          JSON.stringify(q.options || { A: '', B: '', C: '', D: '' }),
           q.correct_answer || q.correctAnswer || 'A',
           q.solution_explanation || q.solutionExplanation || 'Çözüm hazır.',
           q.svg_content || q.svgContent || null,
+          q.image_url || q.imageUrl || null,
+          topicId && TOPIC_IDS.has(topicId) ? topicId : null,
           q.difficulty || 3,
           q.question_type || q.questionType || 'yeni_nesil',
           idx + 1
