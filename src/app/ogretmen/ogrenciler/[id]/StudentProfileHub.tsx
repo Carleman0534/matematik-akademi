@@ -20,7 +20,14 @@ import {
   AlertCircle,
   Copy,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  XCircle,
+  HelpCircle,
+  Bot,
+  Lightbulb,
+  Filter,
+  Eye,
+  Check
 } from 'lucide-react';
 import type { StudentProfileData } from '@/lib/studentProfile';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
@@ -72,6 +79,82 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
 
   // WhatsApp modal copy status
   const [copied, setCopied] = useState(false);
+
+  // Sınav Soru & Yanlış Analizi Modal Durumu
+  const [inspectingExam, setInspectingExam] = useState<any | null>(null);
+  const [inspectingLoading, setInspectingLoading] = useState(false);
+  const [inspectingQuestions, setInspectingQuestions] = useState<any[]>([]);
+  const [inspectingFilter, setInspectingFilter] = useState<'all' | 'wrong' | 'blank' | 'correct'>('wrong');
+  const [inspectingAiLoading, setInspectingAiLoading] = useState<Record<number, boolean>>({});
+  const [inspectingAiAnalysis, setInspectingAiAnalysis] = useState<Record<number, any>>({});
+  const [inspectingMistakeSaved, setInspectingMistakeSaved] = useState<Record<number, boolean>>({});
+
+  const openExamInspection = async (exam: any) => {
+    setInspectingExam(exam);
+    setInspectingLoading(true);
+    setInspectingQuestions([]);
+    setInspectingFilter('wrong');
+    try {
+      const res = await fetch(`/api/exam-results/student-exam-detail?examId=${exam.exam_id}&studentId=${student.id}`);
+      const data = await res.json();
+      if (data.success && data.questions) {
+        setInspectingQuestions(data.questions);
+        if (data.exam) {
+          setInspectingExam((prev: any) => ({ ...prev, ...data.exam }));
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching exam detail:', e);
+    } finally {
+      setInspectingLoading(false);
+    }
+  };
+
+  const handleRequestQuestionAiAnalysis = async (q: any) => {
+    setInspectingAiLoading(prev => ({ ...prev, [q.questionNo]: true }));
+    try {
+      const res = await fetch('/api/ai/verify-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionText: q.questionText,
+          options: q.options,
+          studentAnswer: q.studentAnswer,
+          correctAnswer: q.correctAnswer,
+          topicName: q.topicName,
+          provider: 'auto'
+        })
+      });
+      const data = await res.json();
+      setInspectingAiAnalysis(prev => ({ ...prev, [q.questionNo]: data }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setInspectingAiLoading(prev => ({ ...prev, [q.questionNo]: false }));
+    }
+  };
+
+  const handlePushToMistakePool = async (q: any) => {
+    setInspectingMistakeSaved(prev => ({ ...prev, [q.questionNo]: true }));
+    try {
+      await fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: student.id,
+          question_number: q.questionNo,
+          question_type: q.isBlank ? 'blank' : 'wrong',
+          correct_answer: q.correctAnswer,
+          student_answer: q.studentAnswer,
+          student_note: q.questionText,
+          solution: q.solutionExplanation,
+          teacher_note: `Öğretmen İncelemesi: ${q.topicName} Deneme Yanlışı`
+        })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Quick stats calculations
   const latestExam = assignedExams.find(e => e.status === 'completed' && e.net_score !== null);
@@ -551,23 +634,30 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                             <span className="font-semibold text-slate-500">{exam.blank_count}B</span>
                           </div>
                         </div>
-                        <div className="pt-1.5 flex justify-end">
-                          <Link
-                            href={`/ogrenci/deneme/${exam.exam_id}`}
-                            target="_blank"
-                            className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
+                        <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => openExamInspection(exam)}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 active:scale-95 transition-all"
                           >
-                            Öğrenci Gözüyle İncele <ExternalLink className="h-3 w-3" />
+                            🔍 Soru & Yanlış Analizini İncele
+                          </button>
+                          <Link
+                            href={`/ogrenci/deneme/${exam.exam_id}?studentId=${student.id}`}
+                            target="_blank"
+                            className="text-xs text-slate-500 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
+                          >
+                            Öğrenci Gözüyle Aç <ExternalLink className="h-3 w-3" />
                           </Link>
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                          Henüz tamamlanmadı
+                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" /> Henüz tamamlanmadı
                         </span>
                         <Link
-                          href={`/ogrenci/deneme/${exam.exam_id}`}
+                          href={`/ogrenci/deneme/${exam.exam_id}?studentId=${student.id}`}
                           target="_blank"
                           className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
                         >
@@ -1127,6 +1217,364 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: SINAV SORU & YANLIŞ ANALİZİ MODALI */}
+      {inspectingExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+            
+            {/* Modal Üst Başlık & Özet Barı */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-indigo-50/40 dark:from-slate-900 dark:to-slate-900/80 shrink-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                      Öğrenci Sınav Analizi
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">
+                      {student.full_name} ({student.grade_level}. Sınıf LGS)
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {inspectingExam.title || 'LGS Deneme Sınavı'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setInspectingExam(null)}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Hızlı İstatistik Kartları */}
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="rounded-xl bg-white dark:bg-slate-800 p-2.5 border border-slate-200/80 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Net Skor</div>
+                    <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                      {inspectingExam.net_score !== null && inspectingExam.net_score !== undefined ? `${inspectingExam.net_score} Net` : '—'}
+                    </div>
+                  </div>
+                  <Award className="h-6 w-6 text-indigo-500/30" />
+                </div>
+
+                <div className="rounded-xl bg-white dark:bg-slate-800 p-2.5 border border-slate-200/80 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Doğru Sayısı</div>
+                    <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                      {inspectingExam.correct_count ?? inspectingQuestions.filter(q => q.isCorrect).length} Doğru
+                    </div>
+                  </div>
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500/30" />
+                </div>
+
+                <div className="rounded-xl bg-white dark:bg-slate-800 p-2.5 border border-slate-200/80 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Yanlış Sayısı</div>
+                    <div className="text-lg font-black text-rose-600 dark:text-rose-400">
+                      {inspectingExam.wrong_count ?? inspectingQuestions.filter(q => !q.isCorrect && !q.isBlank).length} Yanlış
+                    </div>
+                  </div>
+                  <XCircle className="h-6 w-6 text-rose-500/30" />
+                </div>
+
+                <div className="rounded-xl bg-white dark:bg-slate-800 p-2.5 border border-slate-200/80 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Boş Sayısı</div>
+                    <div className="text-lg font-black text-slate-600 dark:text-slate-300">
+                      {inspectingExam.blank_count ?? inspectingQuestions.filter(q => q.isBlank).length} Boş
+                    </div>
+                  </div>
+                  <HelpCircle className="h-6 w-6 text-slate-400/30" />
+                </div>
+              </div>
+
+              {/* Filtre Butonları */}
+              <div className="mt-4 flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+                <span className="text-xs font-semibold text-slate-500 mr-1 flex items-center gap-1">
+                  <Filter className="h-3.5 w-3.5" /> Filtrele:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setInspectingFilter('wrong')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    inspectingFilter === 'wrong'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-50'
+                  }`}
+                >
+                  🔴 Sadece Yanlışlar ({inspectingQuestions.filter(q => !q.isCorrect && !q.isBlank).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectingFilter('blank')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    inspectingFilter === 'blank'
+                      ? 'bg-slate-700 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  ⚪ Boş Bırakılanlar ({inspectingQuestions.filter(q => q.isBlank).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectingFilter('correct')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    inspectingFilter === 'correct'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 hover:bg-emerald-50'
+                  }`}
+                >
+                  🟢 Doğrular ({inspectingQuestions.filter(q => q.isCorrect).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectingFilter('all')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                    inspectingFilter === 'all'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Tüm Sorular ({inspectingQuestions.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Gövdesi: Soru Listesi */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-slate-50/50 dark:bg-slate-950/40">
+              {inspectingLoading ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="h-8 w-8 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent mx-auto" />
+                  <p className="text-xs text-slate-500 font-medium">Soru ve cevap analizi yükleniyor…</p>
+                </div>
+              ) : inspectingQuestions.length === 0 ? (
+                <div className="py-16 text-center space-y-2 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8">
+                  <AlertCircle className="h-10 w-10 text-slate-400 mx-auto" />
+                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Detaylı Soru Kaydı Bulunamadı</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    Bu deneme henüz öğrenci tarafından çözülmemiş ya da soru dökümleri işlenmemiş olabilir.
+                  </p>
+                </div>
+              ) : (
+                (() => {
+                  const filtered = inspectingQuestions.filter(q => {
+                    if (inspectingFilter === 'wrong') return !q.isCorrect && !q.isBlank;
+                    if (inspectingFilter === 'blank') return q.isBlank;
+                    if (inspectingFilter === 'correct') return q.isCorrect;
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="py-12 text-center space-y-2 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+                        <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                          {inspectingFilter === 'wrong' ? 'Tebrikler! Yanlış Yapılan Soru Yok.' : 'Bu filtreye ait soru bulunamadı.'}
+                        </h4>
+                        <p className="text-xs text-slate-400">
+                          Diğer filtreleri seçerek öğrencinin diğer sorularını inceleyebilirsiniz.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((q) => {
+                    const isAiLoading = Boolean(inspectingAiLoading[q.questionNo]);
+                    const aiData = inspectingAiAnalysis[q.questionNo] || q.aiAnalysis;
+                    const isMistakeSaved = Boolean(inspectingMistakeSaved[q.questionNo]);
+
+                    return (
+                      <div
+                        key={q.questionNo}
+                        className={`rounded-2xl border bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs transition-all space-y-4 ${
+                          q.isCorrect
+                            ? 'border-emerald-200/80 dark:border-emerald-950'
+                            : q.isBlank
+                            ? 'border-slate-200 dark:border-slate-800'
+                            : 'border-rose-300/90 dark:border-rose-950 ring-1 ring-rose-200 dark:ring-rose-950'
+                        }`}
+                      >
+                        {/* Soru Başlık & Durum Rozeti */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold">
+                              {q.questionNo}
+                            </span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                              {q.topicName || 'LGS Matematik'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {q.isCorrect ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Doğru Yapıldı
+                              </span>
+                            ) : q.isBlank ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-300">
+                                <HelpCircle className="h-3.5 w-3.5" /> Boş Bırakıldı
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 dark:bg-rose-950 px-2.5 py-0.5 text-xs font-bold text-rose-800 dark:text-rose-300">
+                                <XCircle className="h-3.5 w-3.5" /> Yanlış Cevaplandı
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Soru Metni */}
+                        <div className="text-sm text-slate-900 dark:text-slate-100 font-medium leading-relaxed">
+                          {q.questionText}
+                        </div>
+
+                        {/* Şıklar */}
+                        {q.options && typeof q.options === 'object' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            {Object.entries(q.options).map(([optKey, optVal]: [string, any]) => {
+                              const keyUpper = optKey.trim().toUpperCase();
+                              const isStudentPick = (q.studentAnswer || '').trim().toUpperCase() === keyUpper;
+                              const isCorrectAnswer = (q.correctAnswer || '').trim().toUpperCase() === keyUpper;
+
+                              let optClass = 'border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300';
+                              let badge = null;
+
+                              if (isStudentPick && isCorrectAnswer) {
+                                optClass = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-300 dark:ring-emerald-800 font-bold';
+                                badge = (
+                                  <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300 bg-emerald-200/70 dark:bg-emerald-900 px-2 py-0.5 rounded-full">
+                                    ✓ Öğrencinin Doğru Tercihi
+                                  </span>
+                                );
+                              } else if (isStudentPick && !isCorrectAnswer) {
+                                optClass = 'border-rose-500 bg-rose-50 dark:bg-rose-950/60 text-rose-900 dark:text-rose-200 ring-2 ring-rose-300 dark:ring-rose-800 font-bold';
+                                badge = (
+                                  <span className="text-[10px] font-black uppercase text-rose-700 dark:text-rose-300 bg-rose-200/70 dark:bg-rose-900 px-2 py-0.5 rounded-full">
+                                    ✗ Öğrencinin Hatalı Seçimi
+                                  </span>
+                                );
+                              } else if (isCorrectAnswer) {
+                                optClass = 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-200 dark:ring-emerald-900 font-bold';
+                                badge = (
+                                  <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900 px-2 py-0.5 rounded-full">
+                                    ★ Doğru Cevap
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <div
+                                  key={optKey}
+                                  className={`rounded-xl border p-3 text-xs flex items-center justify-between gap-2 transition-all ${optClass}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white dark:bg-slate-700 font-bold border border-slate-300 dark:border-slate-600">
+                                      {keyUpper}
+                                    </span>
+                                    <span>{String(optVal)}</span>
+                                  </div>
+                                  {badge}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Detaylı Çözüm ve Açıklama Kutusu */}
+                        {q.solutionExplanation && (
+                          <div className="rounded-xl border border-indigo-100 dark:border-indigo-950/80 bg-indigo-50/40 dark:bg-indigo-950/30 p-3.5 space-y-1">
+                            <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                              <Lightbulb className="h-4 w-4 text-amber-500" />
+                              Adım Adım Çözüm & Çözüm Mantığı:
+                            </div>
+                            <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                              {q.solutionExplanation}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* AI Teşhis ve Pedagojik Yanlış Analizi */}
+                        {aiData && (
+                          <div className="rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/30 p-3.5 space-y-2 animate-in fade-in">
+                            <div className="flex items-center gap-2 text-xs font-bold text-purple-800 dark:text-purple-300">
+                              <Bot className="h-4 w-4 text-purple-600" />
+                              🤖 Yapay Zekâ Pedagojik Hata Teşhisi ({aiData.provider || 'AI Analizi'}):
+                            </div>
+                            <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                              {aiData.explanation || aiData.analysis || aiData.feedback}
+                            </p>
+                            {aiData.recommendedAction && (
+                              <div className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 pt-1 border-t border-purple-100 dark:border-purple-900/60">
+                                📌 Öğretmen Önerisi: {aiData.recommendedAction}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Aksiyon Butonları */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRequestQuestionAiAnalysis(q)}
+                              disabled={isAiLoading}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors"
+                            >
+                              <Bot className="h-3.5 w-3.5" />
+                              {isAiLoading ? 'AI İnceliyor…' : 'AI Hata Teşhisi İste'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handlePushToMistakePool(q)}
+                              disabled={isMistakeSaved}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors ${
+                                isMistakeSaved
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-100'
+                              }`}
+                            >
+                              <BookOpen className="h-3.5 w-3.5" />
+                              {isMistakeSaved ? '✓ Havuzda Kayıtlı' : 'Yanlış Havuzuna Ekle'}
+                            </button>
+                          </div>
+
+                          <div className="text-[11px] text-slate-400">
+                            Doğru Cevap: <span className="font-bold text-slate-700 dark:text-slate-300">{q.correctAnswer}</span>
+                            {' · '}
+                            Öğrenci: <span className={`font-bold ${q.isCorrect ? 'text-emerald-600' : 'text-rose-600'}`}>{q.studentAnswer || 'Boş'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+
+            {/* Modal Alt Barı */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <Link
+                href={`/ogrenci/deneme/${inspectingExam.exam_id}?studentId=${student.id}`}
+                target="_blank"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Öğrencinin Çözüm Ekranını Yeni Sekmede Aç
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setInspectingExam(null)}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900"
+              >
+                İncelemeyi Kapat
+              </button>
             </div>
           </div>
         </div>

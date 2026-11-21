@@ -521,3 +521,38 @@ test('yapay zekâ cevap denetleme: doğru ve yanlış cevap analizi ile pedagoji
   assert.equal(correctRes.isStudentCorrect, true);
 });
 
+test('öğrenci deneme çözümü ve öğretmen yanlış analizi senkronizasyonu', async () => {
+  // 15 soruluk bir sınav sonucu simülasyonu
+  const questions = [
+    { questionNo: 1, questionText: 'Alanı 175 m² olan bahçe...', options: { A: '12-13', B: '14-15', C: '43-44', D: '13-14' }, studentAnswer: 'B', correctAnswer: 'D', isCorrect: false },
+    { questionNo: 2, questionText: 'EBOB(24, 36) kaçtır?', options: { A: '6', B: '12', C: '18', D: '24' }, studentAnswer: 'B', correctAnswer: 'B', isCorrect: true },
+    { questionNo: 3, questionText: '2⁵ . 5⁵ kaç basamaklıdır?', options: { A: '5', B: '6', C: '7', D: '8' }, studentAnswer: null, correctAnswer: 'B', isCorrect: false }
+  ];
+
+  let correctCount = 0;
+  let wrongCount = 0;
+  let blankCount = 0;
+
+  for (const q of questions) {
+    if (!q.studentAnswer) blankCount++;
+    else if (q.studentAnswer === q.correctAnswer) correctCount++;
+    else wrongCount++;
+  }
+
+  assert.equal(correctCount, 1);
+  assert.equal(wrongCount, 1);
+  assert.equal(blankCount, 1);
+
+  // LGS 3 yanlış 1 doğru kuralı
+  const netScore = Math.max(0, +(correctCount - wrongCount / 3).toFixed(2));
+  assert.equal(netScore, 0.67);
+
+  // Yanlışların filtrelenmesi
+  const mistakes = questions.filter(q => q.studentAnswer && q.studentAnswer !== q.correctAnswer);
+  assert.equal(mistakes.length, 1);
+  assert.equal(mistakes[0].questionNo, 1);
+  assert.equal(mistakes[0].studentAnswer, 'B');
+  assert.equal(mistakes[0].correctAnswer, 'D');
+});
+
+

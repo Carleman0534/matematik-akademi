@@ -180,25 +180,69 @@ export default function OzelCalismamPage() {
   const handleEvaluateResults = async () => {
     setIsEvaluated(true);
 
-    // Arka planda performansı kaydet
-    if (activePlan && questions.length > 0) {
+    // Öğretmen sistemine ve veritabanına anında sınav sonucu ve soru analizini gönder
+    if (questions.length > 0) {
       try {
-        const studentId = (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_ali_metin';
-        for (let i = 0; i < questions.length; i++) {
-          const q = questions[i];
-          const studentAns = answers[i];
-          if (studentAns) {
-            await fetch(`/api/lgs/study-sessions/${activePlan.id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                questionId: q.id,
-                studentId,
-                studentAnswer: studentAns,
-                durationSeconds: Math.max(10, Math.round(elapsedSeconds / questions.length)),
-                streak: 0
-              })
-            }).catch(() => {});
+        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const studentId = urlParams?.get('studentId') || (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_ali_metin';
+
+        const payloadAnswers = questions.map((q, idx) => {
+          const studentAns = answers[idx] || null;
+          const correctAns = (q.correct_answer || 'A').trim().toUpperCase();
+          const isCorr = studentAns ? studentAns.trim().toUpperCase() === correctAns : false;
+
+          let opts = q.options;
+          if (Array.isArray(opts)) {
+            const keys = ['A', 'B', 'C', 'D', 'E'];
+            const optMap: Record<string, string> = {};
+            opts.forEach((o, oIdx) => { optMap[keys[oIdx] || `Option_${oIdx}`] = o; });
+            opts = optMap;
+          }
+
+          return {
+            questionNo: idx + 1,
+            questionId: q.id || `q_${idx + 1}`,
+            questionText: q.question_text || '',
+            options: opts,
+            studentAnswer: studentAns,
+            correctAnswer: correctAns,
+            isCorrect: isCorr,
+            topicName: q.topic_name || activePlan?.title || 'LGS Matematik',
+            solutionExplanation: q.solution_explanation || q.explanation || 'Ayrıntılı soru çözümü hazırlandı.',
+            difficulty: q.difficulty || 3
+          };
+        });
+
+        await fetch('/api/exam-results/submit-student-exam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            examId: activePlan?.id || `ozel_calisma_${Date.now()}`,
+            studentId,
+            examTitle: activePlan?.title || 'Bana Özel Matematik Çalışmam',
+            durationSeconds: Math.max(10, elapsedSeconds),
+            answers: payloadAnswers
+          })
+        });
+
+        // Eski çalışma oturumu rotasıyla da geriye dönük uyumlu senkronize et
+        if (activePlan) {
+          for (let i = 0; i < questions.length; i++) {
+            const q = questions[i];
+            const studentAns = answers[i];
+            if (studentAns) {
+              await fetch(`/api/lgs/study-sessions/${activePlan.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  questionId: q.id,
+                  studentId,
+                  studentAnswer: studentAns,
+                  durationSeconds: Math.max(10, Math.round(elapsedSeconds / questions.length)),
+                  streak: 0
+                })
+              }).catch(() => {});
+            }
           }
         }
       } catch (err) {

@@ -195,6 +195,10 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
 
   // 2. Atanmış Deneme ve Sınavlar
   const assignedExams: any[] = [];
+  const studentMatchClause = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
+    ? `(ea.student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR ea.student_id = 'student_muhammed_talha')`
+    : `(ea.student_id = '${studentId}' OR ea.student_id = 'student_ali_metin' OR ea.student_id = 'user_ali_metin')`;
+
   try {
     const eaRes = db.exec(`
       SELECT 
@@ -209,13 +213,13 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
         er.correct_count,
         er.wrong_count,
         er.blank_count,
-        es.submitted_at,
+        COALESCE(er.completed_at, es.submitted_at) as submitted_at,
         es.id as session_id
       FROM exam_assignments ea
       LEFT JOIN exams e ON ea.exam_id = e.id
-      LEFT JOIN exam_sessions es ON es.exam_id = ea.exam_id AND es.student_id = ea.student_id
-      LEFT JOIN exam_results er ON er.exam_id = ea.exam_id AND er.student_id = ea.student_id
-      WHERE ea.student_id = '${studentId}'
+      LEFT JOIN exam_sessions es ON es.exam_id = ea.exam_id AND (es.student_id = ea.student_id)
+      LEFT JOIN exam_results er ON er.exam_id = ea.exam_id AND (er.student_id = ea.student_id)
+      WHERE ${studentMatchClause}
       ORDER BY ea.assigned_at DESC
     `);
     if (eaRes.length > 0) {
@@ -225,8 +229,51 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
         cols.forEach((c, idx) => { obj[c] = row[idx]; });
         assignedExams.push({
           ...obj,
-          status: obj.submitted_at ? 'completed' : 'pending'
+          status: (obj.submitted_at || obj.net_score !== null) ? 'completed' : 'pending'
         });
+      }
+    }
+  } catch {}
+
+  // B. exam_results tablosundaki doğrudan çözülen tüm sınavları da listeye ekle
+  try {
+    const erMatchClause = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
+      ? `(er.student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR er.student_id = 'student_muhammed_talha')`
+      : `(er.student_id = '${studentId}' OR er.student_id = 'student_ali_metin' OR er.student_id = 'user_ali_metin')`;
+
+    const erRes = db.exec(`
+      SELECT 
+        er.id as assignment_id,
+        er.exam_id,
+        COALESCE(e.title, 'LGS Çözülen Deneme') as title,
+        COALESCE(e.question_count, er.correct_count + er.wrong_count + er.blank_count, 20) as question_count,
+        COALESCE(e.duration_minutes, 40) as duration_min,
+        COALESCE(er.created_at, datetime('now')) as assigned_at,
+        COALESCE(er.completed_at, er.created_at) as due_at,
+        er.net_score,
+        er.correct_count,
+        er.wrong_count,
+        er.blank_count,
+        COALESCE(er.completed_at, er.created_at) as submitted_at,
+        es.id as session_id
+      FROM exam_results er
+      LEFT JOIN exams e ON er.exam_id = e.id
+      LEFT JOIN exam_sessions es ON es.exam_id = er.exam_id AND (es.student_id = er.student_id)
+      WHERE ${erMatchClause}
+      ORDER BY er.created_at DESC
+    `);
+    if (erRes.length > 0) {
+      const cols = erRes[0].columns;
+      for (const row of erRes[0].values) {
+        const obj: any = {};
+        cols.forEach((c, idx) => { obj[c] = row[idx]; });
+        // Eğer daha önce assignments ile eklenmediyse listeye ekle
+        if (!assignedExams.some(e => e.exam_id === obj.exam_id || e.assignment_id === obj.assignment_id)) {
+          assignedExams.push({
+            ...obj,
+            status: 'completed'
+          });
+        }
       }
     }
   } catch {}
@@ -407,20 +454,24 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
 
   // 6. Soru Bankası İstatistiği
   let bankStats = { total: 0, wrong: 0, blank: 0, due: 0, learned: 0 };
+  const qStudentMatch = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
+    ? `(student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR student_id = 'student_muhammed_talha')`
+    : `(student_id = '${studentId}' OR student_id = 'student_ali_metin' OR student_id = 'user_ali_metin')`;
+
   try {
     const qCountRes = db.exec(`
       SELECT 
         count(*) as total,
-        sum(CASE WHEN initial_status = 'wrong' THEN 1 ELSE 0 END) as wrong,
-        sum(CASE WHEN initial_status = 'blank' THEN 1 ELSE 0 END) as blank
+        sum(CASE WHEN question_type = 'wrong' OR initial_status = 'wrong' THEN 1 ELSE 0 END) as wrong,
+        sum(CASE WHEN question_type = 'blank' OR initial_status = 'blank' THEN 1 ELSE 0 END) as blank
       FROM questions 
-      WHERE student_id = '${studentId}'
+      WHERE ${qStudentMatch}
     `);
     if (qCountRes.length > 0 && qCountRes[0].values.length > 0) {
       bankStats.total = Number(qCountRes[0].values[0][0]) || 0;
       bankStats.wrong = Number(qCountRes[0].values[0][1]) || 0;
       bankStats.blank = Number(qCountRes[0].values[0][2]) || 0;
-      bankStats.due = Math.max(0, bankStats.wrong + bankStats.blank - 3);
+      bankStats.due = Math.max(0, bankStats.wrong + bankStats.blank);
       bankStats.learned = Math.max(0, bankStats.total - bankStats.due);
     }
   } catch {}

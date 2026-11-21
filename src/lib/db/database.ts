@@ -216,6 +216,12 @@ CREATE TABLE IF NOT EXISTS exam_answers (
   answer TEXT,
   is_correct INTEGER,
   duration_seconds INTEGER,
+  question_text TEXT,
+  options_json TEXT,
+  correct_answer TEXT,
+  topic_name TEXT,
+  solution_explanation TEXT,
+  ai_analysis TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -919,6 +925,21 @@ async function initDatabase(): Promise<Database> {
   try {
     database.run('ALTER TABLE exam_pdfs ADD COLUMN file_data TEXT;');
   } catch {}
+
+  // Safe migrations for exam answers & question breakdown
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN id TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN exam_result_id TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN student_answer TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN is_correct INTEGER;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN duration_seconds INTEGER;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN question_text TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN options_json TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN correct_answer TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN topic_name TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN solution_explanation TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_answers ADD COLUMN ai_analysis TEXT;'); } catch {}
+  try { database.run('ALTER TABLE exam_results ADD COLUMN created_at TEXT DEFAULT (datetime(\'now\'));'); } catch {}
+  try { database.run('ALTER TABLE exam_results ADD COLUMN completed_at TEXT;'); } catch {}
 
   // Check and seed users/students if empty and database_export.json exists
   const exportPath = path.join(process.cwd(), 'data', 'database_export.json');

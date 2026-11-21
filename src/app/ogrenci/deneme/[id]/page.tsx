@@ -215,7 +215,7 @@ export default function StudentDenemeRoomPage({
     }
   };
 
-  const handleSubmitExam = () => {
+  const handleSubmitExam = async () => {
     setIsSubmitted(true);
     let correct = 0;
     let wrong = 0;
@@ -233,13 +233,47 @@ export default function StudentDenemeRoomPage({
     });
 
     const net = Math.max(0, +(correct - wrong / 3).toFixed(2));
-    setExamResult({
+    const resultObj = {
       total: questions.length,
       correct,
       wrong,
       blank,
       net
-    });
+    };
+    setExamResult(resultObj);
+
+    // Öğretmen ve veli sistemine anında senkronize et
+    try {
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const studentId = searchParams?.get('studentId') || (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_ali_metin';
+
+      const payloadAnswers = questions.map(q => ({
+        questionNo: q.questionNo,
+        questionId: q.id,
+        questionText: q.questionText,
+        options: q.options,
+        studentAnswer: answers[q.questionNo] || null,
+        correctAnswer: q.correctAnswer,
+        isCorrect: answers[q.questionNo] === q.correctAnswer,
+        topicName: q.topicName,
+        solutionExplanation: q.solutionExplanation,
+        difficulty: q.difficulty
+      }));
+
+      await fetch('/api/exam-results/submit-student-exam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          examId,
+          studentId,
+          examTitle,
+          durationSeconds: Math.max(10, (40 * 60) - timeLeftSec),
+          answers: payloadAnswers
+        })
+      });
+    } catch (err) {
+      console.warn('Could not persist student exam submission:', err);
+    }
   };
 
   const currentQ = questions[currentIdx];
