@@ -8,7 +8,7 @@ import {
   Sliders, HelpCircle, ChevronRight, AlertCircle, ArrowRight,
   Users, UserCheck, Search, Clock, Pause, Plus, Lightbulb,
   AlertTriangle, ShieldAlert, Award, Eye, X, Zap, Target,
-  Image as ImageIcon, MessageCircle, Share2, FileSpreadsheet
+  Image as ImageIcon, MessageCircle, Share2, FileSpreadsheet, ShieldCheck
 } from 'lucide-react';
 import { SubTabBar } from '@/components/SubTabBar';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
@@ -156,6 +156,18 @@ export default function DenemeOlusturPage() {
   const [availablePdfs, setAvailablePdfs] = useState<any[]>([]);
   const [selectedPdfIds, setSelectedPdfIds] = useState<string[]>(['pdf_lgs_2024']);
   const [pdfSearch, setPdfSearch] = useState<string>('');
+
+  // 6. Onay Durumları (Adım Adım Onaylama: Hedef Öğrenci, Kaynak PDF, LGS Konuları)
+  const [isStudentConfirmed, setIsStudentConfirmed] = useState<boolean>(true);
+  const [isPdfConfirmed, setIsPdfConfirmed] = useState<boolean>(true);
+  const [isTopicsConfirmed, setIsTopicsConfirmed] = useState<boolean>(true);
+  const [stepToast, setStepToast] = useState<string>('');
+
+  // 7. Zorluk Ayrımı ve Filtresi (Kolay, Orta, Zor)
+  const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'Kolay' | 'Orta' | 'Zor'>('all');
+
+  // 8. Öğrenci Görünüm Güvencesi (Yapay Zekâ Etiketlerini Gizleme Önizlemesi)
+  const [isStudentViewMode, setIsStudentViewMode] = useState<boolean>(false);
 
   // Soruya özel resim yükleme işleyicisi (Öğretmen dosya seçtiğinde)
   const handleAttachImage = (qId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -517,6 +529,11 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       return;
     }
 
+    // Seçilen 3 adımı da otomatik onaylanmış olarak işaretle
+    setIsStudentConfirmed(true);
+    setIsPdfConfirmed(true);
+    setIsTopicsConfirmed(true);
+
     setIsCompiling(true);
     setAssignSuccess('');
 
@@ -548,28 +565,33 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       const examQuestionTexts: { id: string; text: string }[] = [];
       const topicCountMap = new Map<string, number>();
 
-      // A. PDF Sorularını Dağıt (Mükerrerlik Önleme Sistemi ile)
+      // A. PDF Sorularını Dağıt (Mükerrerlik Önleme Sistemi & Kolay/Orta/Zor Ayrımı)
       for (let i = 1; i <= pdfCount; i++) {
         const topicId = topicsToUse[(i - 1) % topicsToUse.length];
         const topicObj = INITIAL_LGS_TOPICS.find(t => t.id === topicId) || INITIAL_LGS_TOPICS[0];
 
-        // Zorluk derecesi ayarı
+        // Pedagojik Kolay / Orta / Zor Dağılımı
+        const pos = i / totalQuestions;
         let diff = 3;
-        if (difficultyDistribution === 'challenging') {
-          diff = i % 3 === 0 ? 5 : 4;
-        } else if (difficultyDistribution === 'foundation') {
-          diff = i % 2 === 0 ? 2 : 1;
+        let diffLabel: 'Kolay' | 'Orta' | 'Zor' = 'Orta';
+        if (difficultyDistribution === 'foundation') {
+          if (pos <= 0.6) { diff = (i % 2 === 0 ? 2 : 1); diffLabel = 'Kolay'; }
+          else if (pos <= 0.85) { diff = 3; diffLabel = 'Orta'; }
+          else { diff = 4; diffLabel = 'Zor'; }
+        } else if (difficultyDistribution === 'challenging') {
+          if (pos <= 0.15) { diff = 2; diffLabel = 'Kolay'; }
+          else if (pos <= 0.45) { diff = 3; diffLabel = 'Orta'; }
+          else { diff = (i % 2 === 0 ? 5 : 4); diffLabel = 'Zor'; }
         } else {
-          diff = (i % 3) + 2; // 2, 3, 4
+          if (pos <= 0.25) { diff = (i % 2 === 0 ? 2 : 1); diffLabel = 'Kolay'; }
+          else if (pos <= 0.75) { diff = 3; diffLabel = 'Orta'; }
+          else { diff = (i % 2 === 0 ? 5 : 4); diffLabel = 'Zor'; }
         }
-
-        const diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
         
         const targetPdf = selectedPdfList[(i - 1) % (selectedPdfList.length || 1)] || selectedPdfList[0];
         const currentPdfName = targetPdf?.title || defaultPdfTitle;
 
         // Havuzda veya PDF çıktılarında bu konuya ve seçilen PDF'lere ait soru var mı kontrol et
-        // TEKRAR ÖNLEYİCİ: Daha önce bu sınavda kullanılmamış ve benzerliği düşük olan soruyu seç
         const matchingPool = poolQuestions.find((pq: any) => {
           if (usedPoolQuestionIds.has(pq.id)) return false;
           const matchSource = (selectedPdfIds.length === 0 || selectedPdfIds.includes(pq.pdf_id) || selectedPdfIds.includes(pq.source_id) || activePdfTitles.includes(pq.source_title));
@@ -599,12 +621,13 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         if (matchingPool && matchingPool.question_text) {
           usedPoolQuestionIds.add(matchingPool.id);
           examQuestionTexts.push({ id: matchingPool.id, text: matchingPool.question_text });
-          qText = `${i}. Soru [📁 ${matchingPool.source_title || currentPdfName}]:\n${matchingPool.question_text}`;
+          // Öğrenciye gösterilecek soru metninde iç robot/etiketler yer almaz
+          qText = matchingPool.question_text.replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '').replace(/^\[[^\]]+\]:\s*/gi, '').trim();
           qOptions = matchingPool.options || { A: 'A', B: 'B', C: 'C', D: 'D' };
           qAns = matchingPool.correct_answer || defaultAns;
           qSol = `1. Adım: ${topicObj.name} (${diffLabel}) sorusunda verilenler çözümlenir.\n2. Adım: İlgili matematiksel bağıntı uygulanır.\n3. Adım: Doğru seçenek ${qAns} olarak bulunur.`;
         } else {
-          // SEÇİLEN PDF'TE BU KONU/ZORLUKTA KULLANILMAMIŞ ÖZGÜN SORU YOKSA: YAPAY ZEKÂ DEVREYE GİRER & TEKRARSIZ EKSİĞİ TAMAMLAR!
+          // SEÇİLEN PDF'TE BU KONU/ZORLUKTA KULLANILMAMIŞ ÖZGÜN SORU YOKSA: MEB FORMATINDA ÖZGÜN SORU TAMAMLANIR
           const currentCount = topicCountMap.get(topicId) || 0;
           topicCountMap.set(topicId, currentCount + 1);
 
@@ -631,7 +654,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           }
 
           examQuestionTexts.push({ id: gen.id, text: gen.questionText });
-          qText = `${i}. Soru [🤖 Yapay Zekâ İkiz Soru (${currentPdfName} Tamamlayıcı)]:\n${gen.questionText}`;
+          qText = gen.questionText;
           qOptions = gen.options;
           qAns = gen.correctAnswer;
           qSol = gen.solutionExplanation;
@@ -647,7 +670,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           topicId,
           topicName: topicObj.name,
           sourceType: matchingPool ? 'pdf' : 'ai',
-          sourceTitle: matchingPool ? (matchingPool.source_title || currentPdfName) : `🤖 AI İkiz Soru (${currentPdfName} Tamamlayıcı)`,
+          sourceTitle: matchingPool ? (matchingPool.source_title || currentPdfName) : `LGS Özgün Soru (${currentPdfName} Destekli)`,
           difficulty: diff,
           difficultyLabel: diffLabel,
           questionType: qType,
@@ -662,22 +685,28 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         });
       }
 
-      // B. Yapay Zekâ Benzer Sorularını Üret (Asla Birbirini Tekrar Etmeyen Çoklu Arşetip Motoru)
+      // B. Kalan Kontenjanı Tamamla (Asla Birbirini Tekrar Etmeyen Çoklu Arşetip Motoru)
       for (let j = 1; j <= aiCount; j++) {
         const qIndex = pdfCount + j;
         const topicId = topicsToUse[(j - 1) % topicsToUse.length];
         const topicObj = INITIAL_LGS_TOPICS.find(t => t.id === topicId) || INITIAL_LGS_TOPICS[0];
 
+        const pos = qIndex / totalQuestions;
         let diff = 3;
-        if (difficultyDistribution === 'challenging') {
-          diff = 4 + (j % 2);
-        } else if (difficultyDistribution === 'foundation') {
-          diff = 1 + (j % 2);
+        let diffLabel: 'Kolay' | 'Orta' | 'Zor' = 'Orta';
+        if (difficultyDistribution === 'foundation') {
+          if (pos <= 0.6) { diff = (qIndex % 2 === 0 ? 2 : 1); diffLabel = 'Kolay'; }
+          else if (pos <= 0.85) { diff = 3; diffLabel = 'Orta'; }
+          else { diff = 4; diffLabel = 'Zor'; }
+        } else if (difficultyDistribution === 'challenging') {
+          if (pos <= 0.15) { diff = 2; diffLabel = 'Kolay'; }
+          else if (pos <= 0.45) { diff = 3; diffLabel = 'Orta'; }
+          else { diff = (qIndex % 2 === 0 ? 5 : 4); diffLabel = 'Zor'; }
         } else {
-          diff = ((j * 2) % 3) + 2;
+          if (pos <= 0.25) { diff = (qIndex % 2 === 0 ? 2 : 1); diffLabel = 'Kolay'; }
+          else if (pos <= 0.75) { diff = 3; diffLabel = 'Orta'; }
+          else { diff = (qIndex % 2 === 0 ? 5 : 4); diffLabel = 'Zor'; }
         }
-
-        const diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
 
         const isAiVisual = visualRatio === 100 
           ? true 
@@ -724,11 +753,11 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           topicId,
           topicName: topicObj.name,
           sourceType: 'ai',
-          sourceTitle: `Yapay Zekâ LGS İkiz Soru (${diffLabel})`,
+          sourceTitle: `LGS Standart Özgün Soru (${diffLabel})`,
           difficulty: diff,
           difficultyLabel: diffLabel,
           questionType: generated.questionType,
-          questionText: `${qIndex}. Soru [Yapay Zekâ Özgün Soru]:\n${generated.questionText}`,
+          questionText: generated.questionText,
           options: generated.options,
           correctAnswer: generated.correctAnswer,
           solutionExplanation: generated.solutionExplanation,
@@ -785,8 +814,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       const updatedItem: HybridQuestionItem = {
         ...targetQ,
         sourceType: 'ai',
-        sourceTitle: `🤖 Yenilenen Özgün Soru (${targetQ.difficultyLabel})`,
-        questionText: `${questionNo}. Soru [Yenilenen Soru]:\n${newGen.questionText}`,
+        sourceTitle: `Yenilenen LGS Sorusu (${targetQ.difficultyLabel})`,
+        questionText: newGen.questionText,
         options: newGen.options,
         correctAnswer: newGen.correctAnswer,
         solutionExplanation: newGen.solutionExplanation,
@@ -882,13 +911,17 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           topicIds: selectedTopics,
           questions: compiledQuestions.map(q => ({
             id: q.id,
-            questionText: q.questionText,
+            // Öğrenciye atandığında hiçbir yapay zekâ veya robot ibaresi gitmez
+            questionText: (q.questionText || '')
+              .replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '')
+              .replace(/^\[[^\]]+\]:\s*/gi, '')
+              .trim(),
             options: q.options,
             correctAnswer: q.correctAnswer,
             solutionExplanation: q.solutionExplanation,
             difficulty: q.difficulty,
             topicName: q.topicName,
-            sourceType: q.sourceType
+            sourceType: 'meb_lgs'
           })),
           durationMin,
           isAdaptive: true
@@ -953,6 +986,75 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* SOL KOLON: Deneme Yapılandırma Paneli (5 Kolon) */}
         <div className="lg:col-span-5 space-y-5">
+          {/* 0. 3 Adımlı Onaylama Durum Özeti (Sihirbaz) */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-4 shadow-sm border border-indigo-900/40 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="font-bold text-xs sm:text-sm">Deneme Hazırlama & Onaylama Aşamaları</span>
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-900/70 text-indigo-200 border border-indigo-700/50">
+                {[isStudentConfirmed, isPdfConfirmed, isTopicsConfirmed].filter(Boolean).length} / 3 Onaylandı
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setIsStudentConfirmed(!isStudentConfirmed)}
+                className={`p-2 rounded-xl border text-left transition flex flex-col justify-between ${
+                  isStudentConfirmed 
+                    ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-300' 
+                    : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold">1. Öğrenci</span>
+                  <span>{isStudentConfirmed ? '✅' : '⏳'}</span>
+                </div>
+                <span className="text-[10px] truncate opacity-85 mt-0.5">
+                  {isStudentConfirmed ? primaryStudentName : 'Onay Bekliyor'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsPdfConfirmed(!isPdfConfirmed)}
+                className={`p-2 rounded-xl border text-left transition flex flex-col justify-between ${
+                  isPdfConfirmed 
+                    ? 'border-purple-500/50 bg-purple-950/30 text-purple-300' 
+                    : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold">2. PDF Arşivi</span>
+                  <span>{isPdfConfirmed ? '✅' : '⏳'}</span>
+                </div>
+                <span className="text-[10px] truncate opacity-85 mt-0.5">
+                  {isPdfConfirmed ? `${selectedPdfIds.length} PDF Seçili` : 'Onay Bekliyor'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsTopicsConfirmed(!isTopicsConfirmed)}
+                className={`p-2 rounded-xl border text-left transition flex flex-col justify-between ${
+                  isTopicsConfirmed 
+                    ? 'border-indigo-500/50 bg-indigo-950/30 text-indigo-300' 
+                    : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold">3. LGS Konuları</span>
+                  <span>{isTopicsConfirmed ? '✅' : '⏳'}</span>
+                </div>
+                <span className="text-[10px] truncate opacity-85 mt-0.5">
+                  {isTopicsConfirmed ? `${selectedTopics.length} Konu` : 'Onay Bekliyor'}
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* 1. Sınav Künyesi & Süre */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -994,97 +1096,135 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 <Users className="w-4 h-4 text-indigo-600" />
                 <span>Hedef Öğrenci Seçimi</span>
               </h3>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                {selectedStudentIds.length} Öğrenci Seçili
-              </span>
+              <div className="flex items-center gap-1.5">
+                {isStudentConfirmed ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[3]" /> Onaylandı
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    Onay Bekliyor
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Hızlı Seçim Butonları */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <button
-                type="button"
-                onClick={selectOnlyAli}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
-              >
-                <span>⭐ Ali Metin</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const talha = students.find(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
-                  if (talha) setSelectedStudentIds([talha.id]);
-                }}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition flex items-center gap-1"
-              >
-                <span>⭐ Muhammed Talha</span>
-              </button>
-              <button
-                type="button"
-                onClick={selectAllStudents}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 transition"
-              >
-                Tümünü Seç ({students.length})
-              </button>
-              {selectedStudentIds.length > 1 && (
+            {/* Onaylandı Durumu: Şık Özet Kartı */}
+            {isStudentConfirmed ? (
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    <Check className="w-4 h-4 stroke-[3]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-emerald-950 dark:text-emerald-200 truncate">
+                      {selectedStudentIds.length === 1 ? primaryStudentName : `${selectedStudentIds.length} Öğrenci Seçildi`}
+                    </div>
+                    <div className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                      Hedef öğrenci onaylandı · Deneme bu profile atanacak
+                    </div>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={selectOnlyAli}
-                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-slate-500 hover:text-slate-700 transition"
+                  onClick={() => setIsStudentConfirmed(false)}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition shrink-0"
                 >
-                  Sıfırla
+                  ✏️ Değiştir
                 </button>
-              )}
-            </div>
-
-            {/* Arama */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
-              <input
-                type="text"
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                placeholder="Öğrenci adı veya sınıf ara..."
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-
-            {/* Öğrenci Listesi */}
-            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-              {filteredStudents.map(st => {
-                const isSelected = selectedStudentIds.includes(st.id);
-                return (
-                  <div
-                    key={st.id}
-                    onClick={() => toggleStudent(st.id)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition text-xs select-none ${
-                      isSelected
-                        ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold shadow-xs'
-                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
+              </div>
+            ) : (
+              /* Onay Bekleyen Durum: Seçim Menüsü ve Onay Butonu */
+              <div className="space-y-3">
+                {/* Hızlı Seçim Butonları */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={selectOnlyAli}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${
-                        isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                      }`}>
-                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    <span>⭐ Ali Metin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const talha = students.find(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
+                      if (talha) setSelectedStudentIds([talha.id]);
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition flex items-center gap-1"
+                  >
+                    <span>⭐ Muhammed Talha</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={selectAllStudents}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 transition"
+                  >
+                    Tümünü Seç ({students.length})
+                  </button>
+                </div>
+
+                {/* Arama */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    placeholder="Öğrenci adı veya sınıf ara..."
+                    className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+
+                {/* Öğrenci Listesi */}
+                <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+                  {filteredStudents.map(st => {
+                    const isSelected = selectedStudentIds.includes(st.id);
+                    return (
+                      <div
+                        key={st.id}
+                        onClick={() => toggleStudent(st.id)}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition text-xs select-none ${
+                          isSelected
+                            ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold shadow-xs'
+                            : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${
+                            isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">
+                            {st.full_name.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-slate-900 dark:text-white font-medium text-[11px]">{st.full_name}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{st.class_name} {st.school_name ? `· ${st.school_name}` : ''}</p>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                            Seçili
+                          </span>
+                        )}
                       </div>
-                      <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs shrink-0">
-                        {st.full_name.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-slate-900 dark:text-white font-medium">{st.full_name}</p>
-                        <p className="text-[10px] text-slate-500 truncate">{st.class_name} {st.school_name ? `· ${st.school_name}` : ''}</p>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
-                        Seçili
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+
+                {/* Hedef Öğrenciyi Onayla Butonu */}
+                <button
+                  type="button"
+                  onClick={() => setIsStudentConfirmed(true)}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>✓ Hedef Öğrenci Seçimini Onayla ({selectedStudentIds.length} Öğrenci)</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 3. 📁 Kaynak PDF Seçimi (Seçmece Deneme) */}
@@ -1095,93 +1235,140 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 <FileText className="w-4 h-4 text-indigo-600" />
                 <span>Kaynak PDF Seçimi (Seçmece Deneme)</span>
               </h3>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                {selectedPdfIds.length} PDF Seçili
-              </span>
+              <div className="flex items-center gap-1.5">
+                {isPdfConfirmed ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[3]" /> Onaylandı
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    Onay Bekliyor
+                  </span>
+                )}
+              </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Soruların çekileceği LGS deneme ve soru bankası PDF&apos;lerini işaretleyin. Seçtiğiniz PDF&apos;lerden kolay/orta/zor ayrımı yapılarak sorular ayıklanır; eksik kalan kazanımlar yapay zekâ ikiz sorularıyla tamamlanır.
-            </p>
-
-            {/* Hızlı Seçim Butonları */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <button
-                type="button"
-                onClick={selectAllPdfs}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition"
-              >
-                Tümünü Seç ({availablePdfs.length})
-              </button>
-              <button
-                type="button"
-                onClick={selectOnlyMebPdfs}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
-              >
-                <span>🏛️ Sadece MEB Çıkmış Sınavlar</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedPdfIds([])}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-slate-500 hover:text-slate-700 transition"
-              >
-                Temizle
-              </button>
-            </div>
-
-            {/* Arama */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="PDF adı veya yayıncı ara..."
-                value={pdfSearch}
-                onChange={(e) => setPdfSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-
-            {/* PDF Seçim Listesi */}
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {filteredPdfs.map((pdf) => {
-                const isSelected = selectedPdfIds.includes(pdf.id);
-                return (
-                  <div
-                    key={pdf.id}
-                    onClick={() => togglePdf(pdf.id)}
-                    className={`p-2.5 rounded-2xl border text-xs cursor-pointer transition flex items-center justify-between gap-2 select-none ${
-                      isSelected
-                        ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold shadow-xs'
-                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition ${
-                        isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                      }`}>
-                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-slate-900 dark:text-white font-medium text-[11px]">
-                          {pdf.title}
-                        </p>
-                        <p className="text-[10px] text-slate-500 truncate">
-                          {pdf.publisher || 'LGS Yayını'} · {pdf.question_count || 20} Soru · {pdf.page_count || 8} Sayfa
-                        </p>
-                      </div>
-                    </div>
-
-                    <span className={`px-2 py-0.5 rounded-md font-bold text-[9px] shrink-0 ${
-                      pdf.badge === 'MEB Çıkmış'
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                        : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                    }`}>
-                      {pdf.badge || 'PDF'}
-                    </span>
+            {/* Onaylandı Durumu: Şık Özet Kartı */}
+            {isPdfConfirmed ? (
+              <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 rounded-2xl border border-purple-200 dark:border-purple-800/80 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    <Check className="w-4 h-4 stroke-[3]" />
                   </div>
-                );
-              })}
-            </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-purple-950 dark:text-purple-200 truncate">
+                      {selectedPdfIds.length} PDF Kaynağı Onaylandı
+                    </div>
+                    <div className="text-[10px] text-purple-700 dark:text-purple-400">
+                      Sorular bu arşivden seçilip kolay/orta/zor ayrılacak
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPdfConfirmed(false)}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-200 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition shrink-0"
+                >
+                  ✏️ Değiştir
+                </button>
+              </div>
+            ) : (
+              /* Onay Bekleyen Durum: PDF Seçici ve Onay Butonu */
+              <div className="space-y-3">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Soruların çekileceği LGS deneme ve soru bankası PDF&apos;lerini işaretleyin. Seçtiğiniz PDF&apos;lerden kolay/orta/zor ayrımı yapılarak sorular ayıklanır.
+                </p>
+
+                {/* Hızlı Seçim Butonları */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={selectAllPdfs}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition"
+                  >
+                    Tümünü Seç ({availablePdfs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={selectOnlyMebPdfs}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
+                  >
+                    <span>🏛️ Sadece MEB Çıkmış Sınavlar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPdfIds([])}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-slate-500 hover:text-slate-700 transition"
+                  >
+                    Temizle
+                  </button>
+                </div>
+
+                {/* Arama */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="PDF adı veya yayıncı ara..."
+                    value={pdfSearch}
+                    onChange={(e) => setPdfSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+
+                {/* PDF Seçim Listesi */}
+                <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                  {filteredPdfs.map((pdf) => {
+                    const isSelected = selectedPdfIds.includes(pdf.id);
+                    return (
+                      <div
+                        key={pdf.id}
+                        onClick={() => togglePdf(pdf.id)}
+                        className={`p-2.5 rounded-2xl border text-xs cursor-pointer transition flex items-center justify-between gap-2 select-none ${
+                          isSelected
+                            ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold shadow-xs'
+                            : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition ${
+                            isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-slate-900 dark:text-white font-medium text-[11px]">
+                              {pdf.title}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {pdf.publisher || 'LGS Yayını'} · {pdf.question_count || 20} Soru
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded-md font-bold text-[9px] shrink-0 ${
+                          pdf.badge === 'MEB Çıkmış'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                        }`}>
+                          {pdf.badge || 'PDF'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Kaynak PDF Seçimini Onayla Butonu */}
+                <button
+                  type="button"
+                  onClick={() => setIsPdfConfirmed(true)}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>✓ Kaynak PDF Seçimini Onayla ({selectedPdfIds.length} PDF)</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 4. Konu Seçimi */}
@@ -1191,85 +1378,135 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 text-xs flex items-center justify-center font-bold">4</span>
                 <span>LGS Konularını Seç ({selectedTopics.length})</span>
               </h3>
+              <div className="flex items-center gap-1.5">
+                {isTopicsConfirmed ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[3]" /> Onaylandı
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    Onay Bekliyor
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Eksik Kapatma Modu Butonu (1. Öneri) */}
-            <div className="pt-0.5 pb-1">
-              <button
-                type="button"
-                onClick={activateWeakSpotRemedyMode}
-                disabled={isCompilingWeakMode}
-                className="w-full px-3.5 py-2.5 text-xs font-bold rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Zap className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
-                <span>
-                  {isCompilingWeakMode 
-                    ? 'Eksik Kapatma Denemesi Derleniyor...' 
-                    : `🎯 ${primaryStudentName} Eksik Kapatma Denemesi Derle (Hata Geçmişinden)`}
-                </span>
-              </button>
-            </div>
-
-            {/* Hızlı Filtre Butonları */}
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              <button
-                type="button"
-                onClick={selectAliMetinWeakTopics}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 transition"
-              >
-                🎯 Ali Metin Öncelikli (Çarpanlar & Üslü)
-              </button>
-              <button
-                type="button"
-                onClick={selectTerm1Topics}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition"
-              >
-                1. Dönem Konuları
-              </button>
-              <button
-                type="button"
-                onClick={selectAllTopics}
-                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 transition"
-              >
-                Tümü
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedTopics([])}
-                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition"
-              >
-                Temizle
-              </button>
-            </div>
-
-            {/* Konu Listesi */}
-            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 pt-1">
-              {INITIAL_LGS_TOPICS.map(topic => {
-                const isSelected = selectedTopics.includes(topic.id);
-                return (
-                  <label
-                    key={topic.id}
-                    onClick={() => toggleTopic(topic.id)}
-                    className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer border transition ${
-                      isSelected
-                        ? 'border-indigo-400 bg-indigo-50/70 text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200 font-bold'
-                        : 'border-slate-100 hover:border-slate-300 bg-slate-50/50 text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="rounded text-indigo-600 w-3.5 h-3.5"
-                      />
-                      <span>{topic.name}</span>
+            {/* Onaylandı Durumu: Şık Özet Kartı */}
+            {isTopicsConfirmed ? (
+              <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-800/80 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    <Check className="w-4 h-4 stroke-[3]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 truncate">
+                      {selectedTopics.length} LGS Konusu Onaylandı
                     </div>
-                    <span className="text-[10px] opacity-60 font-mono">{topic.code}</span>
-                  </label>
-                );
-              })}
-            </div>
+                    <div className="text-[10px] text-indigo-700 dark:text-indigo-400 truncate">
+                      {selectedTopics.map(id => INITIAL_LGS_TOPICS.find(t => t.id === id)?.name).filter(Boolean).slice(0, 3).join(', ')}{selectedTopics.length > 3 ? '...' : ''}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTopicsConfirmed(false)}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition shrink-0"
+                >
+                  ✏️ Değiştir
+                </button>
+              </div>
+            ) : (
+              /* Onay Bekleyen Durum: Konu Listesi ve Onay Butonu */
+              <div className="space-y-3">
+                {/* Eksik Kapatma Modu Butonu (1. Öneri) */}
+                <div className="pt-0.5 pb-1">
+                  <button
+                    type="button"
+                    onClick={activateWeakSpotRemedyMode}
+                    disabled={isCompilingWeakMode}
+                    className="w-full px-3.5 py-2.5 text-xs font-bold rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Zap className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
+                    <span>
+                      {isCompilingWeakMode 
+                        ? 'Eksik Kapatma Denemesi Derleniyor...' 
+                        : `🎯 ${primaryStudentName} Eksik Kapatma Denemesi Derle (Hata Geçmişinden)`}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Hızlı Filtre Butonları */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={selectAliMetinWeakTopics}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 transition"
+                  >
+                    🎯 Ali Metin Öncelikli (Çarpanlar & Üslü)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={selectTerm1Topics}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition"
+                  >
+                    1. Dönem Konuları
+                  </button>
+                  <button
+                    type="button"
+                    onClick={selectAllTopics}
+                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 transition"
+                  >
+                    Tümü
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTopics([])}
+                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition"
+                  >
+                    Temizle
+                  </button>
+                </div>
+
+                {/* Konu Listesi */}
+                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 pt-1">
+                  {INITIAL_LGS_TOPICS.map(topic => {
+                    const isSelected = selectedTopics.includes(topic.id);
+                    return (
+                      <label
+                        key={topic.id}
+                        onClick={() => toggleTopic(topic.id)}
+                        className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer border transition ${
+                          isSelected
+                            ? 'border-indigo-400 bg-indigo-50/70 text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200 font-bold'
+                            : 'border-slate-100 hover:border-slate-300 bg-slate-50/50 text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="rounded text-indigo-600 w-3.5 h-3.5"
+                          />
+                          <span>{topic.name}</span>
+                        </div>
+                        <span className="text-[10px] opacity-60 font-mono">{topic.code}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* LGS Konularını Onayla Butonu */}
+                <button
+                  type="button"
+                  onClick={() => setIsTopicsConfirmed(true)}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>✓ LGS Konularını Onayla ({selectedTopics.length} Konu)</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 4. Soru Sayısı, PDF / AI Oranı & Zorluk Seviyesi */}
@@ -1569,132 +1806,258 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
               </div>
 
               {/* 1. Soru Kitapçığı Görünümü */}
-              {activeViewTab === 'preview' && (
-                <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
-                  {compiledQuestions.map((q) => (
-                    <div
-                      key={q.id}
-                      className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3"
-                    >
-                      {/* Soru Başlık & Rozetler */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold flex items-center justify-center text-xs">
-                            {q.questionNo}
-                          </span>
-                          <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {q.topicName}
-                          </span>
-                        </div>
+              {activeViewTab === 'preview' && (() => {
+                const kolayCount = compiledQuestions.filter(q => q.difficultyLabel === 'Kolay').length;
+                const ortaCount = compiledQuestions.filter(q => q.difficultyLabel === 'Orta').length;
+                const zorCount = compiledQuestions.filter(q => q.difficultyLabel === 'Zor').length;
 
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                            q.sourceType === 'pdf' 
-                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' 
-                              : 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-                          }`}>
-                            {q.sourceType === 'pdf' ? '📁 PDF Arşivi' : '🤖 Yapay Zekâ İkiz'}
-                          </span>
+                const displayedQuestions = compiledQuestions.filter(q => {
+                  if (difficultyFilter === 'all') return true;
+                  return q.difficultyLabel === difficultyFilter;
+                });
 
-                          <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                            q.difficultyLabel === 'Kolay'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                              : q.difficultyLabel === 'Orta'
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                              : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                          }`}>
-                            {q.difficultyLabel} ({q.difficulty}/5)
-                          </span>
-                        </div>
+                return (
+                  <div className="space-y-3 max-h-[750px] overflow-y-auto pr-1">
+                    {/* A. Öğrenci Güvenliği & Gizlilik Güvencesi */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 p-3.5 bg-emerald-50/80 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-semibold">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>🛡️ Öğrenci Güvenliği Aktif: Bu deneme öğrencilere atandığında hiçbir &quot;Yapay Zekâ / AI&quot; ibaresi görünmez; MEB/LGS tarzı özgün soru olarak sunulur.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsStudentViewMode(!isStudentViewMode)}
+                        className={`px-3 py-1.5 rounded-xl font-bold text-[11px] border transition flex items-center justify-center gap-1.5 shrink-0 ${
+                          isStudentViewMode 
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
+                            : 'bg-white text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{isStudentViewMode ? '✓ Öğrenci Görünümü Aktif' : '👁️ Öğrenci Gözüyle İncele'}</span>
+                      </button>
+                    </div>
+
+                    {/* B. Zorluk Seviyesi Ayrımı & Filtreleme Çubuğu */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <span className="text-slate-500 mr-1">Zorluk Ayrımı:</span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          🟢 {kolayCount} Kolay
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          🟡 {ortaCount} Orta
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                          🔴 {zorCount} Zor
+                        </span>
                       </div>
 
-                      {/* Soru Görseli / Vektörel Şekil veya Yüklenen Resim */}
-                      {q.imageUrl && (
-                        <div className="my-2.5 flex justify-center bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                          <img src={q.imageUrl} alt="Soru Şekli" className="max-h-60 rounded-xl object-contain shadow-xs" />
-                        </div>
-                      )}
-                      {q.svgContent && !q.imageUrl && (
-                        <div 
-                          className="my-2.5 flex justify-center overflow-x-auto"
-                          dangerouslySetInnerHTML={{ __html: q.svgContent }}
-                        />
-                      )}
-
-                      {/* Soru Metni */}
-                      <p className="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
-                        {q.questionText}
-                      </p>
-
-                      {/* Şıklar */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                        {Object.entries(q.options).map(([opt, val]) => (
-                          <div
-                            key={opt}
-                            className={`p-2.5 rounded-xl border text-xs font-semibold ${
-                              opt === q.correctAnswer
-                                ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold'
-                                : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300'
-                            }`}
-                          >
-                            <span className="font-bold mr-1.5">{opt})</span> {val}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Soruya Resim Yükleme / Şekil Değiştirme / Tekil Soru Yenileme Butonları */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
-                        <div className="flex items-center gap-3">
-                          <label className="cursor-pointer inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition">
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            <span>📷 {q.imageUrl || q.svgContent ? 'Görseli Değiştir / Fotoğraf Seç' : 'Şekil / Fotoğraf Ekle'}</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleAttachImage(q.id, e)}
-                            />
-                          </label>
-                          {q.imageUrl && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(q.id)}
-                              className="text-rose-500 hover:text-rose-700 text-[11px] font-semibold"
-                            >
-                              Görseli Kaldır
-                            </button>
-                          )}
-                        </div>
-
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleShuffleSingleQuestion(q.questionNo)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center gap-1.5 transition text-[11px] border border-slate-200 dark:border-slate-700 hover:text-indigo-600"
-                          title="Bu soruyu aynı kazanımdan farklı bir özgün soru ile değiştir"
+                          onClick={() => setDifficultyFilter('all')}
+                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            difficultyFilter === 'all' 
+                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' 
+                              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                          }`}
                         >
-                          <RefreshCw className="w-3 h-3 text-indigo-500" />
-                          <span>🔀 Farklı Soru Getir</span>
+                          Tümü ({compiledQuestions.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDifficultyFilter('Kolay')}
+                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            difficultyFilter === 'Kolay' 
+                              ? 'bg-emerald-600 text-white' 
+                              : 'text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+                          }`}
+                        >
+                          🟢 Kolay ({kolayCount})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDifficultyFilter('Orta')}
+                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            difficultyFilter === 'Orta' 
+                              ? 'bg-amber-600 text-white' 
+                              : 'text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40'
+                          }`}
+                        >
+                          🟡 Orta ({ortaCount})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDifficultyFilter('Zor')}
+                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            difficultyFilter === 'Zor' 
+                              ? 'bg-rose-600 text-white' 
+                              : 'text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40'
+                          }`}
+                        >
+                          🔴 Zor ({zorCount})
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    {/* Soru Listesi */}
+                    {displayedQuestions.length === 0 ? (
+                      <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-500 text-xs">
+                        Bu zorluk seviyesinde soru bulunmamaktadır.
+                      </div>
+                    ) : (
+                      displayedQuestions.map((q) => (
+                        <div
+                          key={q.id}
+                          className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3"
+                        >
+                          {/* Soru Başlık & Rozetler */}
+                          <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold flex items-center justify-center text-xs">
+                                {q.questionNo}
+                              </span>
+                              <span className="font-bold text-slate-700 dark:text-slate-300">
+                                {q.topicName}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              {/* Kaynak Rozeti: Öğrenci görünümünde asla Yapay Zeka denilmez */}
+                              {isStudentViewMode ? (
+                                <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                  ⭐ MEB LGS Tarzı Soru
+                                </span>
+                              ) : (
+                                <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                                  q.sourceType === 'pdf' 
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' 
+                                    : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                                }`}>
+                                  {q.sourceType === 'pdf' ? '📁 PDF Arşivi' : '⭐ MEB Formatında Özgün Soru'}
+                                </span>
+                              )}
+
+                              {/* Zorluk Ayrımı Rozeti */}
+                              <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                                q.difficultyLabel === 'Kolay'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                  : q.difficultyLabel === 'Orta'
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                              }`}>
+                                {q.difficultyLabel === 'Kolay' ? '🟢 Kolay Soru' : q.difficultyLabel === 'Orta' ? '🟡 Orta Seviye' : '🔴 Zor Yeni Nesil'} ({q.difficulty}/5)
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Soru Görseli / Vektörel Şekil veya Yüklenen Resim */}
+                          {q.imageUrl && (
+                            <div className="my-2.5 flex justify-center bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                              <img src={q.imageUrl} alt="Soru Şekli" className="max-h-60 rounded-xl object-contain shadow-xs" />
+                            </div>
+                          )}
+                          {q.svgContent && !q.imageUrl && (
+                            <div 
+                              className="my-2.5 flex justify-center overflow-x-auto"
+                              dangerouslySetInnerHTML={{ __html: q.svgContent }}
+                            />
+                          )}
+
+                          {/* Temiz Soru Metni: Asla iç etiket barındırmaz */}
+                          <p className="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+                            {q.questionText.replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '').replace(/^\[[^\]]+\]:\s*/gi, '').trim()}
+                          </p>
+
+                          {/* Şıklar */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                            {Object.entries(q.options).map(([opt, val]) => (
+                              <div
+                                key={opt}
+                                className={`p-2.5 rounded-xl border text-xs font-semibold ${
+                                  !isStudentViewMode && opt === q.correctAnswer
+                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold'
+                                    : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300'
+                                }`}
+                              >
+                                <span className="font-bold mr-1.5">{opt})</span> {val}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Öğretmen Kontrolleri (Öğrenci önizlemesinde gizlenir) */}
+                          {!isStudentViewMode && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
+                              <div className="flex items-center gap-3">
+                                <label className="cursor-pointer inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition">
+                                  <ImageIcon className="w-3.5 h-3.5" />
+                                  <span>📷 {q.imageUrl || q.svgContent ? 'Görseli Değiştir / Fotoğraf Seç' : 'Şekil / Fotoğraf Ekle'}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleAttachImage(q.id, e)}
+                                  />
+                                </label>
+                                {q.imageUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(q.id)}
+                                    className="text-rose-500 hover:text-rose-700 text-[11px] font-semibold"
+                                  >
+                                    Görseli Kaldır
+                                  </button>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleShuffleSingleQuestion(q.questionNo)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center gap-1.5 transition text-[11px] border border-slate-200 dark:border-slate-700 hover:text-indigo-600"
+                                title="Bu soruyu aynı kazanımdan farklı bir özgün soru ile değiştir"
+                              >
+                                <RefreshCw className="w-3 h-3 text-indigo-500" />
+                                <span>🔀 Farklı Soru Getir</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 2. Cevap Anahtarı Görünümü */}
               {activeViewTab === 'answers' && (
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                    Optik Cevap Matrisi
-                  </h4>
-                  <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      Optik Cevap Matrisi & Zorluk Dağılımı
+                    </h4>
+                    <span className="text-xs text-slate-500">
+                      Toplam {compiledQuestions.length} Soru
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                     {compiledQuestions.map((q) => (
                       <div
                         key={q.id}
-                        className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-center bg-slate-50 dark:bg-slate-800"
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/70 flex items-center justify-between"
                       >
-                        <span className="text-[10px] text-slate-400 block">{q.questionNo}</span>
-                        <strong className="text-base font-black text-indigo-600 dark:text-indigo-400">{q.correctAnswer}</strong>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-400">{q.questionNo}.</span>
+                          <strong className="text-lg font-black text-indigo-600 dark:text-indigo-400">{q.correctAnswer}</strong>
+                        </div>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          q.difficultyLabel === 'Kolay' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                          q.difficultyLabel === 'Orta' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+                          'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                        }`}>
+                          {q.difficultyLabel}
+                        </span>
                       </div>
                     ))}
                   </div>

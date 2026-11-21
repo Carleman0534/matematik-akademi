@@ -91,12 +91,19 @@ export async function POST(req: NextRequest) {
 
       questions.forEach((q: any, idx: number) => {
         const sqId = 'spq_' + Math.random().toString(36).substring(2, 10);
+        const rawText = q.question_text || q.questionText || '';
+        // Öğrenciye sunulan sorularda yapay zekâ veya iç etiketler kesinlikle temizlenir
+        const cleanText = rawText
+          .replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '')
+          .replace(/^\[[^\]]+\]:\s*/gi, '')
+          .trim();
+
         qStmt.run([
           sqId,
           planId,
-          q.source_type || 'ai_generated',
+          q.source_type || 'lgs_curriculum',
           q.id,
-          q.question_text || q.questionText,
+          cleanText || rawText,
           JSON.stringify(q.options),
           q.correct_answer || q.correctAnswer || 'A',
           q.solution_explanation || q.solutionExplanation || 'Çözüm hazır.',

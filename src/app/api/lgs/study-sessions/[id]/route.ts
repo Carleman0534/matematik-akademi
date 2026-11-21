@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const stmt = db.prepare(`
         INSERT INTO study_plan_questions
         (id, plan_id, question_source, source_question_id, question_text, options_json, correct_answer, solution_explanation, svg_content, topic_id, difficulty, question_type, sort_order)
-        VALUES (?, ?, 'ai_generated', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, 'lgs_curriculum', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       for (let i = 0; i < count; i++) {
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         questions.push({
           id: qId,
           plan_id: planId,
-          question_source: 'ai_generated',
+          question_source: 'lgs_curriculum',
           source_question_id: gen.id,
           question_text: gen.questionText,
           options_json: JSON.stringify(gen.options),
