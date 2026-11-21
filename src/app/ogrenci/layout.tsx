@@ -1,5 +1,6 @@
 import { AppShell, type NavItem } from '@/components/AppShell';
-import { requireStudent } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 const NAV: NavItem[] = [
   { href: '/ogrenci', label: 'Ana Sayfa', icon: '🏠', mobile: true },
@@ -20,6 +21,24 @@ const NAV: NavItem[] = [
 ];
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  const s = await requireStudent();
-  return <AppShell nav={NAV} userName={s.fullName || 'Öğrenci'} roleLabel="Öğrenci">{children}</AppShell>;
+  const s = await getSession();
+  if (!s) {
+    redirect('/giris');
+  }
+
+  // Öğretmen "Öğrenci Gözüyle Aç" yaptığında engellenmeden önizleyebilsin
+  const isTeacherOrParentPreviewing = s.role === 'teacher' || s.role === 'parent';
+  const displayName = isTeacherOrParentPreviewing 
+    ? `${s.fullName} (Öğretmen Önizleme Modu)`
+    : (s.fullName || 'Öğrenci');
+
+  return (
+    <AppShell 
+      nav={NAV} 
+      userName={displayName} 
+      roleLabel={isTeacherOrParentPreviewing ? 'Öğretmen Önizleme' : 'Öğrenci'}
+    >
+      {children}
+    </AppShell>
+  );
 }

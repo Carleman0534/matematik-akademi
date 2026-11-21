@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { 
   Clock, 
   ChevronLeft, 
@@ -31,9 +32,20 @@ interface QuestionItem {
 export default function StudentDenemeRoomPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params?: Promise<{ id: string }>;
 }) {
-  const { id: examId } = use(params);
+  const routeParams = useParams();
+  let resolvedId = '';
+  try {
+    if (params) {
+      const resolved = use(params);
+      resolvedId = resolved?.id || '';
+    }
+  } catch {}
+  if (!resolvedId && routeParams?.id) {
+    resolvedId = routeParams.id as string;
+  }
+  const examId = resolvedId || 'exam_lgs_sample_2';
 
   const [examTitle, setExamTitle] = useState('2026 LGS Matematik Deneme Sınavı');
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
