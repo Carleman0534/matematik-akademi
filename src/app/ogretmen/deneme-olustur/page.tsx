@@ -23,6 +23,9 @@ interface HybridQuestionItem {
   topicName: string;
   sourceType: 'pdf' | 'ai';
   sourceTitle: string;
+  pdfId?: string;
+  pageNo?: number;
+  questionNoInPdf?: number;
   difficulty: number; // 1-5
   difficultyLabel: 'Kolay' | 'Orta' | 'Zor';
   questionType: string;
@@ -163,8 +166,9 @@ export default function DenemeOlusturPage() {
   const [isTopicsConfirmed, setIsTopicsConfirmed] = useState<boolean>(true);
   const [stepToast, setStepToast] = useState<string>('');
 
-  // 7. Zorluk Ayrımı ve Filtresi (Kolay, Orta, Zor)
+  // 7. Zorluk Ayrımı ve Kaynak Filtresi (Kolay, Orta, Zor / PDF, AI)
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'Kolay' | 'Orta' | 'Zor'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'pdf' | 'ai'>('all');
 
   // 8. Öğrenci Görünüm Güvencesi (Yapay Zekâ Etiketlerini Gizleme Önizlemesi)
   const [isStudentViewMode, setIsStudentViewMode] = useState<boolean>(false);
@@ -542,11 +546,10 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       const pdfCount = Math.round((totalQuestions * pdfRatio) / 100);
       const aiCount = totalQuestions - pdfCount;
 
-      // 2. Sistemdeki PDF ve Havuz sorularını sorgula (seçilen PDF ID'leri ile)
+      // 2. Sistemdeki PDF ve Havuz sorularını sorgula (Doğrudan PDF soru havuzu)
       let poolQuestions: any[] = [];
       try {
-        const pdfIdsQuery = selectedPdfIds.length > 0 ? `&pdfIds=${encodeURIComponent(selectedPdfIds.join(','))}` : '';
-        const res = await fetch(`/api/lgs/question-pool?source=pdf${pdfIdsQuery}`);
+        const res = await fetch('/api/lgs/question-pool?source=pdf');
         const data = await res.json();
         if (data.success && data.pool) {
           poolQuestions = data.pool;
@@ -565,7 +568,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       const examQuestionTexts: { id: string; text: string }[] = [];
       const topicCountMap = new Map<string, number>();
 
-      // A. PDF Sorularını Dağıt (Mükerrerlik Önleme Sistemi & Kolay/Orta/Zor Ayrımı)
+      // A. PDF Sorularını Dağıt (Doğrudan PDF Çekme Motoru & Kolay/Orta/Zor Ayrımı)
       for (let i = 1; i <= pdfCount; i++) {
         const topicId = topicsToUse[(i - 1) % topicsToUse.length];
         const topicObj = INITIAL_LGS_TOPICS.find(t => t.id === topicId) || INITIAL_LGS_TOPICS[0];
@@ -591,8 +594,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         const targetPdf = selectedPdfList[(i - 1) % (selectedPdfList.length || 1)] || selectedPdfList[0];
         const currentPdfName = targetPdf?.title || defaultPdfTitle;
 
-        // Havuzda veya PDF çıktılarında bu konuya ve seçilen PDF'lere ait soru var mı kontrol et
-        const matchingPool = poolQuestions.find((pq: any) => {
+        // 1. Aşama: Seçilen PDF(ler) içinde, bu konuya ait soru ara
+        let matchingPool = poolQuestions.find((pq: any) => {
           if (usedPoolQuestionIds.has(pq.id)) return false;
           const matchSource = (selectedPdfIds.length === 0 || selectedPdfIds.includes(pq.pdf_id) || selectedPdfIds.includes(pq.source_id) || activePdfTitles.includes(pq.source_title));
           const matchTopic = (pq.primary_topic_id === topicId || pq.topic_name === topicObj.name);
@@ -600,6 +603,17 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           const dup = checkDuplicateQuestion(pq.question_text || '', examQuestionTexts, 0.40);
           return !dup.isDuplicate;
         });
+
+        // 2. Aşama: Eğer seçili PDF'te bu konudan soru kalmadıysa, sistemdeki diğer LGS PDF'lerinden aynı konudan doğrudan çek
+        if (!matchingPool) {
+          matchingPool = poolQuestions.find((pq: any) => {
+            if (usedPoolQuestionIds.has(pq.id)) return false;
+            const matchTopic = (pq.primary_topic_id === topicId || pq.topic_name === topicObj.name);
+            if (!matchTopic) return false;
+            const dup = checkDuplicateQuestion(pq.question_text || '', examQuestionTexts, 0.40);
+            return !dup.isDuplicate;
+          });
+        }
 
         const defaultAns = ['A', 'B', 'C', 'D'][(i - 1) % 4];
         let qText = '';
@@ -625,7 +639,10 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           qText = matchingPool.question_text.replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '').replace(/^\[[^\]]+\]:\s*/gi, '').trim();
           qOptions = matchingPool.options || { A: 'A', B: 'B', C: 'C', D: 'D' };
           qAns = matchingPool.correct_answer || defaultAns;
+          diff = matchingPool.difficulty || diff;
+          diffLabel = diff <= 2 ? 'Kolay' : diff === 3 ? 'Orta' : 'Zor';
           qSol = `1. Adım: ${topicObj.name} (${diffLabel}) sorusunda verilenler çözümlenir.\n2. Adım: İlgili matematiksel bağıntı uygulanır.\n3. Adım: Doğru seçenek ${qAns} olarak bulunur.`;
+          qType = matchingPool.question_type || qType;
         } else {
           // SEÇİLEN PDF'TE BU KONU/ZORLUKTA KULLANILMAMIŞ ÖZGÜN SORU YOKSA: MEB FORMATINDA ÖZGÜN SORU TAMAMLANIR
           const currentCount = topicCountMap.get(topicId) || 0;
@@ -663,14 +680,20 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         }
 
         const trapsInfo = getTopicTrapsAndWarnings(topicId, qAns);
+        const pdfSourceTitle = matchingPool 
+          ? `${matchingPool.source_title || currentPdfName}${matchingPool.page_no ? ` (Sayfa ${matchingPool.page_no}, Soru ${matchingPool.question_no || i})` : ''}`
+          : `LGS Özgün Soru (${currentPdfName} Destekli)`;
 
         results.push({
-          id: `hybrid_pdf_${i}`,
+          id: matchingPool ? matchingPool.id : `hybrid_pdf_${i}`,
           questionNo: i,
           topicId,
           topicName: topicObj.name,
           sourceType: matchingPool ? 'pdf' : 'ai',
-          sourceTitle: matchingPool ? (matchingPool.source_title || currentPdfName) : `LGS Özgün Soru (${currentPdfName} Destekli)`,
+          sourceTitle: pdfSourceTitle,
+          pdfId: matchingPool?.pdf_id || targetPdf?.id,
+          pageNo: matchingPool?.page_no,
+          questionNoInPdf: matchingPool?.question_no,
           difficulty: diff,
           difficultyLabel: diffLabel,
           questionType: qType,
@@ -1810,10 +1833,13 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 const kolayCount = compiledQuestions.filter(q => q.difficultyLabel === 'Kolay').length;
                 const ortaCount = compiledQuestions.filter(q => q.difficultyLabel === 'Orta').length;
                 const zorCount = compiledQuestions.filter(q => q.difficultyLabel === 'Zor').length;
+                const pdfCountInExam = compiledQuestions.filter(q => q.sourceType === 'pdf').length;
+                const aiCountInExam = compiledQuestions.filter(q => q.sourceType === 'ai').length;
 
                 const displayedQuestions = compiledQuestions.filter(q => {
-                  if (difficultyFilter === 'all') return true;
-                  return q.difficultyLabel === difficultyFilter;
+                  const matchDiff = difficultyFilter === 'all' || q.difficultyLabel === difficultyFilter;
+                  const matchSource = sourceFilter === 'all' || q.sourceType === sourceFilter;
+                  return matchDiff && matchSource;
                 });
 
                 return (
@@ -1838,7 +1864,60 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                       </button>
                     </div>
 
-                    {/* B. Zorluk Seviyesi Ayrımı & Filtreleme Çubuğu */}
+                    {/* B. Kaynak Ayrımı & Filtreleme Çubuğu (Doğrudan PDF vs MEB Özgün) */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold flex-wrap">
+                        <span className="text-slate-500 mr-1">Kaynak Ayrımı:</span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1">
+                          📁 {pdfCountInExam} Doğrudan PDF&apos;ten Çekildi
+                        </span>
+                        {aiCountInExam > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                            ⭐ {aiCountInExam} MEB Müfredat Sorusu
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setSourceFilter('all')}
+                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            sourceFilter === 'all' 
+                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' 
+                              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          Tüm Kaynaklar ({compiledQuestions.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSourceFilter('pdf')}
+                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            sourceFilter === 'pdf' 
+                              ? 'bg-emerald-600 text-white' 
+                              : 'text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+                          }`}
+                        >
+                          📁 Sadece PDF ({pdfCountInExam})
+                        </button>
+                        {aiCountInExam > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSourceFilter('ai')}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                              sourceFilter === 'ai' 
+                                ? 'bg-indigo-600 text-white' 
+                                : 'text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40'
+                            }`}
+                          >
+                            ⭐ Sadece Müfredat ({aiCountInExam})
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* C. Zorluk Seviyesi Ayrımı & Filtreleme Çubuğu */}
                     <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
                       <div className="flex items-center gap-1.5 font-bold">
                         <span className="text-slate-500 mr-1">Zorluk Ayrımı:</span>
@@ -1904,7 +1983,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                     {/* Soru Listesi */}
                     {displayedQuestions.length === 0 ? (
                       <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-500 text-xs">
-                        Bu zorluk seviyesinde soru bulunmamaktadır.
+                        Bu filtre kriterlerine uygun soru bulunmamaktadır.
                       </div>
                     ) : (
                       displayedQuestions.map((q) => (
@@ -1923,20 +2002,23 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {/* Kaynak Rozeti: Öğrenci görünümünde asla Yapay Zeka denilmez */}
                               {isStudentViewMode ? (
                                 <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                                   ⭐ MEB LGS Tarzı Soru
                                 </span>
                               ) : (
-                                <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                                  q.sourceType === 'pdf' 
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' 
-                                    : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                                }`}>
-                                  {q.sourceType === 'pdf' ? '📁 PDF Arşivi' : '⭐ MEB Formatında Özgün Soru'}
-                                </span>
+                                q.sourceType === 'pdf' ? (
+                                  <span className="px-2.5 py-1 rounded-lg font-bold text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-xs">
+                                    <span>📁 Doğrudan PDF Kesiti:</span>
+                                    <span className="font-extrabold">{q.sourceTitle}</span>
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                    ⭐ MEB Formatında Özgün Soru
+                                  </span>
+                                )
                               )}
 
                               {/* Zorluk Ayrımı Rozeti */}

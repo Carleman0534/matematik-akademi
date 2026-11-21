@@ -92,3 +92,45 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { questions } = body;
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return NextResponse.json({ success: false, error: 'Geçersiz soru listesi' }, { status: 400 });
+    }
+
+    const db = await getDb();
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO pdf_extracted_questions 
+      (id, pdf_id, question_no, page_no, question_text, options_json, correct_answer, primary_topic_id, difficulty, question_type, approval_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const q of questions) {
+      const qId = q.id || `ext_q_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      stmt.run([
+        qId,
+        q.pdf_id || q.pdfId || 'custom_pdf',
+        q.question_no || q.questionNo || 1,
+        q.page_no || q.pageNo || 1,
+        q.question_text || q.questionText || '',
+        typeof q.options_json === 'string' ? q.options_json : JSON.stringify(q.options || { A: '', B: '', C: '', D: '' }),
+        q.correct_answer || q.correctAnswer || 'A',
+        q.primary_topic_id || q.primaryTopicId || 'top_carpanlar_katlar',
+        q.difficulty || 3,
+        q.question_type || q.questionType || 'yeni_nesil',
+        q.approval_status || q.approvalStatus || 'approved'
+      ]);
+    }
+    stmt.free();
+    saveDb(db);
+
+    return NextResponse.json({ success: true, count: questions.length, message: `${questions.length} adet soru başarıyla eklendi` });
+  } catch (error: any) {
+    console.error('Error adding extracted questions:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
