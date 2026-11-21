@@ -940,6 +940,10 @@ async function initDatabase(): Promise<Database> {
   try { database.run('ALTER TABLE exam_answers ADD COLUMN ai_analysis TEXT;'); } catch {}
   try { database.run('ALTER TABLE exam_results ADD COLUMN created_at TEXT DEFAULT (datetime(\'now\'));'); } catch {}
   try { database.run('ALTER TABLE exam_results ADD COLUMN completed_at TEXT;'); } catch {}
+  // Uygulama ayarları (ör. öğrenci panelinde görünür bölümler)
+  try {
+    database.run(`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT (datetime('now')));`);
+  } catch {}
   // Öğrenciye atanan denemelerdeki PDF soru görselleri
   try { database.run('ALTER TABLE study_plan_questions ADD COLUMN image_url TEXT;'); } catch {}
 

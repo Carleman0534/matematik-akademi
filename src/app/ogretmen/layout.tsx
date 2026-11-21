@@ -94,7 +94,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
         {
           title: 'Yönetim',
           icon: '🔑',
-          items: [ADMIN_ITEM]
+          items: [ADMIN_ITEM, { href: '/ogretmen/ogrenci-paneli', label: 'Öğrenci Paneli Görünürlüğü', icon: '👁️' }]
         }
       ]
     : NAV_GROUPS;

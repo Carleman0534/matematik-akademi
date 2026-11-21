@@ -82,103 +82,19 @@ export default function OgrenciDenemelerPage() {
             const completedList = (assignData.completed || []).map(mapItem);
             const expiredList = (assignData.expired || []).map(mapItem);
 
-            // Eğer hiç atama yoksa fallback olarak PDF dokümanlarından hazırla
-            if (activeList.length === 0 && upcomingList.length === 0 && completedList.length === 0) {
-              const res = await fetch('/api/pdf-documents');
-              const data = await res.json();
-              const docs = data.docs || [];
-              setExamData({
-                active: docs.slice(0, 1).map((d: any) => ({
-                  id: d.id,
-                  title: d.title,
-                  question_count: d.question_count || 40,
-                  duration_min: 60,
-                  due_at: new Date(Date.now() + 48 * 3600000).toISOString(),
-                  status: 'in_progress',
-                  pdf_url: d.file_path,
-                })),
-                upcoming: [
-                  {
-                    id: 'ex-2',
-                    title: 'TYT Matematik 1. Dönem Genel Tarama Sınavı',
-                    question_count: 40,
-                    duration_min: 60,
-                    starts_at: new Date(Date.now() + 24 * 3600000).toISOString(),
-                    due_at: new Date(Date.now() + 72 * 3600000).toISOString(),
-                    status: 'upcoming',
-                  },
-                ],
-                completed: [
-                  {
-                    id: 'ex-3',
-                    title: 'Fonksiyonlar ve Polinomlar Özel Konu Denemesi',
-                    question_count: 30,
-                    duration_min: 45,
-                    correct_count: 26,
-                    wrong_count: 3,
-                    blank_count: 1,
-                    net_score: 25.25,
-                    submitted_at: new Date(Date.now() - 3 * 86400000).toISOString(),
-                    status: 'completed',
-                  },
-                ],
-                expired: [],
-              });
-            } else {
-              setExamData({
-                active: activeList,
-                upcoming: upcomingList,
-                completed: completedList,
-                expired: expiredList,
-              });
-            }
+            // Yalnızca öğretmenin gerçekten atadığı denemeler gösterilir (örnek/uydurma deneme yok)
+            setExamData({
+              active: activeList,
+              upcoming: upcomingList,
+              completed: completedList,
+              expired: expiredList,
+            });
             return;
           }
         }
 
-        // Fallback demo
-        const res = await fetch('/api/pdf-documents');
-        const data = await res.json();
-        const docs = data.docs || [];
-        setExamData({
-          active: [
-            {
-              id: docs[0]?.id || 'pdf-1',
-              title: docs[0]?.title || '2026 AYT Matematik Türkiye Geneli Prova Denemesi',
-              question_count: 40,
-              duration_min: 60,
-              due_at: new Date(Date.now() + 48 * 3600000).toISOString(),
-              status: 'in_progress',
-              pdf_url: docs[0]?.file_path || '/uploads/sample-exam.pdf',
-            },
-          ],
-          upcoming: [
-            {
-              id: 'ex-2',
-              title: 'TYT Matematik 1. Dönem Genel Tarama Sınavı',
-              question_count: 40,
-              duration_min: 60,
-              starts_at: new Date(Date.now() + 24 * 3600000).toISOString(),
-              due_at: new Date(Date.now() + 72 * 3600000).toISOString(),
-              status: 'upcoming',
-            },
-          ],
-          completed: [
-            {
-              id: 'ex-3',
-              title: 'Fonksiyonlar ve Polinomlar Özel Konu Denemesi',
-              question_count: 30,
-              duration_min: 45,
-              correct_count: 26,
-              wrong_count: 3,
-              blank_count: 1,
-              net_score: 25.25,
-              submitted_at: new Date(Date.now() - 3 * 86400000).toISOString(),
-              status: 'completed',
-            },
-          ],
-          expired: [],
-        });
+        // Atamalar okunamadıysa boş liste (örnek deneme gösterilmez)
+        setExamData({ active: [], upcoming: [], completed: [], expired: [] });
       } catch (err) {
         console.error(err);
       } finally {
