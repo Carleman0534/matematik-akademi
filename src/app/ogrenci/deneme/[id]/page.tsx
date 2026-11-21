@@ -175,6 +175,13 @@ export default function StudentDenemeRoomPage({
       ...prev,
       [qNo]: opt
     }));
+
+    // Şıkkı işaretleyince otomatik bir sonraki soruya geç
+    if (currentIdx < questions.length - 1) {
+      setTimeout(() => {
+        setCurrentIdx(prev => prev + 1);
+      }, 280);
+    }
   };
 
   const handleSubmitExam = () => {
