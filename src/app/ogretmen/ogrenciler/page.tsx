@@ -60,6 +60,37 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       // Supabase tabanlı liste kullanılır
     }
   }
+
+  // Ali Metin ve Muhammed Talha'nın listede en üstte yer almasını garanti et
+  const hasAli = students.some(s => s.full_name.toLowerCase().includes('ali metin') || s.id === 'student_ali_metin');
+  if (!hasAli) {
+    students.unshift({
+      id: 'student_ali_metin',
+      full_name: 'Ali Metin (Ali Tarlasüren)',
+      grade_level: 8,
+      school_name: 'Özel Pozitif Kişisel Gelişim Kursu (Kocaeli / Darıca)',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      profile: { username: 'ali.metin' },
+      teacher: null,
+      cls: { name: '8-A Sayısal' }
+    });
+  }
+
+  const hasTalha = students.some(s => s.full_name.toLowerCase().includes('talha') || s.id === 'student_muhammed_talha');
+  if (!hasTalha) {
+    students.splice(1, 0, {
+      id: 'student_muhammed_talha',
+      full_name: 'Muhammed Talha',
+      grade_level: 8,
+      school_name: 'Atatürk Ortaokulu',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      profile: { username: 'muhammedtalha' },
+      teacher: null,
+      cls: { name: '8-A LGS' }
+    });
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
