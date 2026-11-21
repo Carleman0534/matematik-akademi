@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useRef, useState, use } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { getClientPdfDocs } from '@/lib/clientPdfStorage';
+import { resolveAnswerSheet } from '@/lib/pdfExtraction/answerSheet';
 import {
   Clock,
   ChevronLeft,
@@ -27,23 +29,39 @@ export default function OgrenciSinavOdasiPage({
   const isViewOnly = searchParams.get('viewOnly') === 'true';
   const { id: examId } = use(params);
 
-  // Sınav Verisi
-  const [exam, setExam] = useState<any>({
-    title: '2026 AYT Matematik Türkiye Geneli Prova Denemesi',
-    question_count: 40,
+  // Sınav Verisi (soru sayısı ve şıklar cevap anahtarından / çıkarılmış sorulardan gelir)
+  const [exam, setExam] = useState<{
+    title: string;
+    question_count: number;
+    letters: string[];
+    duration_min: number;
+    pdf_url: string;
+    total_pages: number;
+    hasKey: boolean;
+  }>({
+    title: 'Deneme yükleniyor…',
+    question_count: 0,
+    letters: ['A', 'B', 'C', 'D'],
     duration_min: 60,
-    pdf_url: '/uploads/sample-exam.pdf',
-    total_pages: 12,
+    pdf_url: `/api/pdf-documents/${examId}/file`,
+    total_pages: 1,
+    hasKey: true,
   });
+  const [loadingExam, setLoadingExam] = useState(true);
+  const [submitError, setSubmitError] = useState('');
+  const [resultDetails, setResultDetails] = useState<Record<number, { correctAnswer: string; isCorrect: boolean | null }>>({});
+  const [clientDoc, setClientDoc] = useState<any>(null);
 
   // PDF Görüntüleyici Durumu
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Optik Form Cevapları
+  // Optik Form Cevapları (sınav bitene kadar cihazda saklanır, bitince sunucuda puanlanır)
   const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [sessionId, setSessionId] = useState(`sess-${examId}`);
+  // Süre bitince otomatik gönderme, zamanlayıcının kurulduğu andaki eski cevapları değil en güncellerini kullanmalı
+  const answersRef = useRef<Record<number, string>>({});
+  useEffect(() => { answersRef.current = answers; }, [answers]);
   const [savingStatus, setSavingStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
 
   // Süre Sayacı
@@ -66,33 +84,50 @@ export default function OgrenciSinavOdasiPage({
 
     async function loadExamDetails() {
       try {
-        const res = await fetch('/api/pdf-documents');
-        const data = await res.json();
-        const found = (data.docs || []).find((d: any) => d.id === examId);
-        if (found) {
-          setExam({
-            title: found.title,
-            question_count: found.question_count || 40,
-            duration_min: 60,
-            pdf_url: found.file_path,
-            total_pages: found.page_count || 12,
-          });
-          setTimeLeftSec((found.duration_min || 60) * 60);
+        const [docsRes, sheetRes] = await Promise.all([
+          fetch('/api/pdf-documents').then(r => r.json()).catch(() => ({})),
+          fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/answer-sheet`).then(r => r.json()).catch(() => null),
+        ]);
+        const serverDoc = ((docsRes as any).docs || []).find((d: any) => d.id === examId) || null;
+        const localDoc = getClientPdfDocs().find((d: any) => d.id === examId) || null;
+        setClientDoc(localDoc);
+        const doc = serverDoc || localDoc;
+
+        // Sunucu bu PDF'i bilmiyorsa (ör. sunucusuz ortamda kayıt yoksa) cihazdaki bilgiden hesapla
+        let questionCount: number;
+        let letters: string[];
+        let hasKey: boolean;
+        if (sheetRes?.success && (sheetRes.found || !localDoc)) {
+          questionCount = sheetRes.questionCount;
+          letters = sheetRes.letters;
+          hasKey = sheetRes.hasKey;
         } else {
-          let title = 'LGS Matematik Deneme Sınavı';
-          if (examId === 'exam_lgs_sample_1') title = '2026 LGS Matematik Türkiye Geneli Prova 1';
-          if (examId === 'exam_lgs_sample_2') title = 'LGS Sayısal Matematik Konu Tarama Denemesi';
-          setExam({
-            title,
-            question_count: 20,
-            duration_min: 40,
-            pdf_url: '/uploads/sample-exam.pdf',
-            total_pages: 8,
+          const s = resolveAnswerSheet({
+            extracted: [],
+            answerKeyRaw: localDoc?.answer_key,
+            storedQuestionCount: localDoc?.question_count,
+            gradeLevel: localDoc?.grade_level,
           });
-          setTimeLeftSec(40 * 60);
+          questionCount = s.questionCount;
+          letters = s.letters;
+          hasKey = s.keySource !== 'none';
         }
+
+        const durationMin = 60;
+        setExam({
+          title: doc?.title || sheetRes?.title || 'PDF Denemesi',
+          question_count: questionCount,
+          letters,
+          duration_min: durationMin,
+          pdf_url: doc?.file_path || `/api/pdf-documents/${examId}/file`,
+          total_pages: doc?.page_count || 1,
+          hasKey,
+        });
+        setTimeLeftSec(durationMin * 60);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoadingExam(false);
       }
     }
     loadExamDetails();
@@ -101,28 +136,38 @@ export default function OgrenciSinavOdasiPage({
   // 4. Sınavı Tamamlama & Gönderme
   const handleFinalSubmit = async () => {
     setShowSubmitModal(false);
-    setIsSubmitted(true);
+    setSubmitError('');
+    setSavingStatus('saving');
 
     try {
-      const res = await fetch(`/api/exam-sessions/${sessionId}/submit`, {
+      // Puanlama sunucuda, PDF'in cevap anahtarıyla yapılır (uydurma/yedek skor yok)
+      const res = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/submit`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers: answersRef.current,
+          durationSeconds: Math.max(0, exam.duration_min * 60 - timeLeftSec),
+          fallback: clientDoc
+            ? { title: clientDoc.title, answerKey: clientDoc.answer_key, questionCount: clientDoc.question_count, gradeLevel: clientDoc.grade_level }
+            : undefined,
+        }),
       });
-      const data = await res.json();
-      if (data.result) {
-        setExamResult(data.result);
-      } else {
-        // Fallback skor
-        const answeredCount = Object.keys(answers).length;
-        setExamResult({
-          correctCount: Math.round(answeredCount * 0.8),
-          wrongCount: Math.round(answeredCount * 0.2),
-          blankCount: exam.question_count - answeredCount,
-          netScore: (answeredCount * 0.8 - (answeredCount * 0.2) / 4).toFixed(2),
-        });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        setSubmitError(data?.error || `Sınav gönderilemedi (${res.status}). Cevaplarınız bu cihazda saklı; tekrar deneyin.`);
+        setSavingStatus('offline');
+        return;
       }
+      const details: Record<number, { correctAnswer: string; isCorrect: boolean | null }> = {};
+      for (const d of data.details || []) details[d.questionNo] = { correctAnswer: d.correctAnswer, isCorrect: d.isCorrect };
+      setResultDetails(details);
+      setExamResult(data.result);
+      setIsSubmitted(true);
+      setSavingStatus('saved');
       localStorage.removeItem(`exam_answers_${examId}`);
     } catch {
-      setIsSubmitted(true);
+      setSubmitError('Sunucuya ulaşılamadı. Cevaplarınız bu cihazda saklı; bağlantı gelince tekrar deneyin.');
+      setSavingStatus('offline');
     }
   };
 
@@ -160,21 +205,13 @@ export default function OgrenciSinavOdasiPage({
     }
 
     setAnswers(newAnswers);
-    setSavingStatus('saving');
 
-    // LocalStorage anlık yedek
-    localStorage.setItem(`exam_answers_${examId}`, JSON.stringify(newAnswers));
-
-    // Sunucuya anlık kaydet
+    // Cevaplar sınav bitene kadar bu cihazda saklanır; "Sınavı Bitir" ile sunucuda puanlanır
     try {
-      await fetch(`/api/exam-sessions/${sessionId}/answer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionNo, answer: newAnswers[questionNo] || null }),
-      });
+      localStorage.setItem(`exam_answers_${examId}`, JSON.stringify(newAnswers));
       setSavingStatus('saved');
     } catch {
-      setSavingStatus('offline'); // İnternet kesilirse yerelde güvende
+      setSavingStatus('offline');
     }
   };
 
@@ -189,7 +226,7 @@ export default function OgrenciSinavOdasiPage({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const questionNumbers = Array.from({ length: exam.question_count || 40 }, (_, i) => i + 1);
+  const questionNumbers = Array.from({ length: exam.question_count }, (_, i) => i + 1);
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12">
@@ -219,19 +256,19 @@ export default function OgrenciSinavOdasiPage({
             {savingStatus === 'saved' && (
               <>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Kaydedildi</span>
+                <span>{isSubmitted ? 'Puanlandı' : 'Cihazda kaydedildi'}</span>
               </>
             )}
             {savingStatus === 'saving' && (
               <>
                 <Save className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
-                <span>Kaydediliyor...</span>
+                <span>Gönderiliyor...</span>
               </>
             )}
             {savingStatus === 'offline' && (
               <>
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                <span>Çevrimdışı (Yerelde Güvende)</span>
+                <span>Gönderilemedi (cevaplar cihazda saklı)</span>
               </>
             )}
           </div>
@@ -264,6 +301,19 @@ export default function OgrenciSinavOdasiPage({
           )}
         </div>
       </div>
+
+      {submitError && (
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl text-sm font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{submitError}</span>
+        </div>
+      )}
+      {!loadingExam && !exam.hasKey && !isSubmitted && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>Bu deneme için cevap anahtarı tanımlı değil; sınavı bitirdiğinizde cevaplarınız puanlanamaz. Öğretmeninizle iletişime geçin.</span>
+        </div>
+      )}
 
       {/* Sınav Bitti Sonuç Bannerı */}
       {isSubmitted && examResult && (
@@ -374,25 +424,34 @@ export default function OgrenciSinavOdasiPage({
 
           {/* Soru Listesi ve Şıklar (Scrollable) */}
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+            {loadingExam && <p className="text-xs text-slate-400 py-6 text-center">Optik form hazırlanıyor…</p>}
             {questionNumbers.map((q) => {
               const currentAns = answers[q];
+              const result = resultDetails[q];
               return (
                 <div
                   key={q}
                   className={`p-2.5 rounded-2xl border transition flex items-center justify-between ${
-                    currentAns
-                      ? 'border-indigo-300 bg-indigo-50/40 dark:border-indigo-800 dark:bg-indigo-950/20'
-                      : 'border-slate-100 dark:border-slate-800 hover:border-slate-200'
+                    result
+                      ? result.isCorrect
+                        ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20'
+                        : result.isCorrect === false
+                          ? 'border-rose-300 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/20'
+                          : 'border-slate-200 dark:border-slate-700'
+                      : currentAns
+                        ? 'border-indigo-300 bg-indigo-50/40 dark:border-indigo-800 dark:bg-indigo-950/20'
+                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-200'
                   }`}
                 >
                   <span className="font-bold text-xs text-slate-700 dark:text-slate-300 w-12">
                     Soru {q}
                   </span>
 
-                  {/* A, B, C, D, E Seçenekleri */}
+                  {/* Şıklar (LGS: A–D, TYT/AYT: A–E). Puanlamadan sonra doğru şık yeşil halkayla gösterilir */}
                   <div className="flex items-center gap-1.5">
-                    {['A', 'B', 'C', 'D', 'E'].map((opt) => {
+                    {exam.letters.map((opt) => {
                       const isSelected = currentAns === opt;
+                      const isKey = result?.correctAnswer === opt;
                       return (
                         <button
                           key={opt}
@@ -400,9 +459,11 @@ export default function OgrenciSinavOdasiPage({
                           onClick={() => handleSelectAnswer(q, opt)}
                           className={`w-7 h-7 rounded-full text-xs font-bold transition flex items-center justify-center ${
                             isSelected
-                              ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300 dark:ring-indigo-700'
+                              ? result && !result.isCorrect
+                                ? 'bg-rose-600 text-white shadow-sm'
+                                : 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300 dark:ring-indigo-700'
                               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                          }`}
+                          } ${isKey ? 'ring-2 ring-emerald-500' : ''}`}
                         >
                           {opt}
                         </button>

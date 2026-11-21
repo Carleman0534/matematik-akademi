@@ -9,6 +9,7 @@ import { verifyAndExplainWithAi } from './ai/externalAiChecker.ts';
 import { parseAnswerKey } from './pdfExtraction/answerKey.ts';
 import { guessTopicId } from './pdfExtraction/topicGuess.ts';
 import { pickPoolQuestion, nextPdfInRotation } from './pdfExtraction/poolPicker.ts';
+import { resolveAnswerSheet } from './pdfExtraction/answerSheet.ts';
 import {
   contentBounds, detectColumns, segmentByWhitespace, findQuestionMarkers, regionsFromMarkers, parseOptions,
   textInBox, stripLeadingNumber, tightenBox, removeRuleLines, trimHeaderFooter, findVisualMarkers, regionsFromStarts, type InkMask, type TextItemPos,
@@ -700,4 +701,31 @@ test('hibrit deneme: PDF havuzundan soru seçimi', () => {
   assert.equal(nextPdfInRotation(['A', 'B'], 0, pool, new Set()), 'A');
   assert.equal(nextPdfInRotation(['A', 'B'], 1, pool, new Set()), 'B');
   assert.equal(nextPdfInRotation(['A', 'B'], 1, pool, new Set(['b1', 'b2'])), 'A');
+});
+
+test('PDF denemesi optik formu: soru sayısı ve anahtar', () => {
+  // Kayıtta varsayılan 40 yazsa bile 20 soruluk cevap anahtarı 20 soru demektir; LGS → A–D
+  const s1 = resolveAnswerSheet({ extracted: [], answerKeyRaw: 'ABCDABCDABCDABCDABCD', storedQuestionCount: 40, gradeLevel: 'TYT' });
+  assert.equal(s1.questionCount, 20);
+  assert.deepEqual(s1.letters, ['A', 'B', 'C', 'D']);
+  assert.equal(s1.keySource, 'answer_key');
+  assert.equal(s1.key[20], 'D');
+  // Onaylı çıkarılmış sorular önceliklidir
+  const s2 = resolveAnswerSheet({
+    extracted: [
+      { questionNo: 1, correctAnswer: 'B', approvalStatus: 'approved' },
+      { questionNo: 2, correctAnswer: 'C', approvalStatus: 'approved' },
+      { questionNo: 3, correctAnswer: 'A', approvalStatus: 'pending' },
+    ],
+    answerKeyRaw: 'DDDD', storedQuestionCount: 40,
+  });
+  assert.equal(s2.questionCount, 2);
+  assert.deepEqual(s2.key, { 1: 'B', 2: 'C' });
+  // Anahtarda E varsa 5 şık
+  assert.equal(resolveAnswerSheet({ extracted: [], answerKeyRaw: '1-A 2-E' }).letters.length, 5);
+  // Hiçbir anahtar yok: kayıttaki sayı, puanlanamaz
+  const s3 = resolveAnswerSheet({ extracted: [], answerKeyRaw: '', storedQuestionCount: 40, gradeLevel: 'AYT' });
+  assert.equal(s3.questionCount, 40);
+  assert.equal(s3.keySource, 'none');
+  assert.equal(s3.letters.length, 5);
 });
