@@ -522,21 +522,32 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
                   {exam.net_score !== null && exam.net_score !== undefined ? (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[11px] text-slate-500 font-medium">Net Sonucu</div>
-                        <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                          {exam.net_score} Net
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[11px] text-slate-500 font-medium">Net Sonucu</div>
+                          <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                            {exam.net_score} Net
+                          </div>
+                        </div>
+                        <div className="text-right text-xs text-slate-500">
+                          <span className="font-semibold text-emerald-600">{exam.correct_count}D</span>
+                          {' · '}
+                          <span className="font-semibold text-red-600">{exam.wrong_count}Y</span>
+                          {' · '}
+                          <span className="font-semibold text-slate-500">{exam.blank_count}B</span>
                         </div>
                       </div>
-                      <div className="text-right text-xs text-slate-500">
-                        <span className="font-semibold text-emerald-600">{exam.correct_count}D</span>
-                        {' · '}
-                        <span className="font-semibold text-red-600">{exam.wrong_count}Y</span>
-                        {' · '}
-                        <span className="font-semibold text-slate-500">{exam.blank_count}B</span>
+                      <div className="pt-1.5 flex justify-end">
+                        <Link
+                          href={`/ogrenci/deneme/${exam.exam_id}`}
+                          target="_blank"
+                          className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
+                        >
+                          Öğrenci Gözüyle İncele <ExternalLink className="h-3 w-3" />
+                        </Link>
                       </div>
                     </div>
                   ) : (
@@ -547,7 +558,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                       <Link
                         href={`/ogrenci/deneme/${exam.exam_id}`}
                         target="_blank"
-                        className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-0.5"
+                        className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
                       >
                         Öğrenci Gözüyle Aç <ExternalLink className="h-3 w-3" />
                       </Link>

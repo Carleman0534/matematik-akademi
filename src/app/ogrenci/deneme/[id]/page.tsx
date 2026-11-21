@@ -1,0 +1,451 @@
+'use client';
+
+import React, { useState, useEffect, use } from 'react';
+import Link from 'next/link';
+import { 
+  Clock, 
+  ChevronLeft, 
+  ChevronRight, 
+  CheckCircle2, 
+  Send, 
+  Award, 
+  AlertTriangle,
+  RotateCcw,
+  Sparkles
+} from 'lucide-react';
+import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
+import { generateCurriculumQuestion } from '@/lib/ai/questionGenerator';
+
+interface QuestionItem {
+  id: string;
+  questionNo: number;
+  topicName: string;
+  questionText: string;
+  options: Record<string, string>;
+  correctAnswer: string;
+  solutionExplanation?: string;
+  svgContent?: string;
+  difficulty: number;
+}
+
+export default function StudentDenemeRoomPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: examId } = use(params);
+
+  const [examTitle, setExamTitle] = useState('2026 LGS Matematik Deneme Sınavı');
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [timeLeftSec, setTimeLeftSec] = useState(40 * 60);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [examResult, setExamResult] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 1. Sınav ve Soruları Yükle
+  useEffect(() => {
+    async function loadExam() {
+      try {
+        setLoading(true);
+
+        // A. Eğer plan_ ile başlıyorsa çalışma planı oturumundan çek
+        if (examId.startsWith('plan_')) {
+          const res = await fetch(`/api/lgs/study-sessions/${examId}`);
+          const data = await res.json();
+          if (data.success && data.questions && data.questions.length > 0) {
+            setExamTitle(data.plan?.title || 'LGS Kişiselleştirilmiş Hedef Denemesi');
+            const mapped: QuestionItem[] = data.questions.map((q: any, idx: number) => ({
+              id: q.id || `q_${idx + 1}`,
+              questionNo: idx + 1,
+              topicName: q.topic_name || 'LGS Matematik',
+              questionText: (q.question_text || '').replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '').replace(/^\[[^\]]+\]:\s*/gi, '').trim(),
+              options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
+              correctAnswer: q.correct_answer || 'A',
+              solutionExplanation: q.solution_explanation,
+              svgContent: q.svg_content,
+              difficulty: q.difficulty || 3
+            }));
+            setQuestions(mapped);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // B. PDF Dokümanlarında Var mı Kontrol Et
+        try {
+          const docRes = await fetch('/api/pdf-documents');
+          const docData = await docRes.json();
+          const doc = (docData.docs || []).find((d: any) => d.id === examId);
+          if (doc) {
+            setExamTitle(doc.title);
+          }
+        } catch {}
+
+        // C. Standart LGS Örnek Denemesi Başlığı
+        let title = 'LGS Matematik Deneme Sınavı (20 Soru)';
+        if (examId === 'exam_lgs_sample_1') {
+          title = '2026 LGS Matematik Türkiye Geneli Prova 1';
+        } else if (examId === 'exam_lgs_sample_2') {
+          title = 'LGS Sayısal Matematik Konu Tarama Denemesi';
+        } else if (examId === 'exam_lgs_2026_genel_1') {
+          title = '2026 LGS 1. Dönem Matematik Genel Prova';
+        } else if (examId === 'exam_lgs_sayilar_cebir') {
+          title = 'LGS Çarpanlar & Üslü Sayılar Hedef Tarama';
+        } else if (examId === 'exam_lgs_geometri_ucgen') {
+          title = 'LGS Üçgenler ve Pisagor Geometrik Odak Denemesi';
+        }
+        setExamTitle(title);
+
+        // 20 Gerçek LGS Sorusu Oluştur (Müfredat motorundan)
+        const generatedList: QuestionItem[] = [];
+        const count = 20;
+        for (let i = 0; i < count; i++) {
+          const topic = INITIAL_LGS_TOPICS[i % INITIAL_LGS_TOPICS.length];
+          const diff = i < 5 ? 2 : i < 15 ? 3 : 4;
+          const gen = generateCurriculumQuestion({
+            topicId: topic.id,
+            difficulty: diff,
+            questionType: 'yeni_nesil',
+            visualRequired: i % 2 === 1,
+            variationIndex: i
+          });
+
+          generatedList.push({
+            id: `gen_q_${i + 1}`,
+            questionNo: i + 1,
+            topicName: topic.name,
+            questionText: gen.questionText,
+            options: gen.options,
+            correctAnswer: gen.correctAnswer,
+            solutionExplanation: gen.solutionExplanation,
+            svgContent: gen.svgContent,
+            difficulty: diff
+          });
+        }
+        setQuestions(generatedList);
+      } catch (err) {
+        console.error('Error loading exam:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadExam();
+  }, [examId]);
+
+  // Süre Sayacı
+  useEffect(() => {
+    if (isSubmitted || timeLeftSec <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeftSec(t => {
+        if (t <= 1) {
+          clearInterval(timer);
+          handleSubmitExam();
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isSubmitted, timeLeftSec]);
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleSelectOption = (qNo: number, opt: string) => {
+    if (isSubmitted) return;
+    setAnswers(prev => ({
+      ...prev,
+      [qNo]: opt
+    }));
+  };
+
+  const handleSubmitExam = () => {
+    setIsSubmitted(true);
+    let correct = 0;
+    let wrong = 0;
+    let blank = 0;
+
+    questions.forEach(q => {
+      const studentAns = answers[q.questionNo];
+      if (!studentAns) {
+        blank++;
+      } else if (studentAns === q.correctAnswer) {
+        correct++;
+      } else {
+        wrong++;
+      }
+    });
+
+    const net = Math.max(0, +(correct - wrong / 3).toFixed(2));
+    setExamResult({
+      total: questions.length,
+      correct,
+      wrong,
+      blank,
+      net
+    });
+  };
+
+  const currentQ = questions[currentIdx];
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 space-y-5">
+      {/* 1. Üst Kontrol & Başlık Çubuğu */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/ogrenci/denemeler"
+            className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 transition"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                LGS Deneme Sınavı
+              </span>
+              <span className="text-xs text-slate-400 font-semibold">
+                {questions.length} Soru · 40 Dakika
+              </span>
+            </div>
+            <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+              {examTitle}
+            </h1>
+          </div>
+        </div>
+
+        {/* Canlı Sayaç & Sınavı Bitir */}
+        <div className="flex items-center gap-3">
+          {!isSubmitted ? (
+            <>
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-sm shadow-xs">
+                <Clock className="w-4 h-4 text-indigo-600 animate-pulse" />
+                <span>{formatTime(timeLeftSec)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmitExam}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-sm flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Sınavı Bitir</span>
+              </button>
+            </>
+          ) : (
+            <span className="px-3.5 py-1.5 rounded-2xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" />
+              Sınav Tamamlandı
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Sınav Tamamlandığında Sonuç Kartı */}
+      {isSubmitted && examResult && (
+        <div className="p-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 rounded-3xl text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-xl">
+              <Award className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="font-bold text-lg">Deneme Sınavınız Tamamlandı!</h2>
+              <p className="text-xs text-white/80 mt-0.5">
+                Cevaplarınız puanlandı. Sonuçlarınız gelişim karnenize kaydedildi.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-bold bg-white text-slate-900 px-5 py-3 rounded-2xl shadow-sm">
+            <span className="text-emerald-600">{examResult.correct} Doğru</span>
+            <span className="text-rose-600">{examResult.wrong} Yanlış</span>
+            <span className="text-slate-500">{examResult.blank} Boş</span>
+            <span className="text-indigo-600 text-base font-black border-l pl-3 border-slate-200">
+              {examResult.net} Net
+            </span>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="p-16 text-center">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-xs text-slate-500 font-bold">LGS Deneme Soruları Yükleniyor...</p>
+        </div>
+      ) : (
+        /* Ana Çift Kolon: Sol = Soru Kitapçığı, Sağ = Optik Form */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* SOL PANEL: Soru Kitapçığı & İnteraktif Soru Görüntüleyici (8 Kolon) */}
+          <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-5">
+            {/* Soru Üst Bilgisi */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                  {currentQ?.questionNo}
+                </span>
+                <span className="font-bold text-sm text-slate-900 dark:text-white">
+                  {currentQ?.topicName}
+                </span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                  Zorluk: {currentQ?.difficulty}/5
+                </span>
+              </div>
+              <span className="text-xs text-slate-400 font-semibold">
+                Soru {currentIdx + 1} / {questions.length}
+              </span>
+            </div>
+
+            {/* Vektörel Şekil / Geometri Modeli */}
+            {currentQ?.svgContent && (
+              <div 
+                className="my-3 flex justify-center overflow-x-auto p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800"
+                dangerouslySetInnerHTML={{ __html: currentQ.svgContent }}
+              />
+            )}
+
+            {/* Soru Metni */}
+            <p className="text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+              {currentQ?.questionText}
+            </p>
+
+            {/* Şıklar */}
+            {currentQ?.options && (
+              <div className="grid gap-2.5 sm:grid-cols-2 pt-2">
+                {Object.entries(currentQ.options).map(([opt, val]) => {
+                  const isSelected = answers[currentQ.questionNo] === opt;
+                  let optStyle = 'border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 text-slate-800 dark:text-slate-200';
+
+                  if (isSubmitted) {
+                    if (opt === currentQ.correctAnswer) {
+                      optStyle = 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold';
+                    } else if (isSelected && opt !== currentQ.correctAnswer) {
+                      optStyle = 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 font-bold';
+                    }
+                  } else if (isSelected) {
+                    optStyle = 'border-indigo-600 bg-indigo-50/70 text-indigo-900 dark:border-indigo-500 dark:bg-indigo-950/50 dark:text-indigo-200 font-bold shadow-xs';
+                  }
+
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      disabled={isSubmitted}
+                      onClick={() => handleSelectOption(currentQ.questionNo, opt)}
+                      className={`flex items-center gap-3 p-3.5 rounded-2xl border text-sm text-left transition ${optStyle}`}
+                    >
+                      <span className={`flex h-7 w-7 items-center justify-center rounded-xl font-bold text-xs shrink-0 ${
+                        isSelected 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}>
+                        {opt}
+                      </span>
+                      <span className="font-semibold">{String(val)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Soru Gezinme Butonları */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={currentIdx <= 0}
+                onClick={() => setCurrentIdx(i => Math.max(0, i - 1))}
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 disabled:opacity-40 transition flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Önceki Soru
+              </button>
+
+              <button
+                type="button"
+                disabled={currentIdx >= questions.length - 1}
+                onClick={() => setCurrentIdx(i => Math.min(questions.length - 1, i + 1))}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-40"
+              >
+                Sonraki Soru
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* SAĞ PANEL: Optik Cevap Formu (4 Kolon) */}
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4 sticky top-6">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">Optik Cevap Formu</h3>
+                <p className="text-[11px] text-slate-400">Şıkka tıklayarak işaretleyin</p>
+              </div>
+              <span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-xl">
+                {Object.keys(answers).length} / {questions.length}
+              </span>
+            </div>
+
+            {/* 1'den 20'ye Soru Baloncukları */}
+            <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+              {questions.map((q) => {
+                const currentAns = answers[q.questionNo];
+                const isActive = q.questionNo === currentIdx + 1;
+                return (
+                  <div
+                    key={q.questionNo}
+                    onClick={() => setCurrentIdx(q.questionNo - 1)}
+                    className={`p-2 rounded-xl border transition flex items-center justify-between cursor-pointer ${
+                      isActive
+                        ? 'border-indigo-500 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/40'
+                        : 'border-slate-100 dark:border-slate-800/80 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-bold text-xs text-slate-700 dark:text-slate-300 w-12">
+                      Soru {q.questionNo}
+                    </span>
+
+                    {/* A, B, C, D Seçenekleri */}
+                    <div className="flex items-center gap-1.5">
+                      {['A', 'B', 'C', 'D'].map((opt) => {
+                        const isSelected = currentAns === opt;
+                        let bubbleStyle = 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100';
+
+                        if (isSubmitted) {
+                          if (opt === q.correctAnswer) {
+                            bubbleStyle = 'bg-emerald-600 border-emerald-600 text-white font-black';
+                          } else if (isSelected && opt !== q.correctAnswer) {
+                            bubbleStyle = 'bg-rose-500 border-rose-500 text-white font-black';
+                          }
+                        } else if (isSelected) {
+                          bubbleStyle = 'bg-indigo-600 border-indigo-600 text-white font-black shadow-xs';
+                        }
+
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            disabled={isSubmitted}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectOption(q.questionNo, opt);
+                            }}
+                            className={`w-7 h-7 rounded-full text-xs font-bold border transition flex items-center justify-center ${bubbleStyle}`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

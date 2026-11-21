@@ -78,6 +78,18 @@ export default function OgrenciSinavOdasiPage({
             total_pages: found.page_count || 12,
           });
           setTimeLeftSec((found.duration_min || 60) * 60);
+        } else {
+          let title = 'LGS Matematik Deneme Sınavı';
+          if (examId === 'exam_lgs_sample_1') title = '2026 LGS Matematik Türkiye Geneli Prova 1';
+          if (examId === 'exam_lgs_sample_2') title = 'LGS Sayısal Matematik Konu Tarama Denemesi';
+          setExam({
+            title,
+            question_count: 20,
+            duration_min: 40,
+            pdf_url: '/uploads/sample-exam.pdf',
+            total_pages: 8,
+          });
+          setTimeLeftSec(40 * 60);
         }
       } catch (err) {
         console.error(err);
