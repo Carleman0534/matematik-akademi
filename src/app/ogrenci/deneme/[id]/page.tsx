@@ -12,7 +12,11 @@ import {
   Award, 
   AlertTriangle,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Bot,
+  Cpu,
+  Lightbulb,
+  AlertCircle
 } from 'lucide-react';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
 import { generateCurriculumQuestion } from '@/lib/ai/questionGenerator';
@@ -55,6 +59,33 @@ export default function StudentDenemeRoomPage({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [examResult, setExamResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aiLoadingMap, setAiLoadingMap] = useState<Record<number, boolean>>({});
+  const [aiAnalysisMap, setAiAnalysisMap] = useState<Record<number, any>>({});
+
+  const handleRequestAiAnalysisForDeneme = async (q: QuestionItem) => {
+    setAiLoadingMap(prev => ({ ...prev, [q.questionNo]: true }));
+    try {
+      const studentAns = answers[q.questionNo] || null;
+      const res = await fetch('/api/ai/verify-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionText: q.questionText,
+          options: q.options,
+          studentAnswer: studentAns,
+          correctAnswer: q.correctAnswer,
+          topicName: q.topicName,
+          provider: 'auto'
+        })
+      });
+      const data = await res.json();
+      setAiAnalysisMap(prev => ({ ...prev, [q.questionNo]: data }));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAiLoadingMap(prev => ({ ...prev, [q.questionNo]: false }));
+    }
+  };
 
   // 1. Sınav ve Soruları Yükle
   useEffect(() => {
@@ -368,6 +399,98 @@ export default function StudentDenemeRoomPage({
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Sınav Tamamlandıysa: Çözüm ve Yapay Zekâ Denetleme Alanı */}
+            {isSubmitted && currentQ && (
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                {currentQ.solutionExplanation && (
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/80 text-xs space-y-1">
+                    <span className="font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      Çözüm Açıklaması:
+                    </span>
+                    <p className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                      {currentQ.solutionExplanation}
+                    </p>
+                  </div>
+                )}
+
+                {(() => {
+                  const isAiLoading = Boolean(aiLoadingMap[currentQ.questionNo]);
+                  const aiResult = aiAnalysisMap[currentQ.questionNo];
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={isAiLoading}
+                          onClick={() => handleRequestAiAnalysisForDeneme(currentQ)}
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                        >
+                          <Bot className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{isAiLoading ? 'Yapay Zekâ İnceliyor...' : aiResult ? '🤖 Yapay Zekâ Analizini Yenile' : '🤖 Yapay Zekâ Analizi Al (ChatGPT / Gemini)'}</span>
+                        </button>
+
+                        {aiResult && (
+                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <Cpu className="w-3.5 h-3.5 text-indigo-500" />
+                            {aiResult.providerUsed === 'gemini' 
+                              ? 'Google Gemini 2.5 Flash ile Doğrulandı' 
+                              : aiResult.providerUsed === 'openai' 
+                              ? 'OpenAI ChatGPT ile Doğrulandı' 
+                              : 'MEB LGS Çözüm Motoru'}
+                          </span>
+                        )}
+                      </div>
+
+                      {aiResult && (
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/70 via-indigo-50/40 to-white dark:from-purple-950/25 dark:via-indigo-950/20 dark:to-slate-900 border border-purple-200 dark:border-purple-800/60 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                              Yapay Zekâ Koçluk & Analiz
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                              Güven: %{Math.round((aiResult.confidenceScore || 0.95) * 100)}
+                            </span>
+                          </div>
+
+                          {aiResult.studentMistakeAnalysis && (
+                            <div className="p-2.5 rounded-xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-900 dark:text-rose-200">
+                              <span className="font-bold flex items-center gap-1 text-rose-700 dark:text-rose-300 mb-0.5">
+                                <AlertCircle className="w-3.5 h-3.5" /> Düştüğün Mantık Hatası / Çeldirici:
+                              </span>
+                              <p className="leading-relaxed">{aiResult.studentMistakeAnalysis}</p>
+                            </div>
+                          )}
+
+                          {aiResult.pedagogicalTip && (
+                            <div className="p-2.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 text-xs text-amber-900 dark:text-amber-200">
+                              <span className="font-bold flex items-center gap-1 text-amber-700 dark:text-amber-300 mb-0.5">
+                                <Lightbulb className="w-3.5 h-3.5" /> İpucu & Altın Kural:
+                              </span>
+                              <p className="leading-relaxed">{aiResult.pedagogicalTip}</p>
+                            </div>
+                          )}
+
+                          {aiResult.stepByStepSolution && (
+                            <div className="space-y-1 text-xs">
+                              <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Adım Adım Yapay Zekâ Çözümü:
+                              </span>
+                              <p className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed font-mono text-[11px] bg-white/80 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                                {aiResult.stepByStepSolution}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

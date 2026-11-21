@@ -5,6 +5,7 @@ import { analyzeQuestion, summarize, dayKey, type Attempt } from './learning.ts'
 import { normalizeUsername, validateUsername, loginIdToEmail, usernameToEmail } from './usernames.ts';
 import { buildTree, descendantIds, topicPath, flattenForSelect, type Topic } from './topics.ts';
 import { parseFilters, filtersToQuery, matchesComputed, sanitizeSearch } from './filters.ts';
+import { verifyAndExplainWithAi } from './ai/externalAiChecker.ts';
 
 const at = (d: string, result: Attempt['result'], attempt_type = 'review'): Attempt => ({ result, attempt_type, attempted_at: d + 'T10:00:00Z' });
 const NOW = new Date('2026-11-20T09:00:00Z');
@@ -488,5 +489,35 @@ test('veli ve öğrenci rapor erişim güvenliği: onaylanmamış taslak raporla
 
   assert.equal(parentVisibleReports.length, 1);
   assert.equal(parentVisibleReports[0].id, 'rep-01');
+});
+
+test('yapay zekâ cevap denetleme: doğru ve yanlış cevap analizi ile pedagojik teşhis', async () => {
+  // Yanlış cevap durumu
+  const wrongRes = await verifyAndExplainWithAi({
+    questionText: 'Alanı 175 m² olan kare şeklindeki bahçenin bir kenar uzunluğu hangi iki ardışık tam sayı arasındadır?',
+    options: { A: '12 ile 13', B: '14 ile 15', C: '43 ile 44', D: '13 ile 14' },
+    studentAnswer: 'A',
+    correctAnswer: 'D',
+    topicName: 'Kareköklü İfadeler'
+  });
+
+  assert.equal(wrongRes.success, true);
+  assert.equal(wrongRes.isStudentCorrect, false);
+  assert.equal(wrongRes.aiCalculatedAnswer, 'D');
+  assert.ok(wrongRes.studentMistakeAnalysis && wrongRes.studentMistakeAnalysis.length > 5);
+  assert.ok(wrongRes.pedagogicalTip && wrongRes.pedagogicalTip.length > 5);
+  assert.ok(wrongRes.stepByStepSolution && wrongRes.stepByStepSolution.length > 10);
+
+  // Doğru cevap durumu
+  const correctRes = await verifyAndExplainWithAi({
+    questionText: 'Alanı 175 m² olan bahçe...',
+    options: { A: '12 ile 13', B: '14 ile 15', C: '43 ile 44', D: '13 ile 14' },
+    studentAnswer: 'D',
+    correctAnswer: 'D',
+    topicName: 'Kareköklü İfadeler'
+  });
+
+  assert.equal(correctRes.success, true);
+  assert.equal(correctRes.isStudentCorrect, true);
 });
 

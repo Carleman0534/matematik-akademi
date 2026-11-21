@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Target, CheckCircle2, XCircle, Clock, Sparkles, ArrowRight, 
   ChevronRight, ChevronLeft, Award, Zap, HelpCircle, Eye, 
-  RotateCcw, Check, BookOpen, Layers, BarChart3, AlertCircle
+  RotateCcw, Check, BookOpen, Layers, BarChart3, AlertCircle,
+  Bot, Cpu, Settings, Key, X, Lightbulb
 } from 'lucide-react';
 
 export default function OzelCalismamPage() {
@@ -22,6 +23,61 @@ export default function OzelCalismamPage() {
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong' | 'correct' | 'blank'>('all');
+
+  // Harici Yapay Zekâ (Gemini & ChatGPT) Entegrasyonu
+  const [aiLoadingMap, setAiLoadingMap] = useState<Record<string | number, boolean>>({});
+  const [aiResultMap, setAiResultMap] = useState<Record<string | number, any>>({});
+  const [aiProvider, setAiProvider] = useState<'auto' | 'gemini' | 'openai'>('auto');
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState('');
+  const [activeInlineAiFeedback, setActiveInlineAiFeedback] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedKey = localStorage.getItem('ai_custom_api_key') || '';
+      const savedProvider = (localStorage.getItem('ai_provider') as any) || 'auto';
+      setCustomApiKey(savedKey);
+      setAiProvider(savedProvider);
+    }
+  }, []);
+
+  const saveAiSettings = (provider: 'auto' | 'gemini' | 'openai', key: string) => {
+    setAiProvider(provider);
+    setCustomApiKey(key);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ai_provider', provider);
+      localStorage.setItem('ai_custom_api_key', key);
+    }
+    setShowAiModal(false);
+  };
+
+  const handleRequestAiAnalysis = async (q: any, idx: number, studentChoice?: string | null) => {
+    const qKey = q.id || idx;
+    setAiLoadingMap(prev => ({ ...prev, [qKey]: true }));
+    try {
+      const res = await fetch('/api/ai/verify-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionText: q.question_text,
+          options: q.options,
+          studentAnswer: studentChoice !== undefined ? studentChoice : (answers[idx] || null),
+          correctAnswer: q.correct_answer,
+          topicName: q.topic_name || activePlan?.title || 'LGS Matematik',
+          provider: aiProvider,
+          apiKey: customApiKey || undefined
+        })
+      });
+      const data = await res.json();
+      setAiResultMap(prev => ({ ...prev, [qKey]: data }));
+      return data;
+    } catch (err) {
+      console.error('AI check error:', err);
+      return null;
+    } finally {
+      setAiLoadingMap(prev => ({ ...prev, [qKey]: false }));
+    }
+  };
 
   const loadPlanSession = async (planId: string) => {
     try {
@@ -107,11 +163,17 @@ export default function OzelCalismamPage() {
 
   // Önceki / Sonraki Gezinme
   const handlePrevQuestion = () => {
-    if (currentIdx > 0) setCurrentIdx(prev => prev - 1);
+    if (currentIdx > 0) {
+      setCurrentIdx(prev => prev - 1);
+      setActiveInlineAiFeedback(null);
+    }
   };
 
   const handleNextQuestion = () => {
-    if (currentIdx < questions.length - 1) setCurrentIdx(prev => prev + 1);
+    if (currentIdx < questions.length - 1) {
+      setCurrentIdx(prev => prev + 1);
+      setActiveInlineAiFeedback(null);
+    }
   };
 
   // 2. En Sonunda Sonuçlarımı Değerlendir
@@ -213,7 +275,7 @@ export default function OzelCalismamPage() {
           </p>
         </div>
 
-        {/* Canlı Süre ve Otomatik İlerleme Toggle */}
+        {/* Canlı Süre, Otomatik İlerleme ve Yapay Zekâ Kontrolü */}
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
           {!isEvaluated && (
             <>
@@ -236,6 +298,19 @@ export default function OzelCalismamPage() {
               </button>
             </>
           )}
+
+          {/* Harici Yapay Zeka (Gemini / ChatGPT) Bağlantı Butonu */}
+          <button
+            type="button"
+            onClick={() => setShowAiModal(true)}
+            className="rounded-xl px-3 py-2 text-xs font-bold border transition flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white border-white/25 shadow-sm"
+            title="ChatGPT ve Gemini bağlantısını yönet"
+          >
+            <Bot className="h-3.5 w-3.5 text-amber-300" />
+            <span>
+              {aiProvider === 'gemini' ? '🤖 Gemini (2.5 Flash)' : aiProvider === 'openai' ? '🤖 ChatGPT (4o-mini)' : '🤖 Yapay Zekâ: Otomatik'}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -461,6 +536,87 @@ export default function OzelCalismamPage() {
                           </p>
                         </div>
                       )}
+
+                      {/* Harici Yapay Zekâ (Gemini & ChatGPT) Cevap Denetimi ve Koçluk Bölümü */}
+                      {(() => {
+                        const qKey = q.id || idx;
+                        const isAiLoading = Boolean(aiLoadingMap[qKey]);
+                        const aiResult = aiResultMap[qKey];
+
+                        return (
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={isAiLoading}
+                                onClick={() => handleRequestAiAnalysis(q, idx, userAns)}
+                                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                              >
+                                <Bot className="w-3.5 h-3.5 text-amber-300" />
+                                <span>{isAiLoading ? 'Yapay Zekâ İnceliyor...' : aiResult ? '🤖 Yapay Zekâ Analizini Yenile' : '🤖 Yapay Zekâ Analizi Al (ChatGPT / Gemini)'}</span>
+                              </button>
+
+                              {aiResult && (
+                                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                  <Cpu className="w-3.5 h-3.5 text-indigo-500" />
+                                  {aiResult.providerUsed === 'gemini' 
+                                    ? 'Google Gemini 2.5 Flash ile Doğrulandı' 
+                                    : aiResult.providerUsed === 'openai' 
+                                    ? 'OpenAI ChatGPT (gpt-4o-mini) ile Doğrulandı' 
+                                    : 'MEB LGS Akıllı Çözüm Motoru'}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Yapay Zeka Sonuç Kutusu */}
+                            {aiResult && (
+                              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/70 via-indigo-50/40 to-white dark:from-purple-950/25 dark:via-indigo-950/20 dark:to-slate-900 border border-purple-200 dark:border-purple-800/60 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                    Yapay Zekâ Koçluk & Çözüm İncelemesi
+                                  </span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                    Güven Oranı: %{Math.round((aiResult.confidenceScore || 0.95) * 100)}
+                                  </span>
+                                </div>
+
+                                {/* Düştüğün Mantık Hatası */}
+                                {aiResult.studentMistakeAnalysis && (
+                                  <div className="p-2.5 rounded-xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-900 dark:text-rose-200">
+                                    <span className="font-bold flex items-center gap-1 text-rose-700 dark:text-rose-300 mb-0.5">
+                                      <AlertCircle className="w-3.5 h-3.5" /> Düştüğün Mantık Hatası / Çeldirici:
+                                    </span>
+                                    <p className="leading-relaxed">{aiResult.studentMistakeAnalysis}</p>
+                                  </div>
+                                )}
+
+                                {/* Pedagojik İpucu */}
+                                {aiResult.pedagogicalTip && (
+                                  <div className="p-2.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 text-xs text-amber-900 dark:text-amber-200">
+                                    <span className="font-bold flex items-center gap-1 text-amber-700 dark:text-amber-300 mb-0.5">
+                                      <Lightbulb className="w-3.5 h-3.5" /> Bir Sonraki Benzer Soru İçin Altın Kural:
+                                    </span>
+                                    <p className="leading-relaxed">{aiResult.pedagogicalTip}</p>
+                                  </div>
+                                )}
+
+                                {/* Adım Adım Yapay Zeka Çözümü */}
+                                {aiResult.stepByStepSolution && (
+                                  <div className="space-y-1 text-xs">
+                                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Yapay Zekânın Adım Adım Çözümü:
+                                    </span>
+                                    <p className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed font-mono text-[11px] bg-white/80 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                                      {aiResult.stepByStepSolution}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -601,6 +757,72 @@ export default function OzelCalismamPage() {
               </div>
             )}
 
+            {/* Canlı Yapay Zekâ Doğrulama & İpucu Kutusu */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={!currentSelectedOption || Boolean(aiLoadingMap[currentQ?.id || currentIdx])}
+                  onClick={async () => {
+                    const res = await handleRequestAiAnalysis(currentQ, currentIdx, currentSelectedOption);
+                    setActiveInlineAiFeedback(res);
+                  }}
+                  className="px-3.5 py-2 rounded-xl border border-purple-300 dark:border-purple-800 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-800 dark:text-purple-200 text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-40"
+                  title="İşaretlediğin şıkkı Gemini veya ChatGPT ile doğrula ve ipucu al"
+                >
+                  <Bot className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  <span>
+                    {Boolean(aiLoadingMap[currentQ?.id || currentIdx]) 
+                      ? '🤖 Yapay Zekâ İnceliyor...' 
+                      : '🤖 Seçtiğim Cevabı Yapay Zekâya Doğrulat & İpucu Al'}
+                  </span>
+                </button>
+
+                {activeInlineAiFeedback && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveInlineAiFeedback(null)}
+                    className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    Kapat ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Anlık Yapay Zekâ Geri Bildirimi */}
+              {activeInlineAiFeedback && (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/20 border border-purple-200 dark:border-purple-800/60 text-xs space-y-2 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      {activeInlineAiFeedback.providerUsed === 'gemini' 
+                        ? 'Google Gemini 2.5 Flash ile Doğrulandı' 
+                        : activeInlineAiFeedback.providerUsed === 'openai' 
+                        ? 'OpenAI ChatGPT ile Doğrulandı' 
+                        : 'MEB LGS Çözüm Motoru'}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                      activeInlineAiFeedback.isStudentCorrect 
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                        : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                    }`}>
+                      {activeInlineAiFeedback.isStudentCorrect ? '✅ Doğru Seçim' : '⚠️ Dikkat: Olası Çeldirici'}
+                    </span>
+                  </div>
+
+                  {activeInlineAiFeedback.studentMistakeAnalysis && !activeInlineAiFeedback.isStudentCorrect && (
+                    <p className="text-rose-900 dark:text-rose-200 font-medium">
+                      <strong>İpucu / Çeldirici Analizi:</strong> {activeInlineAiFeedback.studentMistakeAnalysis}
+                    </p>
+                  )}
+
+                  <p className="text-slate-700 dark:text-slate-300">
+                    <strong>Koçluk Tavsiyesi:</strong> {activeInlineAiFeedback.pedagogicalTip}
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Alt İlerleme & Aksiyon Çubuğu */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -646,6 +868,132 @@ export default function OzelCalismamPage() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Yapay Zekâ (Gemini / ChatGPT) Bağlantı & Yapılandırma Modalı */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-600 text-white">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Yapay Zekâ Denetleyici (ChatGPT & Gemini)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Soru çözümlerini ve cevap kontrolünü harici yapay zekâ modellerine bağlayın
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Model Tercihi */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Kullanılacak Yapay Zekâ Motoru:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAiProvider('auto')}
+                  className={`p-3 rounded-xl border text-left text-xs font-bold transition flex flex-col gap-1 ${
+                    aiProvider === 'auto'
+                      ? 'border-purple-600 bg-purple-50 text-purple-900 dark:bg-purple-950/40 dark:text-purple-200 ring-2 ring-purple-500'
+                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Otomatik</span>
+                  </div>
+                  <span className="text-[10px] font-normal text-slate-500">Gemini / ChatGPT Akıllı Tercih</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAiProvider('gemini')}
+                  className={`p-3 rounded-xl border text-left text-xs font-bold transition flex flex-col gap-1 ${
+                    aiProvider === 'gemini'
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200 ring-2 ring-indigo-500'
+                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Bot className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Google Gemini</span>
+                  </div>
+                  <span className="text-[10px] font-normal text-slate-500">Gemini 2.5 Flash</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAiProvider('openai')}
+                  className={`p-3 rounded-xl border text-left text-xs font-bold transition flex flex-col gap-1 ${
+                    aiProvider === 'openai'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 ring-2 ring-emerald-500'
+                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>OpenAI ChatGPT</span>
+                  </div>
+                  <span className="text-[10px] font-normal text-slate-500">GPT-4o Mini</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Özel API Anahtarı Alanı (Opsiyonel) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>Özel API Anahtarı (Opsiyonel):</span>
+                <span className="text-[10px] font-normal text-slate-400">Sunucu anahtarı yoksa geçerlidir</span>
+              </label>
+              <div className="relative">
+                <Key className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="password"
+                  value={customApiKey}
+                  onChange={(e) => setCustomApiKey(e.target.value)}
+                  placeholder="AIzaSy... veya sk-..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                💡 Sunucu ortamında (<code className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">GEMINI_API_KEY</code> / <code className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">OPENAI_API_KEY</code>) tanımlı anahtar varsa otomatik kullanılır. Anahtar girilmediğinde sistemin yerel MEB LGS Matematik Motoru devrede kalır.
+              </p>
+            </div>
+
+            {/* Aksiyon Butonları */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => saveAiSettings(aiProvider, customApiKey)}
+                className="px-5 py-2 rounded-xl text-xs font-black bg-purple-600 hover:bg-purple-700 text-white shadow-md transition flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>Ayarları Kaydet</span>
+              </button>
             </div>
           </div>
         </div>
