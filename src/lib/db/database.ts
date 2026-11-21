@@ -941,6 +941,21 @@ async function initDatabase(): Promise<Database> {
   try { database.run('ALTER TABLE exam_results ADD COLUMN created_at TEXT DEFAULT (datetime(\'now\'));'); } catch {}
   try { database.run('ALTER TABLE exam_results ADD COLUMN completed_at TEXT;'); } catch {}
 
+  // PDF'ten kırpılan soru görselleri. Diske değil veritabanına yazılır: Vercel gibi ortamlarda
+  // proje klasörü salt okunurdur. Ayrı tablo, soru listelerinin bu büyük veriyi taşımasını önler.
+  try {
+    database.run(`
+      CREATE TABLE IF NOT EXISTS pdf_question_images (
+        question_id TEXT PRIMARY KEY REFERENCES pdf_extracted_questions(id) ON DELETE CASCADE,
+        mime TEXT NOT NULL DEFAULT 'image/jpeg',
+        data BLOB NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+  } catch (e) {
+    console.warn('Could not create pdf_question_images:', e);
+  }
+
   // Check and seed users/students if empty and database_export.json exists
   const exportPath = path.join(process.cwd(), 'data', 'database_export.json');
   if (fs.existsSync(exportPath)) {

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs';
-import { mkdir, writeFile, rm } from 'fs/promises';
+import type { Database } from 'sql.js';
 import { getDb, saveDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 import { parseAnswerKey } from '@/lib/pdfExtraction/answerKey';
@@ -22,7 +20,20 @@ export const maxDuration = 60;
 
 const TOPIC_IDS = new Set(INITIAL_LGS_TOPICS.map(t => t.id));
 const safeId = (id: string) => id.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
-const questionImageDir = (pdfId: string) => path.join(process.cwd(), 'public', 'uploads', 'questions', safeId(pdfId));
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+// Sunucusuz ortamda her istek farklı bir örneğe (ve onun ayrı veritabanı kopyasına) düşebilir.
+// Bu yüzden her sayfa kaydı, ihtiyaç duyduğu PDF ve iş kayıtlarını yoksa kendisi açar.
+function ensureDocAndJob(db: Database, pdfId: string, jobId: string, teacherId: string, title?: string, fileName?: string) {
+  db.run(
+    `INSERT OR IGNORE INTO pdf_documents (id, teacher_id, title, file_name, file_path) VALUES (?, ?, ?, ?, ?)`,
+    [pdfId, teacherId, title || 'PDF', fileName || 'dokuman.pdf', `/api/pdf-documents/${pdfId}/file`]
+  );
+  db.run(
+    `INSERT OR IGNORE INTO pdf_analysis_jobs (id, pdf_id, teacher_id, status) VALUES (?, ?, ?, 'processing')`,
+    [jobId, pdfId, teacherId]
+  );
+}
 
 interface PageQuestionMeta {
   seq: number;                 // belgedeki sıra (1'den başlar)
@@ -97,10 +108,10 @@ async function start(body: { pdfId?: string; title?: string; fileName?: string; 
     doc = { id: pdfId, title: body.title || 'PDF', answer_key: body.answerKey || '', question_count: null };
   }
 
-  // Önceki çıkarımı temizle (soru kayıtları, işler, görseller)
+  // Önceki çıkarımı temizle (görseller, soru kayıtları, işler)
+  db.run('DELETE FROM pdf_question_images WHERE question_id IN (SELECT id FROM pdf_extracted_questions WHERE pdf_id = ?)', [pdfId]);
   db.run('DELETE FROM pdf_extracted_questions WHERE pdf_id = ?', [pdfId]);
   db.run('DELETE FROM pdf_analysis_jobs WHERE pdf_id = ?', [pdfId]);
-  try { await rm(questionImageDir(pdfId), { recursive: true, force: true }); } catch {}
 
   const jobId = `job_${safeId(pdfId)}_${Date.now().toString(36)}`;
   db.run(
@@ -128,10 +139,10 @@ async function savePage(form: FormData) {
   const answerKey: Record<string, string> = JSON.parse(String(form.get('answerKey') || '{}'));
   if (!jobId || !pdfId || !pageNo) return NextResponse.json({ success: false, error: 'Eksik bilgi.' }, { status: 400 });
 
-  const dir = questionImageDir(pdfId);
-  if (!fs.existsSync(dir)) await mkdir(dir, { recursive: true });
-
+  const session = await getSession();
   const db = await getDb();
+  ensureDocAndJob(db, pdfId, jobId, session?.userId || 'teacher-admin', String(form.get('title') || ''), String(form.get('fileName') || ''));
+
   const stamp = Date.now().toString(36);
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO pdf_extracted_questions
@@ -139,14 +150,16 @@ async function savePage(form: FormData) {
      question_type, difficulty, crop_box_json, image_url, confidence, approval_status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
   `);
+  const imgStmt = db.prepare('INSERT OR REPLACE INTO pdf_question_images (question_id, mime, data) VALUES (?, ?, ?)');
 
   let saved = 0;
   try {
     for (const m of metas) {
       const file = form.get(`img_${m.seq}`);
       if (!(file instanceof Blob)) continue;
-      const name = `q_${m.seq}.png`;
-      await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
+      const mime = ALLOWED_MIME.has(file.type) ? file.type : 'image/jpeg';
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const questionId = `ext_${safeId(pdfId)}_${m.seq}`;
 
       const displayNo = m.questionNo ?? m.seq;
       const keyAnswer = answerKey[String(displayNo)] || null;
@@ -154,7 +167,7 @@ async function savePage(form: FormData) {
       const crop = { x: m.box.x0 / m.pageW, y: m.box.y0 / m.pageH, w: (m.box.x1 - m.box.x0) / m.pageW, h: (m.box.y1 - m.box.y0) / m.pageH, method: m.method, answerSource: keyAnswer ? 'key' : m.answer ? 'ai' : null };
 
       stmt.run([
-        `ext_${safeId(pdfId)}_${m.seq}`,
+        questionId,
         jobId,
         pdfId,
         displayNo,
@@ -166,13 +179,16 @@ async function savePage(form: FormData) {
         m.hasVisual ? 'geometrik_gorsel' : 'yeni_nesil',
         m.difficulty && m.difficulty >= 1 && m.difficulty <= 5 ? Math.round(m.difficulty) : 3,
         JSON.stringify(crop),
-        `/api/lgs/pdf-extract/image/${safeId(pdfId)}/${name}?v=${stamp}`,
+        `/api/lgs/pdf-extract/image/${questionId}?v=${stamp}`,
         Math.max(0, Math.min(1, Number(m.confidence) || 0.5)),
       ]);
+      // Görsel, soru satırından sonra yazılır (soru satırının yeniden yazılması görseli silmesin)
+      imgStmt.run([questionId, mime, bytes]);
       saved++;
     }
   } finally {
     stmt.free();
+    imgStmt.free();
   }
   saveDb(db);
   return NextResponse.json({ success: true, saved });
@@ -182,7 +198,9 @@ async function finish(body: { jobId?: string; pdfId?: string; pageCount?: number
   const jobId = String(body.jobId || '');
   const pdfId = String(body.pdfId || '');
   if (!jobId || !pdfId) return NextResponse.json({ success: false, error: 'Eksik bilgi.' }, { status: 400 });
+  const session = await getSession();
   const db = await getDb();
+  ensureDocAndJob(db, pdfId, jobId, session?.userId || 'teacher-admin');
 
   const cnt = db.exec('SELECT COUNT(*), AVG(confidence) FROM pdf_extracted_questions WHERE pdf_id = ?', [pdfId]);
   const count = Number(cnt[0]?.values[0]?.[0] || 0);

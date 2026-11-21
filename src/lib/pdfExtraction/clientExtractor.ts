@@ -235,6 +235,8 @@ export async function extractQuestionsFromPdf(opts: {
         form.append('jobId', job.jobId);
         form.append('pdfId', opts.pdfId);
         form.append('pageNo', String(p));
+        form.append('title', opts.title || '');
+        form.append('fileName', opts.fileName || '');
         form.append('answerKey', JSON.stringify(job.answerKey || {}));
         form.append('meta', JSON.stringify(finalList.map(f => ({
           seq: f.seq, questionNo: f.no, box: f.box, pageW: W, pageH: H, text: f.text, options: f.options,
@@ -243,7 +245,9 @@ export async function extractQuestionsFromPdf(opts: {
         }))));
         for (const f of finalList) {
           const c = cropCanvas(canvas, f.box);
-          form.append(`img_${f.seq}`, await toBlob(c, 'image/png'), `q_${f.seq}.png`);
+          // JPEG: PNG'nin birkaç katı küçük; veritabanında saklandığı ve sunucusuz ortamların istek boyutu
+          // sınırı (≈4,5 MB) olduğu için önemli. %90 kalite yazıyı net tutar.
+          form.append(`img_${f.seq}`, await toBlob(c, 'image/jpeg', 0.9), `q_${f.seq}.jpg`);
         }
         const res = await fetch('/api/lgs/pdf-extract', { method: 'POST', body: form });
         const d = await res.json().catch(() => ({}));
