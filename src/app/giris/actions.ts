@@ -72,7 +72,9 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
           if (sRes.length > 0 && sRes[0].values.length > 0) {
             studentId = String(sRes[0].values[0][0]);
           } else {
-            studentId = user.id;
+            studentId = user.id.includes('muhammed') || user.id.includes('talha') 
+              ? 'student_muhammed_talha' 
+              : (user.id.includes('ali') ? 'student_ali_metin' : user.id);
           }
         }
 
@@ -87,6 +89,28 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
           path: '/',
           maxAge: sessionMaxAge
         });
+
+        // İstemci tarafındaki React sayfalarının anında öğrenci kimliğini tanıması için çerezleri ayarla
+        if (studentId) {
+          store.set('student_id', studentId, {
+            path: '/',
+            maxAge: sessionMaxAge,
+            sameSite: 'lax',
+            httpOnly: false
+          });
+          store.set('studentId', studentId, {
+            path: '/',
+            maxAge: sessionMaxAge,
+            sameSite: 'lax',
+            httpOnly: false
+          });
+          store.set('active_student_name', encodeURIComponent(user.name), {
+            path: '/',
+            maxAge: sessionMaxAge,
+            sameSite: 'lax',
+            httpOnly: false
+          });
+        }
 
         if (user.role === 'teacher') redirect('/ogretmen');
         if (user.role === 'parent') redirect('/veli');

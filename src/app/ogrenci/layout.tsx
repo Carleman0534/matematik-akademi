@@ -1,6 +1,7 @@
 import { AppShell, type NavItem } from '@/components/AppShell';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { ClientSessionSync } from '@/components/ClientSessionSync';
 
 const NAV: NavItem[] = [
   { href: '/ogrenci', label: 'Ana Sayfa', icon: '🏠', mobile: true },
@@ -38,6 +39,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
       userName={displayName} 
       roleLabel={isTeacherOrParentPreviewing ? 'Öğretmen Önizleme' : 'Öğrenci'}
     >
+      <ClientSessionSync studentId={s.studentId} studentName={s.fullName} role={s.role} />
       {children}
     </AppShell>
   );

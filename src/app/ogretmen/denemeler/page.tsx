@@ -29,6 +29,44 @@ export default async function ExamsPage() {
     sb.from('exam_sessions').select('exam_id, submitted_at, exams!inner(teacher_id)').eq('exams.teacher_id', me.userId),
   ]);
   const exams = (data || []) as ExamRow[];
+
+  // Eğer Supabase'de deneme listesi boşsa SQLite'taki yerel denemeleri yükle
+  if (exams.length === 0) {
+    try {
+      const { getDb } = await import('@/lib/db/database');
+      const db = await getDb();
+      const eRes = db.exec(`
+        SELECT id, title, question_count, duration_minutes, status, created_at
+        FROM exams
+        ORDER BY created_at DESC
+      `);
+      if (eRes.length > 0 && eRes[0].values.length > 0) {
+        const cols = eRes[0].columns;
+        for (const row of eRes[0].values) {
+          const obj: any = {};
+          cols.forEach((c, idx) => { obj[c] = row[idx]; });
+          exams.push({
+            id: String(obj.id),
+            title: String(obj.title),
+            question_count: Number(obj.question_count) || 20,
+            duration_minutes: Number(obj.duration_minutes) || 40,
+            status: String(obj.status || 'published'),
+            created_at: String(obj.created_at || new Date().toISOString()),
+            class_id: null,
+            teacher_id: me.userId,
+            starts_at: null,
+            ends_at: null,
+            published_at: String(obj.created_at || new Date().toISOString()),
+            allow_late_entry: true,
+            show_answers_mode: 'immediately',
+            penalty_divisor: 3,
+            is_template: false,
+            pdf_id: null
+          } as any);
+        }
+      }
+    } catch {}
+  }
   const className = new Map((cls || []).map(c => [c.id, c.name]));
   const started = new Map<string, number>(), submitted = new Map<string, number>();
   (ss || []).forEach((s: { exam_id: string; submitted_at: string | null }) => {

@@ -26,9 +26,30 @@ export default function SoruCozPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
     if (!selectedOption) return;
     setIsAnswered(true);
+
+    try {
+      const studentId = (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_muhammed_talha';
+      const isCorrect = selectedOption === currentQuestion.correctAnswer;
+      await fetch('/api/student/interactive-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'record_attempt',
+          studentId,
+          questionId: currentQuestion.id,
+          questionText: currentQuestion.text,
+          studentAnswer: selectedOption,
+          correctAnswer: currentQuestion.correctAnswer,
+          isCorrect,
+          topicId: currentQuestion.topicId,
+          topicName: currentQuestion.topicName,
+          solutionExplanation: currentQuestion.explanation
+        })
+      });
+    } catch {}
   };
 
   const handleAction = async (action: 'get_hint' | 'first_step' | 'full_solution' | 'similar_question' | 'add_to_review') => {

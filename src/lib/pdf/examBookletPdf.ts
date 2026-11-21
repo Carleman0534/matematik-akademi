@@ -86,6 +86,20 @@ export function openPrintBookletWindow({
     }
     .print-bar h2 { font-size: 13px; font-weight: 700; }
     .print-actions { display: flex; gap: 8px; }
+    .btn-pdf {
+      background: #059669;
+      color: white;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-pdf:hover { background: #047857; }
     .btn-print {
       background: #4f46e5;
       color: white;
@@ -95,9 +109,31 @@ export function openPrintBookletWindow({
       font-weight: 700;
       font-size: 12px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .btn-print:hover { background: #4338ca; }
     .btn-close {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-close:hover { background: #475569; }
+    .preview-tip {
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border-left: 3px solid #38bdf8;
+      margin-top: 8px;
+    }
       background: #334155;
       color: white;
       border: none;
@@ -300,10 +336,15 @@ export function openPrintBookletWindow({
 </head>
 <body>
   <div class="print-bar">
-    <h2>🖨️ ${examTitle} (A4 Soru Kitapçığı)</h2>
+    <div>
+      <h2>🖨️ ${examTitle} (A4 Soru Kitapçığı)</h2>
+      <div class="preview-tip">
+        💡 <strong>İpucu:</strong> Windows veya tarayıcınızda <em>"Bu uygulama yazdırma önizlemesini desteklemiyor"</em> uyarısı çıksa bile; yazıcı listesinden dilediğiniz yazıcıyı veya <strong>Microsoft Print to PDF</strong> seçip alttaki <strong>"Yazdır"</strong> butonuna basabilirsiniz, çıktı eksiksiz ve net alınacaktır.
+      </div>
+    </div>
     <div class="print-actions">
-      <button class="btn-print" onclick="window.print()">Yazdır / PDF Olarak Kaydet</button>
-      <button class="btn-close" onclick="window.close()">Kapat</button>
+      <button class="btn-print" onclick="window.print()">🖨️ Yazıcıya Gönder / Yazdır</button>
+      <button class="btn-close" onclick="window.close()">✕ Kapat</button>
     </div>
   </div>
 
@@ -401,11 +442,12 @@ export function openPrintBookletWindow({
   ` : ''}
 
   <script>
-    // Sayfa tamamen yüklendiğinde otomatik yazdırma iletişim kutusunu tetikle
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        try { window.print(); } catch (e) {}
-      }, 400);
+    // Kullanıcı önizlemeyi rahatça incelesin; klavye kısayolu (Ctrl+P) desteği
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        window.print();
+      }
     });
   </script>
 </body>
@@ -500,6 +542,8 @@ export async function downloadExamBookletAsPdf({
                   ${q.topicName || 'LGS Matematik'}
                 </span>
               </div>
+              ${q.imageUrl ? `<div style="text-align: center; margin: 6px 0;"><img src="${q.imageUrl}" style="max-height: 140px; max-width: 100%; object-fit: contain; border-radius: 4px;" crossOrigin="anonymous" /></div>` : ''}
+              ${q.svgContent && !q.imageUrl ? `<div style="text-align: center; margin: 6px 0; overflow: hidden;">${q.svgContent}</div>` : ''}
               <p style="font-size: 11.5px; line-height: 1.4; margin-bottom: 8px; color: #1e293b; white-space: pre-line;">
                 ${q.questionText}
               </p>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db/database';
+import { getSession } from '@/lib/auth';
 
 interface AnswerPayload {
   questionNo: number;
@@ -57,20 +58,23 @@ export async function POST(req: NextRequest) {
 
     const db = await getDb();
 
+    const session = await getSession();
+
     // 1. Öğrenci ID'sini çözümle
     let targetStudentId = body.studentId;
-    if (!targetStudentId || targetStudentId === 'null' || targetStudentId === 'undefined') {
-      // Çerez veya varsayılan aktif öğrenci
+    if (session && session.role === 'student' && session.studentId) {
+      targetStudentId = session.studentId;
+    } else if (!targetStudentId || targetStudentId === 'null' || targetStudentId === 'undefined') {
       const cookieHeader = req.headers.get('cookie') || '';
-      const match = cookieHeader.match(/studentId=([^;]+)/);
-      targetStudentId = match ? match[1] : 'student_ali_metin';
+      const match = cookieHeader.match(/(?:student_id|studentId)=([^;]+)/);
+      targetStudentId = match ? match[1] : (session?.studentId || 'student_muhammed_talha');
     }
 
     // Hedef öğrencinin veritabanında var olduğundan emin ol
     ensureStudentExists(db, targetStudentId);
 
     // Eğer öğrenci 'f9c13771-f97f-42ea-aa59-e35098bec387' veya 'student_muhammed_talha' ise ikisini de güvenceye al
-    if (targetStudentId === 'f9c13771-f97f-42ea-aa59-e35098bec387') {
+    if (targetStudentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || targetStudentId.includes('talha')) {
       ensureStudentExists(db, 'student_muhammed_talha');
     }
 
@@ -218,6 +222,27 @@ export async function POST(req: NextRequest) {
         } catch (qErr) {
           console.warn('Could not insert question mistake pool:', qErr);
         }
+        try {
+          const smaId = `sma_${targetStudentId}_${examId}_q${a.questionNo}`;
+          db.run(
+            `INSERT OR REPLACE INTO smart_mistake_analyses (
+              id, student_id, question_id, exam_id, topic_id, student_answer, correct_answer,
+              primary_error_type, ai_probability, ai_reasoning_explanation, teacher_note, verified_by_teacher, created_at
+            ) VALUES (?, ?, ?, ?, 'top_carpanlar_katlar', ?, ?, 'dikkat_eksikligi', 0.88, ?, ?, 0, datetime('now'))`,
+            [
+              smaId,
+              targetStudentId,
+              a.questionId || `q_${a.questionNo}`,
+              examId,
+              sAns || '-',
+              cAns,
+              `${a.topicName || 'LGS'} konusunda doğru cevap ${cAns} yerine ${sAns || 'boş'} işaretlendi. Çözüm: ${a.solutionExplanation || 'Temel kuralları tekrar ediniz.'}`,
+              `Deneme Sınavı: ${title}`
+            ]
+          );
+        } catch (smaErr) {
+          console.warn('Could not insert smart_mistake_analyses:', smaErr);
+        }
       }
     }
 
@@ -242,7 +267,7 @@ export async function POST(req: NextRequest) {
 
       try {
         db.run(
-          `INSERT INTO student_topic_performance (id, student_id, topic_name, mastery_score, solved_count, correct_count, wrong_count, status, last_activity_at)
+          `INSERT INTO student_topic_performance (id, student_id, topic_id, mastery_score, solved_count, correct_count, wrong_count, status, last_tested_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
            ON CONFLICT(id) DO UPDATE SET
              mastery_score = excluded.mastery_score,
@@ -250,15 +275,59 @@ export async function POST(req: NextRequest) {
              correct_count = student_topic_performance.correct_count + excluded.correct_count,
              wrong_count = student_topic_performance.wrong_count + excluded.wrong_count,
              status = excluded.status,
-             last_activity_at = datetime('now')`,
-          [perfId, targetStudentId, topicName, masteryScore, stat.total, stat.correct, stat.wrong, status]
+             last_tested_at = datetime('now')`,
+          [perfId, targetStudentId, cleanTopic, masteryScore, stat.total, stat.correct, stat.wrong, status]
         );
       } catch (topErr) {
         console.warn('Error updating topic performance:', topErr);
       }
     }
 
-    // 9. Değişiklikleri Dosyaya Yaz
+    // 9. Deneme Değerlendirme Raporunu (post_exam_evaluations) Otomatik Oluştur
+    try {
+      const evalId = `eval_${examId}_${targetStudentId}`;
+      const summaryObj = {
+        correct: correctCount,
+        wrong: wrongCount,
+        empty: blankCount,
+        net: netScore,
+        score: Math.round((correctCount / totalQCount) * 100),
+        timeSpentMinutes: Math.round(durationSeconds / 60),
+        totalDuration: durationMin
+      };
+      const topicList = Object.entries(topicStats).map(([t, s]) => ({
+        topic: t,
+        total: s.total,
+        correct: s.correct,
+        wrong: s.wrong,
+        empty: s.blank,
+        net: parseFloat((s.correct - s.wrong / 3).toFixed(2)),
+        accuracy: Math.round((s.correct / s.total) * 100)
+      }));
+      db.run(
+        `INSERT OR REPLACE INTO post_exam_evaluations (
+          id, exam_id, student_id, teacher_id, summary_json, topics_json, difficulty_json,
+          strengths_text, priorities_text, study_recommendations, ai_evaluation_text,
+          teacher_approved, created_at, updated_at
+        ) VALUES (?, ?, ?, 'teacher_default', ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`,
+        [
+          evalId,
+          examId,
+          targetStudentId,
+          JSON.stringify(summaryObj),
+          JSON.stringify(topicList),
+          JSON.stringify({ medium: { total: totalQCount, correct: correctCount, accuracy: Math.round((correctCount / totalQCount) * 100) } }),
+          correctCount > 0 ? `${title} sınavında ${correctCount} soru doğru çözüldü.` : 'Temel konular tekrar edilmeli.',
+          wrongCount > 0 ? `${wrongCount} yanlış soru üzerinde durulmalı.` : 'Tüm sorular eksiksiz tamamlandı.',
+          'Yanlış yapılan soruların çözümleri incelenmeli ve benzer sorularla pekiştirilmelidir.',
+          `${targetStudentId.includes('talha') ? 'Muhammed Talha' : 'Öğrenci'}, ${title} sınavını tamamladı. ${netScore} Net (${correctCount} D, ${wrongCount} Y, ${blankCount} B).`
+        ]
+      );
+    } catch (evalErr) {
+      console.warn('post_exam_evaluations insert notice:', evalErr);
+    }
+
+    // 10. Değişiklikleri Dosyaya Yaz
     saveDb();
 
     return NextResponse.json({

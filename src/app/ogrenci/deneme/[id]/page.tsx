@@ -16,10 +16,12 @@ import {
   Bot,
   Cpu,
   Lightbulb,
-  AlertCircle
+  AlertCircle,
+  FileDown
 } from 'lucide-react';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
 import { generateCurriculumQuestion } from '@/lib/ai/questionGenerator';
+import { downloadExamBookletAsPdf } from '@/lib/pdf/examBookletPdf';
 
 interface QuestionItem {
   id: string;
@@ -59,9 +61,39 @@ export default function StudentDenemeRoomPage({
   const [timeLeftSec, setTimeLeftSec] = useState(40 * 60);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [examResult, setExamResult] = useState<any | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [loading, setLoading] = useState(true);
   const [aiLoadingMap, setAiLoadingMap] = useState<Record<number, boolean>>({});
   const [aiAnalysisMap, setAiAnalysisMap] = useState<Record<number, any>>({});
+
+  const handleDownloadPdf = async () => {
+    if (questions.length === 0) return;
+    setIsDownloadingPdf(true);
+    try {
+      const studentName = typeof window !== 'undefined' ? (localStorage.getItem('student_name') || 'Muhammed Talha') : 'Öğrenci';
+      await downloadExamBookletAsPdf({
+        examTitle,
+        durationMin: 40,
+        questions: questions.map(q => ({
+          questionNo: q.questionNo,
+          topicName: q.topicName,
+          questionText: q.questionText,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          imageUrl: q.imageUrl,
+          svgContent: q.svgContent,
+          solutionExplanation: q.solutionExplanation
+        })),
+        includeOptic: true,
+        includeAnswerKey: true,
+        studentName
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const handleRequestAiAnalysisForDeneme = async (q: QuestionItem) => {
     setAiLoadingMap(prev => ({ ...prev, [q.questionNo]: true }));
@@ -247,7 +279,14 @@ export default function StudentDenemeRoomPage({
     // Öğretmen ve veli sistemine anında senkronize et
     try {
       const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const studentId = searchParams?.get('studentId') || (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_ali_metin';
+      let studentId = searchParams?.get('studentId') || (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null);
+      if (!studentId && typeof window !== 'undefined') {
+        const cookieMatch = document.cookie.match(/(?:student_id|studentId)=([^;]+)/);
+        if (cookieMatch) studentId = cookieMatch[1];
+      }
+      if (!studentId) {
+        studentId = 'student_muhammed_talha';
+      }
 
       const payloadAnswers = questions.map(q => ({
         questionNo: q.questionNo,
@@ -273,6 +312,28 @@ export default function StudentDenemeRoomPage({
           answers: payloadAnswers
         })
       });
+
+      // Tarayıcı hafızasına da anında kaydet
+      if (typeof window !== 'undefined') {
+        try {
+          const completedList = JSON.parse(localStorage.getItem('student_completed_exams') || '[]');
+          const studentDisplayName = localStorage.getItem('student_name') || (studentId.includes('talha') ? 'Muhammed Talha' : 'Ali Metin');
+          const newExamRecord = {
+            examId,
+            studentId,
+            studentName: studentDisplayName,
+            title: examTitle,
+            correctCount: correct,
+            wrongCount: wrong,
+            blankCount: blank,
+            netScore: net,
+            completedAt: new Date().toISOString(),
+            durationSeconds: Math.max(10, (40 * 60) - timeLeftSec)
+          };
+          const updated = [newExamRecord, ...completedList.filter((e: any) => e.examId !== examId)].slice(0, 30);
+          localStorage.setItem('student_completed_exams', JSON.stringify(updated));
+        } catch {}
+      }
     } catch (err) {
       console.warn('Could not persist student exam submission:', err);
     }
@@ -306,8 +367,19 @@ export default function StudentDenemeRoomPage({
           </div>
         </div>
 
-        {/* Canlı Sayaç & Sınavı Bitir */}
-        <div className="flex items-center gap-3">
+        {/* Canlı Sayaç, PDF İndir & Sınavı Bitir */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            disabled={isDownloadingPdf || questions.length === 0}
+            onClick={handleDownloadPdf}
+            className="px-3.5 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+            title="Sınav kitapçığını ve optik formu PDF olarak bilgisayarınıza indirin"
+          >
+            <FileDown className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{isDownloadingPdf ? 'PDF İndiriliyor...' : '📄 PDF İndir'}</span>
+          </button>
+
           {!isSubmitted ? (
             <>
               <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-sm shadow-xs">

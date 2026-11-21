@@ -23,7 +23,7 @@ export default async function StudentHome() {
       SELECT p.*, count(q.id) as question_count 
       FROM personalized_study_plans p
       LEFT JOIN study_plan_questions q ON p.id = q.plan_id
-      WHERE (p.student_id = ? OR p.student_id IS NULL OR p.student_id = 'student_ali_metin')
+      WHERE (p.student_id = ? OR p.student_id IS NULL)
       AND (p.status IS NULL OR p.status != 'completed')
       GROUP BY p.id
       ORDER BY p.created_at DESC

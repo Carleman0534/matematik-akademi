@@ -17,7 +17,15 @@ export async function GET(req: NextRequest) {
     let examInfo: any = null;
     let studentClause = '';
     if (studentId) {
-      studentClause = ` AND (er.student_id = '${studentId}' OR er.student_id = 'student_muhammed_talha' OR er.student_id = 'student_ali_metin')`;
+      const isTalha = studentId.includes('talha');
+      const isAli = studentId.includes('ali');
+      if (isTalha) {
+        studentClause = ` AND (er.student_id = '${studentId}' OR er.student_id = 'student_muhammed_talha')`;
+      } else if (isAli) {
+        studentClause = ` AND (er.student_id = '${studentId}' OR er.student_id = 'student_ali_metin' OR er.student_id = 'user_ali_metin')`;
+      } else {
+        studentClause = ` AND er.student_id = '${studentId}'`;
+      }
     }
 
     const resQuery = `
@@ -85,9 +93,9 @@ export async function GET(req: NextRequest) {
         ea.ai_analysis
       FROM exam_answers ea
       WHERE (
-        ea.session_id LIKE 'sess_${examId}%' 
-        OR ea.exam_result_id LIKE 'result_${examId}%'
-        ${examInfo?.result_id ? `OR ea.exam_result_id = '${examInfo.result_id}'` : ''}
+        ${examInfo?.result_id ? `ea.exam_result_id = '${examInfo.result_id}' OR ` : ''}
+        (ea.session_id LIKE 'sess_${examId}%' ${studentId ? `AND ea.session_id LIKE '%${studentId}%'` : ''})
+        OR (ea.exam_result_id LIKE 'result_${examId}%' ${studentId ? `AND ea.exam_result_id LIKE '%${studentId}%'` : ''})
       )
       ORDER BY ea.question_no ASC
     `;

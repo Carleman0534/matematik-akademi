@@ -5,8 +5,9 @@ import {
   Target, CheckCircle2, XCircle, Clock, Sparkles, ArrowRight, 
   ChevronRight, ChevronLeft, Award, Zap, HelpCircle, Eye, 
   RotateCcw, Check, BookOpen, Layers, BarChart3, AlertCircle,
-  Bot, Cpu, Settings, Key, X, Lightbulb
+  Bot, Cpu, Settings, Key, X, Lightbulb, FileDown, Printer
 } from 'lucide-react';
+import { downloadExamBookletAsPdf, openPrintBookletWindow } from '@/lib/pdf/examBookletPdf';
 
 export default function OzelCalismamPage() {
   const [plans, setPlans] = useState<any[]>([]);
@@ -40,6 +41,57 @@ export default function OzelCalismamPage() {
       setAiProvider(savedProvider);
     }
   }, []);
+
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (questions.length === 0) return;
+    setIsDownloadingPdf(true);
+    try {
+      const studentName = typeof window !== 'undefined' ? (localStorage.getItem('student_name') || 'Muhammed Talha') : 'Öğrenci';
+      const mappedQuestions = questions.map((q, idx) => ({
+        questionNo: idx + 1,
+        topicName: q.topic_name || activePlan?.title || 'LGS Matematik',
+        questionText: q.question_text || '',
+        options: q.options || {},
+        correctAnswer: q.correct_answer || 'A',
+        imageUrl: q.image_url || q.imageUrl,
+        svgContent: q.svg_content,
+        solutionExplanation: q.solution_explanation
+      }));
+
+      await downloadExamBookletAsPdf({
+        examTitle: activePlan?.title || 'Bana Özel LGS Matematik Çalışması',
+        durationMin: Math.max(20, questions.length * 2),
+        questions: mappedQuestions,
+        includeOptic: true,
+        includeAnswerKey: true,
+        studentName
+      });
+    } catch (e) {
+      console.error(e);
+      // Fallback: temiz pencere aç
+      try {
+        const studentName = typeof window !== 'undefined' ? (localStorage.getItem('student_name') || 'Muhammed Talha') : 'Öğrenci';
+        openPrintBookletWindow({
+          examTitle: activePlan?.title || 'Bana Özel LGS Matematik Çalışması',
+          durationMin: Math.max(20, questions.length * 2),
+          questions: questions.map((q, idx) => ({
+            questionNo: idx + 1,
+            topicName: q.topic_name || activePlan?.title || 'LGS Matematik',
+            questionText: q.question_text || '',
+            options: q.options || {},
+            correctAnswer: q.correct_answer || 'A',
+            imageUrl: q.image_url || q.imageUrl,
+            svgContent: q.svg_content
+          })),
+          studentName
+        });
+      } catch (err) {}
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const saveAiSettings = (provider: 'auto' | 'gemini' | 'openai', key: string) => {
     setAiProvider(provider);
@@ -109,7 +161,19 @@ export default function OzelCalismamPage() {
           await loadPlanSession(planIdFromUrl);
         }
 
-        const res = await fetch('/api/lgs/study-plans');
+        let currentStudentId = searchParams.get('studentId');
+        if (!currentStudentId && typeof window !== 'undefined') {
+          currentStudentId = localStorage.getItem('student_id');
+          if (!currentStudentId) {
+            const m = document.cookie.match(/(?:student_id|studentId)=([^;]+)/);
+            if (m) currentStudentId = m[1];
+          }
+        }
+        const fetchUrl = currentStudentId 
+          ? `/api/lgs/study-plans?studentId=${encodeURIComponent(currentStudentId)}`
+          : '/api/lgs/study-plans';
+
+        const res = await fetch(fetchUrl);
         const data = await res.json();
         if (data.success && data.plans && data.plans.length > 0) {
           setPlans(data.plans);
@@ -184,7 +248,14 @@ export default function OzelCalismamPage() {
     if (questions.length > 0) {
       try {
         const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-        const studentId = urlParams?.get('studentId') || (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_ali_metin';
+        let studentId = urlParams?.get('studentId') || (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null);
+        if (!studentId && typeof window !== 'undefined') {
+          const cookieMatch = document.cookie.match(/(?:student_id|studentId)=([^;]+)/);
+          if (cookieMatch) studentId = cookieMatch[1];
+        }
+        if (!studentId) {
+          studentId = 'student_muhammed_talha';
+        }
 
         const payloadAnswers = questions.map((q, idx) => {
           const studentAns = answers[idx] || null;
@@ -213,17 +284,42 @@ export default function OzelCalismamPage() {
           };
         });
 
+        const examSubmitId = activePlan?.id || `ozel_calisma_${Date.now()}`;
+        const examSubmitTitle = activePlan?.title || 'Bana Özel Matematik Çalışmam';
+
         await fetch('/api/exam-results/submit-student-exam', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            examId: activePlan?.id || `ozel_calisma_${Date.now()}`,
+            examId: examSubmitId,
             studentId,
-            examTitle: activePlan?.title || 'Bana Özel Matematik Çalışmam',
+            examTitle: examSubmitTitle,
             durationSeconds: Math.max(10, elapsedSeconds),
             answers: payloadAnswers
           })
         });
+
+        // Tarayıcı yerel hafızasına da anında kaydet (Öğretmen paneli anında görsün)
+        if (typeof window !== 'undefined') {
+          try {
+            const completedList = JSON.parse(localStorage.getItem('student_completed_exams') || '[]');
+            const studentDisplayName = localStorage.getItem('student_name') || (studentId.includes('talha') ? 'Muhammed Talha' : 'Ali Metin');
+            const newExamRecord = {
+              examId: examSubmitId,
+              studentId,
+              studentName: studentDisplayName,
+              title: examSubmitTitle,
+              correctCount,
+              wrongCount,
+              blankCount,
+              netScore: Math.max(0, parseFloat((correctCount - wrongCount / 3).toFixed(2))),
+              completedAt: new Date().toISOString(),
+              durationSeconds: Math.max(10, elapsedSeconds)
+            };
+            const updated = [newExamRecord, ...completedList.filter((e: any) => e.examId !== examSubmitId)].slice(0, 30);
+            localStorage.setItem('student_completed_exams', JSON.stringify(updated));
+          } catch {}
+        }
 
         // Eski çalışma oturumu rotasıyla da geriye dönük uyumlu senkronize et
         if (activePlan) {
@@ -355,6 +451,18 @@ export default function OzelCalismamPage() {
               {aiProvider === 'gemini' ? '🤖 Gemini (2.5 Flash)' : aiProvider === 'openai' ? '🤖 ChatGPT (4o-mini)' : '🤖 Yapay Zekâ: Otomatik'}
             </span>
           </button>
+
+          {/* Doğrudan A4 PDF Kitapçığı İndir Butonu (Önizleme Hatasız) */}
+          <button
+            type="button"
+            disabled={isDownloadingPdf || questions.length === 0}
+            onClick={handleDownloadPdf}
+            className="rounded-xl px-3.5 py-2 text-xs font-bold border transition flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-400 shadow-sm disabled:opacity-50"
+            title="Soruları A4 Kitapçığı ve Optik Form Olarak İndir (Yazdırma önizleme hatası olmadan)"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            <span>{isDownloadingPdf ? 'PDF İndiriliyor...' : '📄 PDF İndir'}</span>
+          </button>
         </div>
       </div>
 
@@ -402,6 +510,16 @@ export default function OzelCalismamPage() {
                     <span>Yanlışlarımı Tekrar Çöz ({wrongCount})</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  disabled={isDownloadingPdf}
+                  onClick={handleDownloadPdf}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                  title="Tüm sınavı ve cevap anahtarını A4 PDF olarak indir"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  <span>{isDownloadingPdf ? 'PDF Hazırlanıyor...' : '📄 PDF Kitapçığı İndir'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleRestart}

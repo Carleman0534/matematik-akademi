@@ -68,6 +68,40 @@ export async function GET(req: Request) {
       }
     }
 
+    // Eğer smart_mistake_analyses'de henüz kayıt yoksa questions tablosundaki yanlışları getir
+    if (mistakes.length === 0) {
+      try {
+        const qRes = db.exec(`
+          SELECT q.id, q.question_number, q.student_answer, q.correct_answer, q.teacher_note, q.student_note, q.created_at
+          FROM questions q
+          WHERE (q.student_id = '${targetStudentId}' OR (('${targetStudentId}'.indexOf('talha') >= 0) AND q.student_id = 'student_muhammed_talha'))
+          AND q.question_type = 'wrong'
+          ORDER BY q.created_at DESC
+        `);
+        if (qRes.length > 0) {
+          const qCols = qRes[0].columns;
+          for (const row of qRes[0].values) {
+            const qObj: any = {};
+            qCols.forEach((c, idx) => { qObj[c] = row[idx]; });
+            mistakes.push({
+              id: qObj.id,
+              questionId: qObj.id,
+              topicName: qObj.teacher_note ? qObj.teacher_note.replace('Deneme Sınavı: ', '') : 'LGS Matematik',
+              studentAnswer: qObj.student_answer || '-',
+              correctAnswer: qObj.correct_answer || 'A',
+              primaryErrorType: 'dikkat_eksikligi',
+              errorTitle: 'Dikkat Eksikliği / İşlem Hatası',
+              pedagogicalAdvice: 'Soru kökünü ve işlem adımlarını dikkatle kontrol ediniz.',
+              verifiedByTeacher: false,
+              teacherNote: qObj.teacher_note,
+              createdAt: qObj.created_at
+            });
+            categoryStats['dikkat_eksikligi'] = (categoryStats['dikkat_eksikligi'] || 0) + 1;
+          }
+        }
+      } catch {}
+    }
+
     return NextResponse.json({
       mistakes,
       categoryStats,

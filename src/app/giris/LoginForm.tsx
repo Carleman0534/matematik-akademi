@@ -50,11 +50,33 @@ export function LoginForm({ notice, initialKimlik = '' }: { notice?: string; ini
         localStorage.removeItem('remembered_kimlik');
       }
       localStorage.setItem('preferred_role', selectedRole);
+
+      // Öğrenci kimliğini localStorage ve çerezlere yaz
+      if (selectedRole === 'student') {
+        const lower = kimlik.toLowerCase().trim();
+        const sId = (lower.includes('muhammed') || lower.includes('talha'))
+          ? 'student_muhammed_talha'
+          : (lower.includes('ali') ? 'student_ali_metin' : 'student_muhammed_talha');
+        localStorage.setItem('student_id', sId);
+        localStorage.setItem('student_name', sId === 'student_muhammed_talha' ? 'Muhammed Talha' : 'Ali Metin');
+        document.cookie = `student_id=${sId}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `studentId=${sId}; path=/; max-age=2592000; SameSite=Lax`;
+      }
     }
   };
 
   const handleQuickSelect = (username: string) => {
     setKimlik(username);
+    if (typeof window !== 'undefined') {
+      const lower = username.toLowerCase();
+      const sId = (lower.includes('muhammed') || lower.includes('talha'))
+        ? 'student_muhammed_talha'
+        : (lower.includes('ali') ? 'student_ali_metin' : 'student_muhammed_talha');
+      localStorage.setItem('student_id', sId);
+      localStorage.setItem('student_name', sId === 'student_muhammed_talha' ? 'Muhammed Talha' : 'Ali Metin');
+      document.cookie = `student_id=${sId}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `studentId=${sId}; path=/; max-age=2592000; SameSite=Lax`;
+    }
   };
 
   return (

@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db/database';
+import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
-    const studentId = searchParams.get('studentId');
+    let studentId = searchParams.get('studentId');
+
+    // Eğer istekte studentId yoksa aktif oturumdan öğrenciyi çözümle
+    if (!studentId) {
+      try {
+        const session = await getSession();
+        if (session && session.role === 'student' && session.studentId) {
+          studentId = session.studentId;
+        }
+      } catch {}
+    }
 
     let sql = `
       SELECT p.*, s.parent_name, u.name as student_name
@@ -16,7 +27,7 @@ export async function GET(req: NextRequest) {
     `;
     const params: any[] = [];
     if (studentId) {
-      sql += ' AND p.student_id = ?';
+      sql += ' AND (p.student_id = ? OR p.student_id IS NULL)';
       params.push(studentId);
     }
     sql += ' ORDER BY p.created_at DESC';
