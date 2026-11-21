@@ -15,6 +15,7 @@ import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
 import { generateCurriculumQuestion, type GeneratedQuestionResult } from '@/lib/ai/questionGenerator';
 import { checkDuplicateQuestion } from '@/lib/ai/mathValidator';
 import { getClientPdfDocs } from '@/lib/clientPdfStorage';
+import { downloadExamBookletAsPdf, openPrintBookletWindow } from '@/lib/pdf/examBookletPdf';
 
 interface HybridQuestionItem {
   id: string;
@@ -172,6 +173,52 @@ export default function DenemeOlusturPage() {
 
   // 8. Öğrenci Görünüm Güvencesi (Yapay Zekâ Etiketlerini Gizleme Önizlemesi)
   const [isStudentViewMode, setIsStudentViewMode] = useState<boolean>(false);
+
+  // 9. A4 Kitapçık & PDF İndirme Durumları (Önizleme ve Baskı Çözümü)
+  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
+  const [pdfDownloading, setPdfDownloading] = useState<boolean>(false);
+  const [pdfStatusMsg, setPdfStatusMsg] = useState<string>('');
+  const [includeOpticInPrint, setIncludeOpticInPrint] = useState<boolean>(true);
+  const [includeAnswerKeyInPrint, setIncludeAnswerKeyInPrint] = useState<boolean>(true);
+
+  const handleDirectPdfDownload = async () => {
+    if (compiledQuestions.length === 0) return;
+    setPdfDownloading(true);
+    setPdfStatusMsg('A4 Sayfaları hazırlanıyor…');
+    try {
+      await downloadExamBookletAsPdf({
+        examTitle,
+        durationMin,
+        questions: compiledQuestions,
+        includeAnswerKey: includeAnswerKeyInPrint,
+        includeOptic: includeOpticInPrint,
+        studentName: primaryStudentName,
+        onProgress: (msg) => setPdfStatusMsg(msg)
+      });
+      setTimeout(() => {
+        setPdfDownloading(false);
+        setPdfStatusMsg('');
+        setShowPrintModal(false);
+      }, 1200);
+    } catch (err) {
+      console.error('PDF indirme hatası:', err);
+      setPdfStatusMsg('PDF oluşturulamadı, lütfen Temiz Baskı Önizlemesi seçeneğini kullanın.');
+      setPdfDownloading(false);
+    }
+  };
+
+  const handleOpenPrintWindow = () => {
+    if (compiledQuestions.length === 0) return;
+    openPrintBookletWindow({
+      examTitle,
+      durationMin,
+      questions: compiledQuestions,
+      includeAnswerKey: includeAnswerKeyInPrint,
+      includeOptic: includeOpticInPrint,
+      studentName: primaryStudentName
+    });
+    setShowPrintModal(false);
+  };
 
   // Soruya özel resim yükleme işleyicisi (Öğretmen dosya seçtiğinde)
   const handleAttachImage = (qId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1740,12 +1787,12 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
                   <button
                     type="button"
-                    onClick={() => window.print()}
-                    className="flex-1 sm:flex-initial px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
-                    title="A4 Kitapçık Olarak Yazdır veya PDF İndir"
+                    onClick={() => setShowPrintModal(true)}
+                    className="flex-1 sm:flex-initial px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-xl border border-indigo-200 dark:border-indigo-800 transition flex items-center justify-center gap-1.5 shadow-xs"
+                    title="A4 Kitapçık Olarak Yazdır veya Doğrudan PDF İndir"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Yazdır / PDF</span>
+                    <Printer className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>📄 PDF İndir / Yazdır</span>
                   </button>
 
                   <button
@@ -2566,6 +2613,128 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: A4 KİTAPÇIK & PDF BASKI MERKEZİ */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150">
+            {/* Başlık */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+                  <Printer className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    A4 Sınav Kitapçığı & PDF Merkezi
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {compiledQuestions.length} Soru · {durationMin} Dk · MEB LGS Formatı
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {/* Ayarlar & Seçenekler */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5 text-xs">
+                <div className="font-bold text-slate-700 dark:text-slate-300">Kitapçık İçi Sayfalar:</div>
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={includeOpticInPrint}
+                    onChange={(e) => setIncludeOpticInPrint(e.target.checked)}
+                    className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>📋 MEB Uyumlu Optik Cevap Kâğıdı Sayfası Ekle</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={includeAnswerKeyInPrint}
+                    onChange={(e) => setIncludeAnswerKeyInPrint(e.target.checked)}
+                    className="w-4 h-4 rounded-md text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>🔑 Öğretmen Cevap Anahtarı Sayfası Ekle</span>
+                </label>
+              </div>
+
+              {/* İki Farklı Çıktı / İndirme Yolu */}
+              <div className="space-y-3">
+                {/* 1. SEÇENEK: DOĞRUDAN PDF İNDİR (YAZICI HATASI OLMADAN) */}
+                <button
+                  type="button"
+                  onClick={handleDirectPdfDownload}
+                  disabled={pdfDownloading}
+                  className="w-full p-4 rounded-2xl border-2 border-indigo-500/40 hover:border-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/70 text-left transition group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+                        <Download className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>Tek Tıkla Doğrudan PDF İndir</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-200 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 font-bold">Önerilen</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Yazdırma penceresi veya önizleme hatası yaşamadan A4 PDF dosyasını bilgisayarınıza indirir.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {pdfStatusMsg && (
+                    <div className="mt-2.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <span>{pdfStatusMsg}</span>
+                    </div>
+                  )}
+                </button>
+
+                {/* 2. SEÇENEK: TEMİZ YAZICI ÖNİZLEMESİ (AYRI PENCEREDE) */}
+                <button
+                  type="button"
+                  onClick={handleOpenPrintWindow}
+                  className="w-full p-4 rounded-2xl border border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800/80 text-left transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
+                      <Printer className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white">
+                        Temiz Baskı Önizlemesi Aç (Yazıcıdan Çıkar)
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Menü ve butonlardan arındırılmış tam ekran A4 önizleme penceresi açar ve yazdırır.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Kapat butonu */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  className="btn-secondary text-xs"
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

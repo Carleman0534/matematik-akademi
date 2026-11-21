@@ -24,3 +24,39 @@ body {
 .btn-secondary { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800; }
 .btn-danger { @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50; }
 .card { @apply rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900; }
+
+/* 🖨️ Evrensel Yazdırma & Baskı (Print) Kuralları */
+@media print {
+  /* Gezinme, yan menüler, butonlar ve karanlık tema arka planlarını gizle */
+  nav, aside, header, footer, button, .print-hidden, [class*="no-print"], [class*="sidebar"] {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 10.5pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Sayfa kırılma kontrolleri */
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .break-before-page {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  /* Taşmaları engelle */
+  main, div {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+}
