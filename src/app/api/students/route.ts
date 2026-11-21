@@ -109,7 +109,12 @@ export async function GET() {
       students.unshift(aliObj);
     }
 
-    return NextResponse.json({ success: true, students });
+    const finalStudents = students.filter(s => 
+      !String(s.full_name || '').toLowerCase().includes('deneme öğrenci') && 
+      !String((s as any).username || '').toLowerCase().includes('deneme.ogrenci')
+    );
+
+    return NextResponse.json({ success: true, students: finalStudents });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('Error fetching students:', msg);

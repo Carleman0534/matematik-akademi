@@ -76,11 +76,12 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
   // Quick stats calculations
   const latestExam = assignedExams.find(e => e.status === 'completed' && e.net_score !== null);
   const activeHwCount = assignedHomeworks.filter(h => h.status !== 'completed').length;
-  const avgMastery = Math.round(
-    topicMastery.reduce((acc, t) => acc + (t.mastery_score || 0), 0) / (topicMastery.length || 1)
-  );
-  const strongTopics = topicMastery.filter(t => t.mastery_score >= 75);
-  const focusTopics = topicMastery.filter(t => t.mastery_score < 65);
+  const totalSolvedQuestions = topicMastery.reduce((acc, t) => acc + (t.solved_count || 0), 0);
+  const avgMastery = totalSolvedQuestions > 0
+    ? Math.round(topicMastery.reduce((acc, t) => acc + (t.mastery_score || 0), 0) / (topicMastery.length || 1))
+    : 0;
+  const strongTopics = topicMastery.filter(t => (t.solved_count || 0) > 0 && t.mastery_score >= 75);
+  const focusTopics = topicMastery.filter(t => (t.solved_count || 0) > 0 && t.mastery_score < 65);
 
   // Topic select handler for homework
   const handleTopicChange = (topicId: string) => {
@@ -363,9 +364,11 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
             <div className="text-[11px] font-medium text-slate-500">LGS Konu Hakimiyeti</div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                %{avgMastery}
+                {totalSolvedQuestions > 0 ? `%${avgMastery}` : '—'}
               </span>
-              <span className="text-[11px] text-slate-500">12 kazanım</span>
+              <span className="text-[11px] text-slate-500">
+                {totalSolvedQuestions > 0 ? '12 kazanım' : 'Veri bekleniyor'}
+              </span>
             </div>
           </div>
 
@@ -426,7 +429,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
           <TrendingUp className="h-4 w-4" />
           📊 LGS Konu Başarı Analizi
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-            %{avgMastery}
+            {totalSolvedQuestions > 0 ? `%${avgMastery}` : '0'}
           </span>
         </button>
 
@@ -490,84 +493,93 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {assignedExams.map((exam, idx) => (
-              <div
-                key={exam.assignment_id || idx}
-                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 hover:border-indigo-300 transition-all"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      exam.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                        : exam.status === 'active'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                    }`}>
-                      {exam.status === 'completed' ? '✓ Tamamlandı' : exam.status === 'active' ? 'Devam Ediyor' : '⏳ Bekliyor'}
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-500">
-                      {exam.duration_min} dk · {exam.question_count} soru
-                    </span>
+          {/* Sınav Listesi ya da Boş Durum */}
+          {assignedExams.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <Award className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Henüz Atanmış Deneme Sınavı Yok</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">Bu öğrenciye henüz bir deneme sınavı atanmadı. Yukarıdaki &quot;Listeden Deneme Ata&quot; veya &quot;Özel Deneme Oluştur&quot; butonlarını kullanarak hemen deneme atayabilirsiniz.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {assignedExams.map((exam, idx) => (
+                <div
+                  key={exam.assignment_id || idx}
+                  className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 hover:border-indigo-300 transition-all"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        exam.status === 'completed'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : exam.status === 'active'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      }`}>
+                        {exam.status === 'completed' ? '✓ Tamamlandı' : exam.status === 'active' ? 'Devam Ediyor' : '⏳ Bekliyor'}
+                      </span>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {exam.duration_min} dk · {exam.question_count} soru
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-slate-900 dark:text-white line-clamp-2">
+                      {exam.title}
+                    </h3>
+
+                    <div className="text-xs text-slate-500 space-y-0.5">
+                      <div>Atanma: {exam.assigned_at?.slice(0, 10)}</div>
+                      {exam.due_at && <div>Bitiş: {exam.due_at?.slice(0, 10)}</div>}
+                    </div>
                   </div>
 
-                  <h3 className="font-bold text-slate-900 dark:text-white line-clamp-2">
-                    {exam.title}
-                  </h3>
-
-                  <div className="text-xs text-slate-500 space-y-0.5">
-                    <div>Atanma: {exam.assigned_at?.slice(0, 10)}</div>
-                    {exam.due_at && <div>Bitiş: {exam.due_at?.slice(0, 10)}</div>}
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                  {exam.net_score !== null && exam.net_score !== undefined ? (
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-[11px] text-slate-500 font-medium">Net Sonucu</div>
-                          <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                            {exam.net_score} Net
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                    {exam.net_score !== null && exam.net_score !== undefined ? (
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-[11px] text-slate-500 font-medium">Net Sonucu</div>
+                            <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                              {exam.net_score} Net
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-slate-500">
+                            <span className="font-semibold text-emerald-600">{exam.correct_count}D</span>
+                            {' · '}
+                            <span className="font-semibold text-red-600">{exam.wrong_count}Y</span>
+                            {' · '}
+                            <span className="font-semibold text-slate-500">{exam.blank_count}B</span>
                           </div>
                         </div>
-                        <div className="text-right text-xs text-slate-500">
-                          <span className="font-semibold text-emerald-600">{exam.correct_count}D</span>
-                          {' · '}
-                          <span className="font-semibold text-red-600">{exam.wrong_count}Y</span>
-                          {' · '}
-                          <span className="font-semibold text-slate-500">{exam.blank_count}B</span>
+                        <div className="pt-1.5 flex justify-end">
+                          <Link
+                            href={`/ogrenci/deneme/${exam.exam_id}`}
+                            target="_blank"
+                            className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
+                          >
+                            Öğrenci Gözüyle İncele <ExternalLink className="h-3 w-3" />
+                          </Link>
                         </div>
                       </div>
-                      <div className="pt-1.5 flex justify-end">
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                          Henüz tamamlanmadı
+                        </span>
                         <Link
                           href={`/ogrenci/deneme/${exam.exam_id}`}
                           target="_blank"
                           className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
                         >
-                          Öğrenci Gözüyle İncele <ExternalLink className="h-3 w-3" />
+                          Öğrenci Gözüyle Aç <ExternalLink className="h-3 w-3" />
                         </Link>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                        Henüz tamamlanmadı
-                      </span>
-                      <Link
-                        href={`/ogrenci/deneme/${exam.exam_id}`}
-                        target="_blank"
-                        className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
-                      >
-                        Öğrenci Gözüyle Aç <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -592,62 +604,71 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {assignedHomeworks.map((hw, idx) => (
-              <div
-                key={hw.id || idx}
-                className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                    {hw.topic_name || 'LGS Konusu'}
-                  </span>
-                  <span className="text-xs font-medium text-slate-500">
-                    Zorluk: {'⭐'.repeat(hw.difficulty_level || 3)}
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white">
-                    {hw.title}
-                  </h3>
-                  {hw.description && (
-                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
-                      {hw.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* İlerleme Çubuğu */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">
-                      Çözülen: {hw.completed_question_count || 0} / {hw.question_count} Soru
+          {/* Ödev Listesi ya da Boş Durum */}
+          {assignedHomeworks.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <FileText className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Henüz Atanmış Ödev Yok</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">Bu öğrenciye henüz bir pekiştirme ödevi tanımlanmadı. &quot;Yeni Ödev Tanımla&quot; butonunu kullanarak dilediğiniz LGS konusundan ödev atayabilirsiniz.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {assignedHomeworks.map((hw, idx) => (
+                <div
+                  key={hw.id || idx}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                      {hw.topic_name || 'LGS Konusu'}
                     </span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                      %{Math.round(hw.completion_percentage || 0)}
+                    <span className="text-xs font-medium text-slate-500">
+                      Zorluk: {'⭐'.repeat(hw.difficulty_level || 3)}
                     </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-indigo-600 transition-all duration-500"
-                      style={{ width: `${Math.min(100, hw.completion_percentage || 0)}%` }}
-                    />
+
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-white">
+                      {hw.title}
+                    </h3>
+                    {hw.description && (
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                        {hw.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* İlerleme Çubuğu */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">
+                        Çözülen: {hw.completed_question_count || 0} / {hw.question_count} Soru
+                      </span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                        %{Math.round(hw.completion_percentage || 0)}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                        style={{ width: `${Math.min(100, hw.completion_percentage || 0)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      Son Teslim: <b>{hw.due_date}</b>
+                    </span>
+                    <span className="font-semibold capitalize text-slate-700 dark:text-slate-300">
+                      {hw.status === 'completed' ? '✓ Teslim Edildi' : 'Takip Ediliyor'}
+                    </span>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    Son Teslim: <b>{hw.due_date}</b>
-                  </span>
-                  <span className="font-semibold capitalize text-slate-700 dark:text-slate-300">
-                    {hw.status === 'completed' ? '✓ Teslim Edildi' : 'Takip Ediliyor'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -664,20 +685,29 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                {strongTopics.length} Güçlü Konu
-              </span>
-              <span className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 border border-red-200">
-                {focusTopics.length} Öncelikli Odak
-              </span>
+              {totalSolvedQuestions > 0 ? (
+                <>
+                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                    {strongTopics.length} Güçlü Konu
+                  </span>
+                  <span className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 border border-red-200">
+                    {focusTopics.length} Öncelikli Odak
+                  </span>
+                </>
+              ) : (
+                <span className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                  12 LGS Konusu Tanımlı · Henüz Çözülmüş Soru Yok
+                </span>
+              )}
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {topicMastery.map((topic) => {
               const score = topic.mastery_score || 0;
-              const isStrong = score >= 75;
-              const isWeak = score < 65;
+              const hasData = (topic.solved_count || 0) > 0;
+              const isStrong = hasData && score >= 75;
+              const isWeak = hasData && score < 65;
               return (
                 <div
                   key={topic.topic_id}
@@ -685,17 +715,23 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                 >
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        isStrong
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                          : isWeak
-                          ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
-                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                      }`}>
-                        {isStrong ? '🎯 Güçlü Konu' : isWeak ? '⚠️ Öncelikli Odak' : '⚡ Pekiştirilmeli'}
-                      </span>
+                      {hasData ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          isStrong
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : isWeak
+                            ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        }`}>
+                          {isStrong ? '🎯 Güçlü Konu' : isWeak ? '⚠️ Öncelikli Odak' : '⚡ Pekiştirilmeli'}
+                        </span>
+                      ) : (
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                          ⚪ Veri Bekleniyor
+                        </span>
+                      )}
                       <span className="text-base font-black text-slate-900 dark:text-white">
-                        %{score}
+                        {hasData ? `%${score}` : '—'}
                       </span>
                     </div>
 
@@ -708,16 +744,20 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                     <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          isStrong ? 'bg-emerald-500' : isWeak ? 'bg-red-500' : 'bg-amber-500'
+                          !hasData ? 'bg-slate-200 dark:bg-slate-700' : isStrong ? 'bg-emerald-500' : isWeak ? 'bg-red-500' : 'bg-amber-500'
                         }`}
-                        style={{ width: `${score}%` }}
+                        style={{ width: `${hasData ? score : 0}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-[11px] text-slate-500">
-                      <span>{topic.solved_count || 0} çözülen</span>
-                      <span>
-                        <b className="text-emerald-600">{topic.correct_count || 0}D</b> / <b className="text-red-600">{topic.wrong_count || 0}Y</b> / <b className="text-slate-400">{topic.blank_count || 0}B</b>
-                      </span>
+                      <span>{hasData ? `${topic.solved_count} çözülen` : 'Henüz soru çözülmedi'}</span>
+                      {hasData ? (
+                        <span>
+                          <b className="text-emerald-600">{topic.correct_count || 0}D</b> / <b className="text-red-600">{topic.wrong_count || 0}Y</b> / <b className="text-slate-400">{topic.blank_count || 0}B</b>
+                        </span>
+                      ) : (
+                        <span>0D / 0Y / 0B</span>
+                      )}
                     </div>
                   </div>
 

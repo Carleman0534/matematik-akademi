@@ -18,7 +18,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     query = query.or(`teacher_id.eq.${me.userId},teacher_id.is.null`);
   }
   const [{ data }, sums, classes] = await Promise.all([query, bankSummaries(sb), getClasses(sb, me.userId)]);
-  let students = (data || []) as unknown as { id: string; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; created_at: string; profile: { username: string | null } | null; teacher: { full_name: string } | null; cls: { name: string } | null }[];
+  let students = ((data || []) as unknown as { id: string; full_name: string; grade_level: number | null; school_name: string | null; is_active: boolean; created_at: string; profile: { username: string | null } | null; teacher: { full_name: string } | null; cls: { name: string } | null }[])
+    .filter(s => !s.full_name?.toLowerCase().includes('deneme öğrenci') && !s.profile?.username?.toLowerCase().includes('deneme.ogrenci'));
 
   if (students.length === 0) {
     try {

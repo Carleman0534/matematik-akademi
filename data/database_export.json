@@ -12,56 +12,6 @@
         "updated_at": "2026-11-17 16:41:07"
       },
       {
-        "id": "7d07540f-3eb9-4dbb-9089-dd7d5e8cdb73",
-        "email": "elif@test.com",
-        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
-        "name": "Elif Yılmaz",
-        "role": "student",
-        "avatar": null,
-        "created_at": "2026-11-17 16:41:07",
-        "updated_at": "2026-11-17 16:41:07"
-      },
-      {
-        "id": "1e2749ed-c63c-431e-a0cf-624a4b706ef7",
-        "email": "burak@test.com",
-        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
-        "name": "Burak Demir",
-        "role": "student",
-        "avatar": null,
-        "created_at": "2026-11-17 16:41:07",
-        "updated_at": "2026-11-17 16:41:07"
-      },
-      {
-        "id": "d49f2fe0-2b8e-4193-9aa3-42eb154c0892",
-        "email": "zeynep@test.com",
-        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
-        "name": "Zeynep Kaya",
-        "role": "student",
-        "avatar": null,
-        "created_at": "2026-11-17 16:41:07",
-        "updated_at": "2026-11-17 16:41:07"
-      },
-      {
-        "id": "parent_ayse",
-        "email": "ayse.yilmaz@test.com",
-        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
-        "name": "Ayşe Yılmaz",
-        "role": "parent",
-        "avatar": null,
-        "created_at": null,
-        "updated_at": null
-      },
-      {
-        "id": "parent_kemal",
-        "email": "kemal.demir@test.com",
-        "password": "$2b$10$Avzb13rzrVx8cigRNA/qseFF9H9B4jmM2WhTGRmNl0ZfwFADE6GqO",
-        "name": "Kemal Demir",
-        "role": "parent",
-        "avatar": null,
-        "created_at": null,
-        "updated_at": null
-      },
-      {
         "id": "user_ali_metin",
         "email": "ali.metin@test.com",
         "password": "$2b$10$wT0lVqI0c6pU.X8mZkE/Oe67B/hYf0f9Q9zG4o8A5Y6I9rK9b7vNu",
@@ -73,42 +23,6 @@
       }
     ],
     "students": [
-      {
-        "id": "50fa22f6-1021-4dde-8278-2339fa65030d",
-        "user_id": "7d07540f-3eb9-4dbb-9089-dd7d5e8cdb73",
-        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
-        "grade": "11",
-        "school": "Fen Lisesi",
-        "parent_name": "Mustafa Yılmaz",
-        "parent_phone": "05551112233",
-        "status": "active",
-        "notes": "Düzenli takip ediliyor.",
-        "created_at": "2026-11-17 16:41:07"
-      },
-      {
-        "id": "4685e009-c47e-4747-b986-f3d83f8b7eef",
-        "user_id": "1e2749ed-c63c-431e-a0cf-624a4b706ef7",
-        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
-        "grade": "10",
-        "school": "Anadolu Lisesi",
-        "parent_name": "Aylin Demir",
-        "parent_phone": "05552223344",
-        "status": "active",
-        "notes": "Düzenli takip ediliyor.",
-        "created_at": "2026-11-17 16:41:07"
-      },
-      {
-        "id": "49b24d48-3a98-464f-bf94-46e01a52e2f2",
-        "user_id": "d49f2fe0-2b8e-4193-9aa3-42eb154c0892",
-        "teacher_id": "170c1e8f-52b4-440e-b605-ec974fa1d56b",
-        "grade": "12",
-        "school": "Atatürk Anadolu Lisesi",
-        "parent_name": "Mehmet Kaya",
-        "parent_phone": "05553334455",
-        "status": "active",
-        "notes": "Düzenli takip ediliyor.",
-        "created_at": "2026-11-17 16:41:07"
-      },
       {
         "id": "student_ali_metin",
         "user_id": "user_ali_metin",
@@ -1321,101 +1235,8 @@
         "created_at": "2026-11-18 19:42:40"
       }
     ],
-    "student_diagnostic_results": [
-      {
-        "id": "diag-res-elif",
-        "test_id": "diag-lgs-01",
-        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
-        "overall_score": 72.5,
-        "overall_level": "orta",
-        "is_provisional": 1,
-        "confidence_rating": 0.7,
-        "calc_skill_score": 82,
-        "problem_solving_score": 68,
-        "graphic_table_score": 75,
-        "math_reasoning_score": 70,
-        "new_gen_score": 65,
-        "time_management_score": 78,
-        "strong_topics_json": "[\"Üslü İfadeler\", \"Veri Analizi\", \"Cebirsel İfadeler\"]",
-        "weak_topics_json": "[\"Çarpanlar ve Katlar (EBOB-EKOK Problemleri)\", \"Kareköklü İfadeler (Gerçek Sayılar)\"]",
-        "sub_outcome_deficits_json": "[\"EBOB-EKOK problemlerinde ortak bölen adımı\", \"Kareköklü sayılarda yaklaşık değer tahmini\"]",
-        "suggested_start_plan_json": "{\"focusTopic\": \"Çarpanlar ve Katlar\", \"weeklyTargetQuestions\": 120, \"dailyMinutes\": 45, \"recommendedLevel\": \"Orta Ağırlıklı\"}",
-        "completed_at": "2026-11-18 19:42:40"
-      },
-      {
-        "id": "diag-res-burak",
-        "test_id": "diag-lgs-01",
-        "student_id": "4685e009-c47e-4747-b986-f3d83f8b7eef",
-        "overall_score": 64,
-        "overall_level": "gelismekte",
-        "is_provisional": 1,
-        "confidence_rating": 0.65,
-        "calc_skill_score": 70,
-        "problem_solving_score": 58,
-        "graphic_table_score": 62,
-        "math_reasoning_score": 60,
-        "new_gen_score": 55,
-        "time_management_score": 60,
-        "strong_topics_json": "[\"Doğrusal Denklemler\", \"Veri Analizi\"]",
-        "weak_topics_json": "[\"Üçgenler (Pisagor Bağıntısı)\", \"Basit Olayların Olasılığı\"]",
-        "sub_outcome_deficits_json": "[\"Pisagor teoreminde dik kenar bağıntısı\", \"Olasılık hesaplamalarında örnek uzay tespiti\"]",
-        "suggested_start_plan_json": "{\"focusTopic\": \"Üçgenler\", \"weeklyTargetQuestions\": 90, \"dailyMinutes\": 35, \"recommendedLevel\": \"Temel ve Orta\"}",
-        "completed_at": "2026-11-18 19:42:40"
-      }
-    ],
-    "smart_mistake_analyses": [
-      {
-        "id": "mistake-1",
-        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
-        "question_id": "q-ebob-1",
-        "topic_id": "top_carpanlar_katlar",
-        "subtopic_id": "sub_ebob_ekok_problemleri",
-        "exam_id": null,
-        "student_answer": "B",
-        "correct_answer": "D",
-        "primary_error_type": "islem_hatasi",
-        "ai_probability": 0.88,
-        "ai_reasoning_explanation": "Öğrencinin EBOB mantığını kavradığı ancak 72 ve 96 sayılarının asal çarpan algoritmasında 3. adımda çıkarma/bölme işlem hatası yaptığı düşünülmektedir.",
-        "verified_by_teacher": 1,
-        "verified_by_student": 1,
-        "teacher_note": "Öğrenciyle derste incelendi; işlem basamaklarını acele yapmaktan kaynaklanmış.",
-        "created_at": "2026-11-18 19:42:40"
-      },
-      {
-        "id": "mistake-2",
-        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
-        "question_id": "q-uslu-1",
-        "topic_id": "top_uslu_ifadeler",
-        "subtopic_id": "sub_uslu_problemler",
-        "exam_id": null,
-        "student_answer": "A",
-        "correct_answer": "C",
-        "primary_error_type": "yanlis_okuma",
-        "ai_probability": 0.82,
-        "ai_reasoning_explanation": "Soru kökündeki \"en az kaç kutu gereklidir\" ifadesi yerine kutuların toplam hacmine odaklanılmış; soruyu eksik okuma ihtimali yüksektir.",
-        "verified_by_teacher": 1,
-        "verified_by_student": 0,
-        "teacher_note": "Soru kökündeki olumsuz/şart ifadelerinin altını çizmesi hatırlatıldı.",
-        "created_at": "2026-11-18 19:42:40"
-      },
-      {
-        "id": "mistake-3",
-        "student_id": "50fa22f6-1021-4dde-8278-2339fa65030d",
-        "question_id": "q-karekok-1",
-        "topic_id": "top_karekoklu_ifadeler",
-        "subtopic_id": "sub_ondalik_karekok",
-        "exam_id": null,
-        "student_answer": "C",
-        "correct_answer": "B",
-        "primary_error_type": "model_kuramama",
-        "ai_probability": 0.79,
-        "ai_reasoning_explanation": "Ondalık gösterimin kesir haline getirilmesi aşamasında kök dışına çıkarma kuralı doğru uygulanmış ancak geometri alan bağıntısıyla model kurulamamıştır.",
-        "verified_by_teacher": 0,
-        "verified_by_student": 0,
-        "teacher_note": null,
-        "created_at": "2026-11-18 19:42:40"
-      }
-    ],
+    "student_diagnostic_results": [],
+    "smart_mistake_analyses": [],
     "spaced_repetition_items": [
       {
         "id": "sr-1",

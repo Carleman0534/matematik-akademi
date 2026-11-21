@@ -77,70 +77,101 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
 
   // 1. Öğrenci Temel ve Veli Bilgileri
   let student: any = null;
-  const sRes = db.exec(`
-    SELECT 
-      st.id,
-      COALESCE(u.name, 'Öğrenci') as full_name,
-      COALESCE(st.grade, 8) as grade_level,
-      st.school as school_name,
-      (st.status = 'active') as is_active,
-      COALESCE(st.notes, '') as notes,
-      st.created_at,
-      u.email,
-      u.name as username,
-      COALESCE(st.parent_name, 'Veli') as parent_name
-    FROM students st
-    JOIN users u ON u.id = st.user_id
-    WHERE st.id = '${studentId}' OR st.user_id = '${studentId}'
-    LIMIT 1
-  `);
 
-  if (sRes.length > 0 && sRes[0].values.length > 0) {
-    const cols = sRes[0].columns;
-    student = {};
-    cols.forEach((c, idx) => { student[c] = sRes[0].values[0][idx]; });
-  } else {
-    // Özel fallback
-    if (studentId === 'student_ali_metin' || studentId === 'user_ali_metin') {
+  // A. Önce Supabase'den kontrol et (canlı sistemde kayıtlı öğrenci ise)
+  try {
+    const { supabaseAdmin } = await import('@/lib/supabase/admin');
+    const admin = supabaseAdmin();
+    const { data: sbStudent } = await admin
+      .from('students')
+      .select('id, full_name, grade_level, school_name, is_active, notes, created_at, profile:profiles!students_profile_id_fkey(username, email), cls:classes(name)')
+      .eq('id', studentId)
+      .maybeSingle();
+
+    if (sbStudent) {
       student = {
-        id: 'student_ali_metin',
-        full_name: 'Ali Metin (Ali Tarlasüren)',
-        grade_level: 8,
-        school_name: 'Özel Pozitif Kişisel Gelişim Kursu (Kocaeli / Darıca)',
-        is_active: true,
-        notes: '8. Sınıf LGS Hedef Öğrencisi. Sözel ve fen netleri yüksek, matematikte yeni nesil soru ve süre yönetimi desteği gerekmektedir.',
-        email: 'ali.metin@test.com',
-        username: 'ali.metin',
-        parent_name: 'Ayşe Metin / Tarlasüren'
+        id: sbStudent.id,
+        full_name: sbStudent.full_name || 'Öğrenci',
+        grade_level: sbStudent.grade_level || 8,
+        school_name: sbStudent.school_name || '',
+        is_active: Boolean(sbStudent.is_active),
+        notes: sbStudent.notes || '',
+        created_at: sbStudent.created_at,
+        email: (sbStudent.profile as any)?.email || '',
+        username: (sbStudent.profile as any)?.username || '',
+        parent_name: '',
+        class_name: (sbStudent.cls as any)?.name || ''
       };
-    } else if (studentId === 'student_muhammed_talha') {
-      student = {
-        id: 'student_muhammed_talha',
-        full_name: 'Muhammed Talha',
-        grade_level: 8,
-        school_name: 'Atatürk Ortaokulu',
-        is_active: true,
-        notes: '8. Sınıf LGS Öğrencisi. Düzenli çalışma takibi yapılıyor.',
-        email: 'muhammedtalha@matematikakademi.internal',
-        username: 'muhammedtalha',
-        parent_name: 'Kemal Bey (Veli)'
-      };
+    }
+  } catch {}
+
+  // B. Supabase'de bulunamadıysa SQLite veritabanından çek
+  if (!student) {
+    const sRes = db.exec(`
+      SELECT 
+        st.id,
+        COALESCE(u.name, 'Öğrenci') as full_name,
+        COALESCE(st.grade, 8) as grade_level,
+        st.school as school_name,
+        (st.status = 'active') as is_active,
+        COALESCE(st.notes, '') as notes,
+        st.created_at,
+        u.email,
+        u.name as username,
+        COALESCE(st.parent_name, '') as parent_name
+      FROM students st
+      JOIN users u ON u.id = st.user_id
+      WHERE st.id = '${studentId}' OR st.user_id = '${studentId}'
+      LIMIT 1
+    `);
+
+    if (sRes.length > 0 && sRes[0].values.length > 0) {
+      const cols = sRes[0].columns;
+      student = {};
+      cols.forEach((c, idx) => { student[c] = sRes[0].values[0][idx]; });
     } else {
-      student = {
-        id: studentId,
-        full_name: 'Öğrenci',
-        grade_level: 8,
-        school_name: 'Ortaokul',
-        is_active: true,
-        notes: '',
-        email: '',
-        username: '',
-        parent_name: 'Veli'
-      };
+      // Bilinen öğrenci ID eşleştirmeleri
+      if (studentId === 'student_ali_metin' || studentId === 'user_ali_metin') {
+        student = {
+          id: 'student_ali_metin',
+          full_name: 'Ali Metin (Ali Tarlasüren)',
+          grade_level: 8,
+          school_name: 'Özel Pozitif Kişisel Gelişim Kursu (Kocaeli / Darıca)',
+          is_active: true,
+          notes: '',
+          email: 'ali.metin@test.com',
+          username: 'ali.metin',
+          parent_name: ''
+        };
+      } else if (studentId === 'student_muhammed_talha') {
+        student = {
+          id: 'student_muhammed_talha',
+          full_name: 'Muhammed Talha',
+          grade_level: 8,
+          school_name: 'Atatürk Ortaokulu',
+          is_active: true,
+          notes: '',
+          email: 'muhammedtalha@matematikakademi.internal',
+          username: 'muhammedtalha',
+          parent_name: ''
+        };
+      } else {
+        student = {
+          id: studentId,
+          full_name: 'Öğrenci',
+          grade_level: 8,
+          school_name: '',
+          is_active: true,
+          notes: '',
+          email: '',
+          username: '',
+          parent_name: ''
+        };
+      }
     }
   }
 
-  // Veli bilgileri
+  // Veli bilgileri (varsa)
   try {
     const gRes = db.exec(`
       SELECT u.name as guardian_name, u.email as guardian_email, sg.relationship_type
@@ -154,12 +185,12 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
       student.guardian_email = gRes[0].values[0][1];
       student.guardian_rel = gRes[0].values[0][2];
     } else {
-      student.guardian_name = student.parent_name || 'Veli';
-      student.guardian_email = 'veli@matematikakademi.internal';
-      student.guardian_rel = 'veli';
+      student.guardian_name = student.parent_name || '';
+      student.guardian_email = '';
+      student.guardian_rel = '';
     }
   } catch {
-    student.guardian_name = student.parent_name || 'Veli';
+    student.guardian_name = student.parent_name || '';
   }
 
   // 2. Atanmış Deneme ve Sınavlar
@@ -241,38 +272,37 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
     }
   } catch {}
 
-  if (assignedExams.length === 0) {
-    assignedExams.push(
-      {
-        assignment_id: 'sample_ex_1',
-        exam_id: 'exam_lgs_sample_1',
-        title: '2026 LGS Matematik Türkiye Geneli Prova 1',
-        question_count: 20,
-        duration_min: 40,
-        assigned_at: '2026-11-15 10:00:00',
-        due_at: '2026-11-20 23:59:00',
-        status: 'completed',
-        net_score: 16.25,
-        correct_count: 17,
-        wrong_count: 3,
-        blank_count: 0
-      },
-      {
-        assignment_id: 'sample_ex_2',
-        exam_id: 'exam_lgs_sample_2',
-        title: 'LGS Sayısal Matematik Konu Tarama Denemesi',
-        question_count: 20,
-        duration_min: 40,
-        assigned_at: '2026-11-19 14:00:00',
-        due_at: '2026-11-25 23:59:00',
-        status: 'active',
-        net_score: null,
-        correct_count: null,
-        wrong_count: null,
-        blank_count: null
-      }
-    );
-  }
+  // A. Supabase'den de atanmış denemeleri kontrol et
+  try {
+    const { supabaseAdmin } = await import('@/lib/supabase/admin');
+    const admin = supabaseAdmin();
+    const { data: sbAssignments } = await admin
+      .from('exam_assignments')
+      .select('id, exam_id, assigned_at, due_at, duration_min, exams(title, question_count)')
+      .eq('student_id', studentId);
+    if (sbAssignments && sbAssignments.length > 0) {
+      sbAssignments.forEach((a: any) => {
+        if (!assignedExams.some(e => e.assignment_id === a.id || e.exam_id === a.exam_id)) {
+          assignedExams.push({
+            assignment_id: a.id,
+            exam_id: a.exam_id,
+            title: a.exams?.title || 'LGS Denemesi',
+            question_count: a.exams?.question_count || 20,
+            duration_min: a.duration_min || 40,
+            assigned_at: a.assigned_at,
+            due_at: a.due_at,
+            status: 'active',
+            net_score: null,
+            correct_count: null,
+            wrong_count: null,
+            blank_count: null
+          });
+        }
+      });
+    }
+  } catch {}
+
+  // Kesinlikle hayali/örnek sınav eklenmez; öğrenciye gerçekte ne atandıysa o gösterilir.
 
   // 3. Atanmış Ödevler
   const assignedHomeworks: any[] = [];
@@ -296,21 +326,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
     }
   } catch {}
 
-  if (assignedHomeworks.length === 0) {
-    assignedHomeworks.push({
-      id: 'hw_sample_1',
-      title: 'Kareköklü Sayılarda Alan ve Yaklaşık Değer Pekiştirme',
-      topic_name: 'Kareköklü İfadeler',
-      topic_id: 'top_karekoklu_ifadeler',
-      question_count: 15,
-      difficulty_level: 3,
-      start_date: '2026-11-18',
-      due_date: '2026-11-24',
-      status: 'assigned',
-      completed_question_count: 9,
-      completion_percentage: 60.0
-    });
-  }
+  // Kesinlikle hayali/örnek ödev eklenmez; sadece gerçek ödevler listelenir.
 
   // 4. Konu Başarı Profili (12 LGS Konusu)
   const topicMastery: any[] = [];
@@ -332,35 +348,30 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
     }
   } catch {}
 
-  // 12 konunun tamamını doldur
-  const defaultScores: Record<string, { mastery: number; solved: number; correct: number; wrong: number; blank: number }> = {
-    top_carpanlar_katlar: { mastery: 85, solved: 40, correct: 35, wrong: 4, blank: 1 },
-    top_uslu_ifadeler: { mastery: 78, solved: 38, correct: 31, wrong: 6, blank: 1 },
-    top_karekoklu_ifadeler: { mastery: 65, solved: 32, correct: 22, wrong: 8, blank: 2 },
-    top_veri_analizi: { mastery: 90, solved: 25, correct: 23, wrong: 2, blank: 0 },
-    top_olasilik: { mastery: 70, solved: 28, correct: 21, wrong: 6, blank: 1 },
-    top_cebirsel_ifadeler: { mastery: 55, solved: 35, correct: 20, wrong: 12, blank: 3 },
-    top_dogrusal_denklemler: { mastery: 58, solved: 30, correct: 18, wrong: 10, blank: 2 },
-    top_esitsizlikler: { mastery: 62, solved: 22, correct: 14, wrong: 7, blank: 1 },
-    top_ucgenler: { mastery: 72, solved: 26, correct: 20, wrong: 5, blank: 1 },
-    top_eslik_benzerlik: { mastery: 68, solved: 24, correct: 17, wrong: 6, blank: 1 },
-    top_donusum_geometrisi: { mastery: 82, solved: 20, correct: 17, wrong: 3, blank: 0 },
-    top_geometrik_cisimler: { mastery: 74, solved: 22, correct: 17, wrong: 4, blank: 1 },
-  };
-
+  // 12 konunun tamamı: Sadece gerçekte çözülmüş soru verisi varsa hesaplanır, yoksa 0 / Veri Bekleniyor gösterilir
   const finalTopics = INITIAL_LGS_TOPICS.map(t => {
     const existing = topicMastery.find(p => p.topic_id === t.id);
-    if (existing) return existing;
-    const def = defaultScores[t.id] || { mastery: 70, solved: 25, correct: 18, wrong: 5, blank: 2 };
+    if (existing) {
+      return {
+        topic_id: t.id,
+        topic_name: t.name,
+        mastery_score: Number(existing.mastery_score) || 0,
+        status: existing.status || 'needs_data',
+        solved_count: Number(existing.solved_count) || 0,
+        correct_count: Number(existing.correct_count) || 0,
+        wrong_count: Number(existing.wrong_count) || 0,
+        blank_count: Number(existing.blank_count) || 0
+      };
+    }
     return {
       topic_id: t.id,
       topic_name: t.name,
-      mastery_score: def.mastery,
-      status: def.mastery >= 80 ? 'excellent' : def.mastery >= 65 ? 'good' : 'critical',
-      solved_count: def.solved,
-      correct_count: def.correct,
-      wrong_count: def.wrong,
-      blank_count: def.blank
+      mastery_score: 0,
+      status: 'needs_data',
+      solved_count: 0,
+      correct_count: 0,
+      wrong_count: 0,
+      blank_count: 0
     };
   });
 
