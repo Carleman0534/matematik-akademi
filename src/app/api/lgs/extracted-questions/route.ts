@@ -61,7 +61,20 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, primaryTopicId, difficulty, approvalStatus, questionText, correctAnswer } = body;
+    const { id, primaryTopicId, difficulty, approvalStatus, questionText, correctAnswer, options, pdfId, approveAll } = body;
+
+    // Bir PDF'in cevabı belli olan tüm bekleyen sorularını toplu onayla
+    if (approveAll && pdfId) {
+      const db = await getDb();
+      db.run(
+        `UPDATE pdf_extracted_questions SET approval_status = 'approved'
+         WHERE pdf_id = ? AND approval_status IN ('pending','edited') AND correct_answer IS NOT NULL AND correct_answer != ''`,
+        [pdfId]
+      );
+      const changed = db.getRowsModified();
+      saveDb(db);
+      return NextResponse.json({ success: true, approved: changed });
+    }
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Soru kimliği belirtilmedi' }, { status: 400 });
@@ -69,8 +82,12 @@ export async function PUT(req: NextRequest) {
 
     const db = await getDb();
 
+    if (options !== undefined && options && typeof options === 'object') {
+      db.run('UPDATE pdf_extracted_questions SET options_json = ? WHERE id = ?', [JSON.stringify(options), id]);
+    }
+
     if (primaryTopicId !== undefined) {
-      db.run('UPDATE pdf_extracted_questions SET primary_topic_id = ? WHERE id = ?', [primaryTopicId, id]);
+      db.run('UPDATE pdf_extracted_questions SET primary_topic_id = ? WHERE id = ?', [primaryTopicId || null, id]);
     }
     if (difficulty !== undefined) {
       db.run('UPDATE pdf_extracted_questions SET difficulty = ? WHERE id = ?', [Number(difficulty), id]);
@@ -82,7 +99,7 @@ export async function PUT(req: NextRequest) {
       db.run('UPDATE pdf_extracted_questions SET question_text = ? WHERE id = ?', [questionText, id]);
     }
     if (correctAnswer !== undefined) {
-      db.run('UPDATE pdf_extracted_questions SET correct_answer = ? WHERE id = ?', [correctAnswer, id]);
+      db.run('UPDATE pdf_extracted_questions SET correct_answer = ? WHERE id = ?', [correctAnswer || null, id]);
     }
 
     saveDb(db);

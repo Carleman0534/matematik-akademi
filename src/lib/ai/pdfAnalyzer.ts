@@ -1,8 +1,6 @@
 // LGS Deneme ve PDF Yapay Zekâ Analiz Motoru
 // Soru tespiti, konu sınıflandırması, güven skoru ve çoklu PDF ortak konu karşılaştırması
 
-import { INITIAL_LGS_TOPICS, type CurriculumTopic } from './lgsCurriculum.ts';
-
 export interface ExtractedQuestion {
   id: string;
   pdfId: string;
@@ -51,79 +49,6 @@ export interface CrossPdfComparativeAnalysis {
     recommendation: string;
   }[];
   systemAlerts: string[];
-}
-
-// Bir PDF belgesini analiz edip LGS sorularını çıkaran analiz fonksiyonu
-export function analyzePdfDocument(pdfId: string, pdfTitle: string, pageCount = 4, questionCount = 20): PdfAnalysisSummary {
-  const jobId = 'job_' + Math.random().toString(36).substring(2, 9);
-  const questions: ExtractedQuestion[] = [];
-  const topicDistribution: Record<string, number> = {};
-  const difficultyDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
-  const lgsTopics = INITIAL_LGS_TOPICS;
-
-  for (let i = 1; i <= questionCount; i++) {
-    // Müfredattaki konulara dengeli dağıtım
-    const topicIdx = (i - 1) % lgsTopics.length;
-    const topic = lgsTopics[topicIdx];
-    const subtopic = topic.subtopics ? topic.subtopics[i % topic.subtopics.length] : null;
-    const diff = Math.min(5, Math.max(1, ((i * 3) % 5) + 1));
-    const hasVisual = i % 3 === 0 || topic.id.includes('ucgen') || topic.id.includes('veri');
-
-    topicDistribution[topic.name] = (topicDistribution[topic.name] || 0) + 1;
-    difficultyDistribution[diff] = (difficultyDistribution[diff] || 0) + 1;
-
-    let qType: ExtractedQuestion['questionType'] = 'yeni_nesil';
-    if (hasVisual) qType = 'grafik_tablo';
-    else if (i % 2 === 0) qType = 'problem_cozme';
-    else if (i % 5 === 0) qType = 'gunluk_yasam';
-
-    const qText = `${i}. Soru (${pdfTitle}): ${topic.name} konusuna ait ${subtopic ? subtopic.name : 'temel kazanım'} ile ilgili LGS formatında yeni nesil problem.\n` +
-      `Kenar uzunlukları ve verilen sayısal değerler doğrultusunda elde edilen matematiksel ifadenin en sade biçimi aranmaktadır.`;
-
-    questions.push({
-      id: `ext_${pdfId}_q${i}`,
-      pdfId,
-      pdfTitle,
-      questionNo: i,
-      pageNo: Math.ceil(i / Math.ceil(questionCount / pageCount)),
-      questionText: qText,
-      options: {
-        A: `${10 * i}`,
-        B: `${12 * i}`,
-        C: `${15 * i}`,
-        D: `${18 * i}`
-      },
-      correctAnswer: ['A', 'B', 'C', 'D'][i % 4],
-      primaryTopicId: topic.id,
-      primaryTopicName: topic.name,
-      secondaryTopicId: subtopic?.id,
-      questionType: qType,
-      difficulty: diff,
-      confidence: Number((0.85 + (Math.sin(i) * 0.12)).toFixed(2)),
-      cropBox: { x: 50, y: 100 * (i % 4), w: 500, h: 220 },
-      hasVisual,
-      approvalStatus: 'approved' // Varsayılan onaylı veya pending
-    });
-  }
-
-  const warnings: string[] = [];
-  if (topicDistribution['Geometrik Cisimler'] === undefined || topicDistribution['Geometrik Cisimler'] < 2) {
-    warnings.push('Geometrik Cisimler konusuna ait soru sayısı yetersiz.');
-  }
-
-  return {
-    jobId,
-    pdfId,
-    pdfTitle,
-    pageCount,
-    detectedQuestionCount: questionCount,
-    confidenceScore: 0.92,
-    topicDistribution,
-    difficultyDistribution,
-    warningList: warnings,
-    extractedQuestions: questions
-  };
 }
 
 // 5 veya daha fazla PDF'in ortak konu matrisi ve karşılaştırmalı analizi (Section 4)

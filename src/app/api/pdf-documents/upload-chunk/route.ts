@@ -111,10 +111,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (!partBuf) {
-        // Vercel serverless ortamında parçalar farklı lambda konteynerlarına düşebilir.
-        // Hata fırlatıp yüklemeyi kesmek yerine eldeki son parça veya tamponla devam et.
-        console.warn(`[upload-chunk] Parça ${i + 1}/${totalChunks} bu konteynerda bulunamadı, yedek tampon kullanılıyor.`);
-        partBuf = chunkBuffer;
+        // Eksik parçayla birleştirmek PDF'i sessizce bozar; yüklemeyi açık bir hatayla durdur.
+        return NextResponse.json(
+          { error: `Parça ${i + 1}/${totalChunks} sunucuda bulunamadı. Lütfen dosyayı yeniden yükleyin.` },
+          { status: 409 }
+        );
       }
       partBuffers.push(partBuf);
     }
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
       topic,
       publisher,
       file_size_mb: fullSizeMb,
-      page_count: Math.max(1, Math.round(fullSizeMb * 4)),
+      page_count: parseInt((formData.get('pageCount') as string) || '', 10) || Math.max(1, Math.round(fullSizeMb * 4)),
       description,
       answer_key: answerKey,
       question_count: questionCount,

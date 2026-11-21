@@ -52,19 +52,21 @@ export async function GET(
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': 'inline; filename="deneme.pdf"',
-          'Cache-Control': 'public, max-age=3600',
+          'Cache-Control': 'no-store',
+          'X-Pdf-Fallback': '1',
         },
       });
     }
 
-    const { buffer, fileName } = await getPdfBuffer(doc);
+    const { buffer, fileName, isFallback } = await getPdfBuffer(doc);
 
     return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`,
-        'Cache-Control': 'public, max-age=86400',
+        'Cache-Control': isFallback ? 'no-store' : 'public, max-age=86400',
+        ...(isFallback ? { 'X-Pdf-Fallback': '1' } : {}),
       },
     });
   } catch (err: unknown) {

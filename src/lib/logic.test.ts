@@ -6,6 +6,12 @@ import { normalizeUsername, validateUsername, loginIdToEmail, usernameToEmail } 
 import { buildTree, descendantIds, topicPath, flattenForSelect, type Topic } from './topics.ts';
 import { parseFilters, filtersToQuery, matchesComputed, sanitizeSearch } from './filters.ts';
 import { verifyAndExplainWithAi } from './ai/externalAiChecker.ts';
+import { parseAnswerKey } from './pdfExtraction/answerKey.ts';
+import { guessTopicId } from './pdfExtraction/topicGuess.ts';
+import {
+  contentBounds, detectColumns, segmentByWhitespace, findQuestionMarkers, regionsFromMarkers, parseOptions,
+  textInBox, stripLeadingNumber, tightenBox, removeRuleLines, trimHeaderFooter, findVisualMarkers, regionsFromStarts, type InkMask, type TextItemPos,
+} from './pdfExtraction/segmentation.ts';
 
 const at = (d: string, result: Attempt['result'], attempt_type = 'review'): Attempt => ({ result, attempt_type, attempted_at: d + 'T10:00:00Z' });
 const NOW = new Date('2026-11-20T09:00:00Z');
@@ -556,3 +562,114 @@ test('öğrenci deneme çözümü ve öğretmen yanlış analizi senkronizasyonu
 });
 
 
+
+// ---------- PDF'ten soru çıkarma ----------
+
+function makeMask(w: number, h: number, rects: [number, number, number, number][]): InkMask {
+  const data = new Uint8Array(w * h);
+  for (const [x0, y0, x1, y1] of rects) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) data[y * w + x] = 1;
+  return { data, width: w, height: h };
+}
+// metin satırları gibi: [y0, y1) aralığında 20 px satır, 10 px satır arası; harfler arası boşluk için %50 yoğunluk
+const lines = (x0: number, x1: number, y0: number, y1: number): [number, number, number, number][] => {
+  const out: [number, number, number, number][] = [];
+  for (let y = y0; y + 20 <= y1; y += 30) for (let x = x0; x < x1; x += 2) out.push([x, y, x + 1, y + 20]);
+  return out;
+};
+
+test('cevap anahtarı: düz harf dizisi', () => {
+  assert.deepEqual(parseAnswerKey('abcd a'), { 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'A' });
+});
+test('cevap anahtarı: numaralı biçimler', () => {
+  assert.deepEqual(parseAnswerKey('1-A, 2)C 3.B\n4: d 10 A'), { 1: 'A', 2: 'C', 3: 'B', 4: 'D', 10: 'A' });
+  assert.deepEqual(parseAnswerKey(''), {});
+});
+
+test('konu tahmini anahtar kelimelerden', () => {
+  assert.equal(guessTopicId('12 ile 18 sayılarının EBOB değeri kaçtır?'), 'top_carpanlar_katlar');
+  assert.equal(guessTopicId('Dik üçgende Pisagor bağıntısına göre hipotenüs'), 'top_ucgenler');
+  assert.equal(guessTopicId('Silindirin hacmi kaç cm³ tür?'), 'top_geometrik_cisimler');
+  assert.equal(guessTopicId('Bir zar atıldığında asal sayı gelme olasılığı kaçtır?'), 'top_olasilik');
+  assert.equal(guessTopicId('Merhaba dünya'), null);
+});
+
+test('şık ayırma: A) B) C) D)', () => {
+  const r = parseOptions('Buna göre x kaçtır?\nA) 12 B) 15\nC) 18 D) 21');
+  assert.equal(r.stem, 'Buna göre x kaçtır?');
+  assert.deepEqual(r.options, { A: '12', B: '15', C: '18', D: '21' });
+  assert.equal(parseOptions('Şıklar görselde').options, null);
+  assert.equal(stripLeadingNumber('7. Bir sayının', 7), 'Bir sayının');
+});
+
+test('boşluk yöntemi: iki soru + sayfa numarası', () => {
+  const m = makeMask(1000, 1400, [...lines(100, 800, 100, 400), ...lines(100, 800, 600, 900), [480, 1350, 520, 1365]]);
+  const b = contentBounds(m)!;
+  const cols = detectColumns(m, b);
+  assert.equal(cols.length, 1);
+  const regions = segmentByWhitespace(m, cols[0]);
+  assert.equal(regions.length, 2);
+  assert.ok(regions[0].y0 <= 100 && regions[0].y1 >= 380);
+  assert.ok(regions[1].y0 <= 600 && regions[1].y1 >= 880 && regions[1].y1 < 1300);
+});
+
+test('çerçeve çizgisi içerik sayılmaz, iki sütun bulunur', () => {
+  const frame: [number, number, number, number][] = [[10, 10, 990, 13], [10, 1387, 990, 1390], [10, 10, 13, 1390], [987, 10, 990, 1390]];
+  const m = makeMask(1000, 1400, [...frame, ...lines(60, 440, 100, 1200), ...lines(560, 940, 100, 1200), [499, 80, 501, 1250]]);
+  removeRuleLines(m);
+  const b = contentBounds(m)!;
+  assert.ok(b.y0 >= 90 && b.x0 >= 50);
+  const cols = detectColumns(m, b);
+  assert.equal(cols.length, 2);
+  assert.ok(cols[0].x1 > 440 && cols[0].x1 < 560);
+});
+
+test('metin katmanından soru numaraları ve bölgeler', () => {
+  const W = 1000, H = 1400;
+  const it = (str: string, x: number, y: number, w = 30, h = 20): TextItemPos => ({ str, x, y, w, h });
+  const items: TextItemPos[] = [
+    it('MATEMATİK', 400, 20, 200),             // başlık
+    it('3.', 100, 100), it('Bir sınıfta 24 öğrenci vardır.', 140, 100, 400),
+    it('A) 4', 100, 300, 60), it('B) 6', 300, 300, 60), it('C) 8', 500, 300, 60), it('D) 12', 700, 300, 60),
+    it('4.', 100, 700), it('Silindirin hacmi kaçtır?', 140, 700, 400),
+    it('2 sayısı', 140, 760, 100),             // satır başında olmayan sayı
+    it('5', 500, 1350, 20),                    // sayfa numarası
+  ];
+  const col = { x0: 60, y0: 80, x1: 960, y1: 1300 };
+  const markers = findQuestionMarkers(items, [col], W, H, 2);
+  assert.deepEqual(markers.map(m => m.no), [3, 4]);
+  const regions = regionsFromMarkers(markers, [col], H);
+  assert.equal(regions.length, 2);
+  assert.ok(regions[0].box.y1 < 700 && regions[1].box.y0 < 700);
+  const text = textInBox(items, regions[0].box);
+  const { stem, options } = parseOptions(stripLeadingNumber(text, 3));
+  assert.equal(stem, 'Bir sınıfta 24 öğrenci vardır.');
+  assert.deepEqual(options, { A: '4', B: '6', C: '8', D: '12' });
+  // önceki sayfanın son numarası 3 ise yalnızca 4 kalır
+  assert.deepEqual(findQuestionMarkers(items, [col], W, H, 3).map(m => m.no), [4]);
+});
+
+test('kutu mürekkebe daraltılır', () => {
+  const m = makeMask(500, 500, [[100, 120, 300, 200]]);
+  assert.deepEqual(tightenBox(m, { x0: 0, y0: 0, x1: 500, y1: 500 }, 5), { x0: 95, y0: 115, x1: 305, y1: 205 });
+  assert.equal(tightenBox(m, { x0: 400, y0: 400, x1: 500, y1: 500 }), null);
+});
+
+test('taranmış sayfa: asılı soru numaralarından bölme', () => {
+  const W = 1000, H = 1400;
+  // "1." en solda (x 60-80), metin içeriden (x 110+); arada şekil; "2." aşağıda
+  const m = makeMask(W, H, [
+    [60, 100, 80, 120], ...lines(110, 900, 100, 160),
+    ...lines(110, 900, 180, 300), [200, 330, 700, 600], ...lines(110, 900, 640, 670),
+    [60, 800, 80, 820], ...lines(110, 900, 800, 900), ...lines(110, 900, 920, 980),
+  ]);
+  removeRuleLines(m);
+  const b = trimHeaderFooter(m, contentBounds(m)!);
+  const starts = findVisualMarkers(m, b);
+  assert.deepEqual(starts, [100, 800]);
+  const regions = regionsFromStarts(starts, b, H);
+  assert.equal(regions.length, 2);
+  assert.ok(regions[0].box.y1 < 800 && regions[0].box.y1 > 670);
+  // Asılı numara düzeni olmayan sayfada işaret bulunmaz
+  const flat = makeMask(W, H, [...lines(110, 900, 100, 400), ...lines(110, 900, 600, 900)]);
+  assert.deepEqual(findVisualMarkers(flat, contentBounds(flat)!), []);
+});

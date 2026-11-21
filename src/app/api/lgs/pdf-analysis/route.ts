@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
-import { analyzePdfDocument, runComparativeCrossPdfAnalysis, type PdfAnalysisSummary } from '@/lib/ai/pdfAnalyzer';
+import { getDb } from '@/lib/db/database';
+import { runComparativeCrossPdfAnalysis, type PdfAnalysisSummary } from '@/lib/ai/pdfAnalyzer';
 
 export async function GET(req: NextRequest) {
   try {
@@ -86,80 +86,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { pdfIds } = body;
-
-    const db = await getDb();
-    const targetPdfIds: string[] = Array.isArray(pdfIds) && pdfIds.length > 0
-      ? pdfIds
-      : ['pdf-1', 'pdf-2'];
-
-    const newExtractedCount = [];
-
-    for (const pid of targetPdfIds) {
-      // PDF detayını bul
-      const pRes = db.exec(`SELECT * FROM pdf_documents WHERE id = '${pid}'`);
-      const pTitle = pRes.length > 0 ? String(pRes[0].values[0][pRes[0].columns.indexOf('title')]) : 'LGS Denemesi';
-      const pPages = pRes.length > 0 ? Number(pRes[0].values[0][pRes[0].columns.indexOf('page_count')] || 4) : 4;
-
-      // PDF'i analiz et
-      const analysis = analyzePdfDocument(pid, pTitle, pPages, 10);
-
-      // Görevi kaydet
-      const jobStmt = db.prepare(`
-        INSERT OR REPLACE INTO pdf_analysis_jobs 
-        (id, pdf_id, teacher_id, status, page_count, detected_question_count, summary_json, confidence_score, completed_at)
-        VALUES (?, ?, 'teacher-admin', 'completed', ?, ?, ?, ?, datetime('now'))
-      `);
-      jobStmt.run([
-        analysis.jobId,
-        pid,
-        analysis.pageCount,
-        analysis.detectedQuestionCount,
-        JSON.stringify(analysis.topicDistribution),
-        analysis.confidenceScore
-      ]);
-      jobStmt.free();
-
-      // Soruları kaydet
-      const qStmt = db.prepare(`
-        INSERT OR REPLACE INTO pdf_extracted_questions 
-        (id, job_id, pdf_id, question_no, page_no, question_text, options_json, correct_answer, primary_topic_id, question_type, difficulty, confidence, approval_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-      `);
-
-      for (const q of analysis.extractedQuestions) {
-        qStmt.run([
-          q.id,
-          analysis.jobId,
-          pid,
-          q.questionNo,
-          q.pageNo,
-          q.questionText,
-          JSON.stringify(q.options),
-          q.correctAnswer || 'A',
-          q.primaryTopicId,
-          q.questionType,
-          q.difficulty,
-          q.confidence
-        ]);
-      }
-      qStmt.free();
-
-      newExtractedCount.push({ pdfId: pid, questions: analysis.extractedQuestions.length });
-    }
-
-    saveDb(db);
-
-    return NextResponse.json({
-      success: true,
-      message: `${targetPdfIds.length} adet PDF analiz edildi ve sorular sisteme aktarıldı.`,
-      details: newExtractedCount
-    });
-  } catch (error: any) {
-    console.error('Error analyzing PDFs:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
+// Eskiden burada PDF'e bakmadan örnek sorular üretiliyordu. Gerçek çıkarma artık tarayıcıda
+// yapılıp /api/lgs/pdf-extract ile kaydediliyor (PDF Analiz sayfası).
+export async function POST() {
+  return NextResponse.json(
+    { success: false, error: 'Bu uç nokta kaldırıldı. Soru çıkarmak için PDF Analiz sayfasını kullanın (/api/lgs/pdf-extract).' },
+    { status: 410 }
+  );
 }

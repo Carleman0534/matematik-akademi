@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
         WHERE q.approval_status != 'rejected'
       `;
       const qParams: any[] = [];
+      if (searchParams.get('approvedOnly') === '1') {
+        qSql += " AND q.approval_status = 'approved'";
+      }
       if (topicId) {
         qSql += ' AND (q.primary_topic_id = ? OR q.secondary_topic_id = ?)';
         qParams.push(topicId, topicId);

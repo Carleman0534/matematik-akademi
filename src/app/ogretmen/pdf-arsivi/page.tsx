@@ -32,6 +32,20 @@ import {
   mergeClientAndServerDocs,
 } from '@/lib/clientPdfStorage';
 
+// PDF'in gerçek sayfa sayısı (okunamazsa null)
+async function countPdfPages(file: File): Promise<number | null> {
+  try {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const n = doc.numPages;
+    await doc.loadingTask.destroy();
+    return n;
+  } catch {
+    return null;
+  }
+}
+
 interface FileQueueItem {
   file: File;
   title: string;
@@ -161,6 +175,7 @@ export default function PdfArsiviPage() {
         const filePrefix = total > 1 ? `[${i + 1}/${total}] ` : '';
 
         let savedDoc: PdfDocument | null = null;
+        const realPageCount = await countPdfPages(file);
 
         // 2 MB'den büyük dosyalar için otomatik Parçalı Yükleme (Chunked Upload)
         if (file.size > 2 * 1024 * 1024) {
@@ -187,29 +202,29 @@ export default function PdfArsiviPage() {
             chunkForm.append('description', description);
             chunkForm.append('answerKey', answerKey);
             chunkForm.append('questionCount', questionCount);
+            if (realPageCount) chunkForm.append('pageCount', String(realPageCount));
 
             const chunkPercent = Math.round(((c + 0.5) / totalChunks) * 100);
             const overallPercent = Math.round(((i + (c / totalChunks)) / total) * 100);
             setUploadProgress(Math.max(5, overallPercent));
             setUploadStatusText(`${filePrefix}Parça ${c + 1}/${totalChunks} yükleniyor (%${chunkPercent})...`);
 
+            const res = await fetch('/api/pdf-documents/upload-chunk', {
+              method: 'POST',
+              body: chunkForm,
+            });
+
+            const text = await res.text();
+            let d: any = null;
             try {
-              const res = await fetch('/api/pdf-documents/upload-chunk', {
-                method: 'POST',
-                body: chunkForm,
-              });
+              d = JSON.parse(text);
+            } catch {}
 
-              const text = await res.text();
-              let d: any = null;
-              try {
-                d = JSON.parse(text);
-              } catch {}
-
-              if (res.ok && c === totalChunks - 1 && d?.doc) {
-                savedDoc = d.doc;
-              }
-            } catch (chunkErr) {
-              console.warn(`[Parça ${c + 1}/${totalChunks}] Sunucu bildirim uyarısı:`, chunkErr);
+            if (!res.ok) {
+              throw new Error(d?.error || `"${item.title}" parça ${c + 1}/${totalChunks} yüklenemedi (${res.status}).`);
+            }
+            if (c === totalChunks - 1 && d?.doc) {
+              savedDoc = d.doc;
             }
           }
         } else {
@@ -226,6 +241,7 @@ export default function PdfArsiviPage() {
           formData.append('description', description);
           formData.append('answerKey', answerKey);
           formData.append('questionCount', questionCount);
+          if (realPageCount) formData.append('pageCount', String(realPageCount));
 
           const res = await fetch('/api/pdf-documents', {
             method: 'POST',
@@ -265,7 +281,7 @@ export default function PdfArsiviPage() {
           topic: topic || '',
           publisher: publisher || '',
           file_size_mb: item.sizeMb,
-          page_count: Math.max(1, Math.round(item.sizeMb * 4)),
+          page_count: realPageCount || Math.max(1, Math.round(item.sizeMb * 4)),
           description: description || '',
           answer_key: answerKey || '',
           question_count: parseInt(questionCount, 10) || 40,

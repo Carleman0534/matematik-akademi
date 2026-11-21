@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       topic,
       publisher,
       file_size_mb: saved.fileSizeMb,
-      page_count: Math.max(1, Math.round(saved.fileSizeMb * 4)),
+      page_count: parseInt((formData.get('pageCount') as string) || '', 10) || Math.max(1, Math.round(saved.fileSizeMb * 4)),
       description,
       answer_key: answerKey,
       question_count: questionCount,

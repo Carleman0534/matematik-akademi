@@ -434,59 +434,29 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           if (d.docs && Array.isArray(d.docs)) serverDocs = d.docs;
         } catch {}
 
+        // Yalnızca gerçekten yüklenmiş PDF'ler; her birinde kaç onaylı soru olduğu rozet olarak gösterilir
+        const approvedCount = new Map<string, number>();
+        try {
+          const pr = await fetch('/api/lgs/question-pool?source=pdf&approvedOnly=1');
+          const pd = await pr.json();
+          for (const q of (pd.pool || [])) approvedCount.set(q.pdf_id, (approvedCount.get(q.pdf_id) || 0) + 1);
+        } catch {}
+
         const map = new Map<string, any>();
+        clientDocs.forEach((d: any) => map.set(d.id, d));
+        serverDocs.forEach((d: any) => map.set(d.id, d));
 
-        // Standart LGS Çıkmış & Resmi Örnek Soru Kaynakları
-        const defaultSources = [
-          {
-            id: 'pdf_meb_64_soru',
-            title: 'MEB LGS 1. Dönem Matematik 64 Örnek Soru Bankası',
-            file_name: 'meb_lgs_64_ornek_sorular.pdf',
-            file_type: 'soru_bankasi',
-            publisher: 'T.C. Millî Eğitim Bakanlığı',
-            page_count: 39,
-            question_count: 64,
-            badge: 'MEB 64 Soru Bankası'
-          },
-          {
-            id: 'pdf_lgs_2024',
-            title: '2024 LGS Sayısal Matematik (MEB Çıkmış Sınav)',
-            file_name: '2024_lgs_sayisal.pdf',
-            file_type: 'deneme',
-            publisher: 'T.C. Millî Eğitim Bakanlığı',
-            page_count: 8,
-            question_count: 20,
-            badge: 'MEB Çıkmış'
-          },
-          {
-            id: 'pdf_lgs_2023',
-            title: '2023 LGS Sayısal Matematik (MEB Çıkmış Sınav)',
-            file_name: '2023_lgs_sayisal.pdf',
-            file_type: 'deneme',
-            publisher: 'T.C. Millî Eğitim Bakanlığı',
-            page_count: 8,
-            question_count: 20,
-            badge: 'MEB Çıkmış'
-          },
-          {
-            id: 'pdf_lgs_odsgm',
-            title: 'LGS 1. Dönem Tekrar & Örnek Soru Fasikülü',
-            file_name: 'odsgm_ornek_sorular.pdf',
-            file_type: 'calisma_foyu',
-            publisher: 'ÖDSGM',
-            page_count: 12,
-            question_count: 25,
-            badge: 'Örnek Fasikül'
-          }
-        ];
-
-        defaultSources.forEach(s => map.set(s.id, s));
-        clientDocs.forEach((d: any) => map.set(d.id, { ...d, badge: 'Arşivinizden' }));
-        serverDocs.forEach((d: any) => map.set(d.id, { ...d, badge: 'Arşivinizden' }));
-
-        const all = Array.from(map.values());
+        const all = Array.from(map.values()).map((d: any) => {
+          const n = approvedCount.get(d.id) || 0;
+          return { ...d, approvedQuestions: n, badge: n > 0 ? `${n} onaylı soru` : 'Soru çıkarılmadı' };
+        });
         setAvailablePdfs(all);
-        setSelectedPdfIds(prev => prev.length > 0 ? prev : [all[0].id]);
+        setSelectedPdfIds(prev => {
+          const valid = prev.filter(id => all.some((d: any) => d.id === id));
+          if (valid.length > 0) return valid;
+          const withQuestions = all.filter((d: any) => d.approvedQuestions > 0);
+          return withQuestions.length ? withQuestions.map((d: any) => d.id) : all[0] ? [all[0].id] : [];
+        });
       } catch (e) {
         console.warn('PDF listesi yüklenemedi:', e);
       }
@@ -606,7 +576,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       // 2. Sistemdeki PDF ve Havuz sorularını sorgula (Doğrudan PDF soru havuzu)
       let poolQuestions: any[] = [];
       try {
-        const res = await fetch('/api/lgs/question-pool?source=pdf');
+        const res = await fetch('/api/lgs/question-pool?source=pdf&approvedOnly=1');
         const data = await res.json();
         if (data.success) {
           poolQuestions = data.questions || data.pool || [];
@@ -651,26 +621,19 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         const targetPdf = selectedPdfList[(i - 1) % (selectedPdfList.length || 1)] || selectedPdfList[0];
         const currentPdfName = targetPdf?.title || defaultPdfTitle;
 
-        // 1. Aşama: Seçilen PDF(ler) içinde, bu konuya ait soru ara
-        let matchingPool = poolQuestions.find((pq: any) => {
+        // Yalnızca seçilen PDF(ler)deki onaylı sorular kullanılır
+        const isCandidate = (pq: any, requireTopic: boolean) => {
           if (usedPoolQuestionIds.has(pq.id)) return false;
           const matchSource = (selectedPdfIds.length === 0 || selectedPdfIds.includes(pq.pdf_id) || selectedPdfIds.includes(pq.source_id) || activePdfTitles.includes(pq.source_title));
-          const matchTopic = (pq.primary_topic_id === topicId || pq.topic_name === topicObj.name);
-          if (!matchSource || !matchTopic) return false;
-          const dup = checkDuplicateQuestion(pq.question_text || '', examQuestionTexts, 0.40);
-          return !dup.isDuplicate;
-        });
-
-        // 2. Aşama: Eğer seçili PDF'te bu konudan soru kalmadıysa, sistemdeki diğer LGS PDF'lerinden aynı konudan doğrudan çek
-        if (!matchingPool) {
-          matchingPool = poolQuestions.find((pq: any) => {
-            if (usedPoolQuestionIds.has(pq.id)) return false;
-            const matchTopic = (pq.primary_topic_id === topicId || pq.topic_name === topicObj.name);
-            if (!matchTopic) return false;
-            const dup = checkDuplicateQuestion(pq.question_text || '', examQuestionTexts, 0.40);
-            return !dup.isDuplicate;
-          });
-        }
+          if (!matchSource) return false;
+          if (!pq.question_text && !pq.image_url) return false;
+          if (requireTopic && !(pq.primary_topic_id === topicId || pq.topic_name === topicObj.name)) return false;
+          if (!pq.question_text) return true; // yalnızca görselli soru: metin benzerliği denetlenemez
+          return !checkDuplicateQuestion(pq.question_text, examQuestionTexts, 0.40).isDuplicate;
+        };
+        // 1. Aşama: bu konudan soru; 2. Aşama: konusu belirlenmemiş soru
+        const matchingPool = poolQuestions.find((pq: any) => isCandidate(pq, true))
+          || poolQuestions.find((pq: any) => !pq.primary_topic_id && isCandidate(pq, false));
 
         const defaultAns = ['A', 'B', 'C', 'D'][(i - 1) % 4];
         let qText = '';
@@ -689,11 +652,11 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 : (i % 4 === 1);
         let qSvgContent: string | undefined = undefined;
 
-        if (matchingPool && matchingPool.question_text) {
+        if (matchingPool && (matchingPool.question_text || matchingPool.image_url)) {
           usedPoolQuestionIds.add(matchingPool.id);
-          examQuestionTexts.push({ id: matchingPool.id, text: matchingPool.question_text });
+          if (matchingPool.question_text) examQuestionTexts.push({ id: matchingPool.id, text: matchingPool.question_text });
           // Öğrenciye gösterilecek soru metninde iç robot/etiketler yer almaz
-          qText = matchingPool.question_text.replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '').replace(/^\[[^\]]+\]:\s*/gi, '').trim();
+          qText = (matchingPool.question_text || '').replace(/^\d+\.\s*Soru\s*\[[^\]]+\]:\s*/gi, '').replace(/^\[[^\]]+\]:\s*/gi, '').trim();
           qOptions = matchingPool.options || { A: 'A', B: 'B', C: 'C', D: 'D' };
           qAns = matchingPool.correct_answer || defaultAns;
           diff = matchingPool.difficulty || diff;
@@ -739,7 +702,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         const trapsInfo = getTopicTrapsAndWarnings(topicId, qAns);
         const pdfSourceTitle = matchingPool 
           ? `${matchingPool.source_title || currentPdfName}${matchingPool.page_no ? ` (Sayfa ${matchingPool.page_no}, Soru ${matchingPool.question_no || i})` : ''}`
-          : `LGS Özgün Soru (${currentPdfName} Destekli)`;
+          : `Üretilen Soru (seçili PDF'lerde uygun onaylı soru yok)`;
 
         results.push({
           id: matchingPool ? matchingPool.id : `hybrid_pdf_${i}`,
