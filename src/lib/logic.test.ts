@@ -8,6 +8,7 @@ import { parseFilters, filtersToQuery, matchesComputed, sanitizeSearch } from '.
 import { verifyAndExplainWithAi } from './ai/externalAiChecker.ts';
 import { parseAnswerKey } from './pdfExtraction/answerKey.ts';
 import { guessTopicId } from './pdfExtraction/topicGuess.ts';
+import { pickPoolQuestion, nextPdfInRotation } from './pdfExtraction/poolPicker.ts';
 import {
   contentBounds, detectColumns, segmentByWhitespace, findQuestionMarkers, regionsFromMarkers, parseOptions,
   textInBox, stripLeadingNumber, tightenBox, removeRuleLines, trimHeaderFooter, findVisualMarkers, regionsFromStarts, type InkMask, type TextItemPos,
@@ -672,4 +673,31 @@ test('taranmış sayfa: asılı soru numaralarından bölme', () => {
   // Asılı numara düzeni olmayan sayfada işaret bulunmaz
   const flat = makeMask(W, H, [...lines(110, 900, 100, 400), ...lines(110, 900, 600, 900)]);
   assert.deepEqual(findVisualMarkers(flat, contentBounds(flat)!), []);
+});
+
+test('hibrit deneme: PDF havuzundan soru seçimi', () => {
+  const pool = [
+    { id: 'a1', pdf_id: 'A', question_text: 'EBOB sorusu 1', primary_topic_id: 'top_carpanlar_katlar', difficulty: 3 },
+    { id: 'a2', pdf_id: 'A', question_text: 'EBOB sorusu 2 kolay', primary_topic_id: 'top_carpanlar_katlar', difficulty: 1 },
+    { id: 'b1', pdf_id: 'B', question_text: 'EKOK sorusu', primary_topic_id: 'top_carpanlar_katlar', difficulty: 3 },
+    { id: 'b2', pdf_id: 'B', question_text: '', image_url: '/img/b2', primary_topic_id: null, difficulty: 3 },
+    { id: 'c1', pdf_id: 'C', question_text: 'seçilmemiş PDF', primary_topic_id: 'top_carpanlar_katlar', difficulty: 3 },
+    { id: 'a3', pdf_id: 'A', question_text: 'Üçgen sorusu', primary_topic_id: 'top_ucgenler', difficulty: 3 },
+  ];
+  const base = { topicId: 'top_carpanlar_katlar', difficulty: 3, selectedPdfIds: ['A', 'B'], usedIds: new Set<string>() };
+  // tercih edilen PDF öne geçer (yalnızca ilk PDF kontenjanı doldurmaz)
+  assert.equal(pickPoolQuestion(pool, { ...base, preferredPdfId: 'B' })!.id, 'b1');
+  assert.equal(pickPoolQuestion(pool, { ...base, preferredPdfId: 'A' })!.id, 'a1');
+  // hedef zorluğa en yakın
+  assert.equal(pickPoolQuestion(pool, { ...base, difficulty: 1, preferredPdfId: 'A' })!.id, 'a2');
+  // kullanılanlar ve başka konular atlanır; konusu etiketsiz görselli soru yedek olarak gelir
+  const used = new Set(['a1', 'a2', 'b1']);
+  assert.equal(pickPoolQuestion(pool, { ...base, usedIds: used })!.id, 'b2');
+  assert.equal(pickPoolQuestion(pool, { ...base, usedIds: new Set([...used, 'b2']) }), null);
+  // tekrar denetimi
+  assert.equal(pickPoolQuestion(pool, { ...base, preferredPdfId: 'A', isDuplicate: t => t.startsWith('EBOB') })!.id, 'b1');
+  // sıradaki PDF yalnızca hâlâ sorusu kalanlar arasında döner
+  assert.equal(nextPdfInRotation(['A', 'B'], 0, pool, new Set()), 'A');
+  assert.equal(nextPdfInRotation(['A', 'B'], 1, pool, new Set()), 'B');
+  assert.equal(nextPdfInRotation(['A', 'B'], 1, pool, new Set(['b1', 'b2'])), 'A');
 });

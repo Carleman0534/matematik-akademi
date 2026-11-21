@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { pickPoolQuestion, nextPdfInRotation } from '@/lib/pdfExtraction/poolPicker';
 import Link from 'next/link';
 import { 
   Sparkles, FileText, CheckCircle2, Layers, BookOpen, 
@@ -166,6 +167,9 @@ export default function DenemeOlusturPage() {
   const [isPdfConfirmed, setIsPdfConfirmed] = useState<boolean>(true);
   const [isTopicsConfirmed, setIsTopicsConfirmed] = useState<boolean>(true);
   const [stepToast, setStepToast] = useState<string>('');
+  const [compileNotice, setCompileNotice] = useState<string>('');
+  const poolRef = useRef<any[]>([]); // son derlemede kullanılan PDF soru havuzu ("Farklı Soru Getir" için)
+  const shownForSlotRef = useRef<Map<number, Set<string>>>(new Map()); // her soru sırasında gösterilmiş PDF soruları
 
   // 7. Zorluk Ayrımı ve Kaynak Filtresi (Kolay, Orta, Zor / PDF, AI)
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'Kolay' | 'Orta' | 'Zor'>('all');
@@ -434,12 +438,17 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           if (d.docs && Array.isArray(d.docs)) serverDocs = d.docs;
         } catch {}
 
-        // Yalnızca gerçekten yüklenmiş PDF'ler; her birinde kaç onaylı soru olduğu rozet olarak gösterilir
+        // Yalnızca gerçekten yüklenmiş PDF'ler; rozet onaylı ve onay bekleyen soru sayısını gösterir
+        // (denemede yalnızca onaylı sorular kullanılır)
         const approvedCount = new Map<string, number>();
+        const pendingCount = new Map<string, number>();
         try {
-          const pr = await fetch('/api/lgs/question-pool?source=pdf&approvedOnly=1');
+          const pr = await fetch('/api/lgs/question-pool?source=pdf');
           const pd = await pr.json();
-          for (const q of (pd.pool || [])) approvedCount.set(q.pdf_id, (approvedCount.get(q.pdf_id) || 0) + 1);
+          for (const q of (pd.pool || [])) {
+            const m = q.approval_status === 'approved' ? approvedCount : pendingCount;
+            m.set(q.pdf_id, (m.get(q.pdf_id) || 0) + 1);
+          }
         } catch {}
 
         const map = new Map<string, any>();
@@ -448,7 +457,11 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
         const all = Array.from(map.values()).map((d: any) => {
           const n = approvedCount.get(d.id) || 0;
-          return { ...d, approvedQuestions: n, badge: n > 0 ? `${n} onaylı soru` : 'Soru çıkarılmadı' };
+          const p = pendingCount.get(d.id) || 0;
+          const badge = n > 0
+            ? `${n} onaylı soru${p > 0 ? ` (+${p} onay bekliyor)` : ''}`
+            : p > 0 ? `${p} soru onay bekliyor` : 'Soru çıkarılmadı';
+          return { ...d, approvedQuestions: n, pendingQuestions: p, badge };
         });
         setAvailablePdfs(all);
         setSelectedPdfIds(prev => {
@@ -594,6 +607,9 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       const usedPoolQuestionIds = new Set<string>();
       const examQuestionTexts: { id: string; text: string }[] = [];
       const topicCountMap = new Map<string, number>();
+      let pdfShortfall = 0;
+      poolRef.current = poolQuestions;
+      shownForSlotRef.current = new Map();
 
       // A. PDF Sorularını Dağıt (Doğrudan PDF Çekme Motoru & Kolay/Orta/Zor Ayrımı)
       for (let i = 1; i <= pdfCount; i++) {
@@ -618,22 +634,23 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           else { diff = (i % 2 === 0 ? 5 : 4); diffLabel = 'Zor'; }
         }
         
-        const targetPdf = selectedPdfList[(i - 1) % (selectedPdfList.length || 1)] || selectedPdfList[0];
+        // Seçili PDF'ler arasında sırayla dağıt (yalnızca hâlâ sorusu kalan PDF'ler arasında)
+        const preferredPdfId = nextPdfInRotation(selectedPdfIds, i - 1, poolQuestions, usedPoolQuestionIds);
+        const targetPdf = selectedPdfList.find(p => p.id === preferredPdfId) || selectedPdfList[(i - 1) % (selectedPdfList.length || 1)];
         const currentPdfName = targetPdf?.title || defaultPdfTitle;
 
-        // Yalnızca seçilen PDF(ler)deki onaylı sorular kullanılır
-        const isCandidate = (pq: any, requireTopic: boolean) => {
-          if (usedPoolQuestionIds.has(pq.id)) return false;
-          const matchSource = (selectedPdfIds.length === 0 || selectedPdfIds.includes(pq.pdf_id) || selectedPdfIds.includes(pq.source_id) || activePdfTitles.includes(pq.source_title));
-          if (!matchSource) return false;
-          if (!pq.question_text && !pq.image_url) return false;
-          if (requireTopic && !(pq.primary_topic_id === topicId || pq.topic_name === topicObj.name)) return false;
-          if (!pq.question_text) return true; // yalnızca görselli soru: metin benzerliği denetlenemez
-          return !checkDuplicateQuestion(pq.question_text, examQuestionTexts, 0.40).isDuplicate;
-        };
-        // 1. Aşama: bu konudan soru; 2. Aşama: konusu belirlenmemiş soru
-        const matchingPool = poolQuestions.find((pq: any) => isCandidate(pq, true))
-          || poolQuestions.find((pq: any) => !pq.primary_topic_id && isCandidate(pq, false));
+        // Yalnızca seçilen PDF(ler)deki onaylı sorular; konu → PDF sırası → zorluk yakınlığına göre
+        const matchingPool = pickPoolQuestion(poolQuestions, {
+          topicId,
+          topicName: topicObj.name,
+          difficulty: diff,
+          selectedPdfIds,
+          selectedPdfTitles: activePdfTitles,
+          preferredPdfId,
+          usedIds: usedPoolQuestionIds,
+          isDuplicate: (text) => checkDuplicateQuestion(text, examQuestionTexts, 0.40).isDuplicate,
+        });
+        if (!matchingPool) pdfShortfall++;
 
         const defaultAns = ['A', 'B', 'C', 'D'][(i - 1) % 4];
         let qText = '';
@@ -641,7 +658,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         let qAns: string = defaultAns;
         let qSol = '';
         let qType = i % 2 === 0 ? 'yeni_nesil' : 'problem_cozme';
-        let qVisual = visualRatio === 100 
+        const qVisual = visualRatio === 100
           ? true 
           : visualRatio === 0 
             ? false 
@@ -707,8 +724,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         results.push({
           id: matchingPool ? matchingPool.id : `hybrid_pdf_${i}`,
           questionNo: i,
-          topicId,
-          topicName: topicObj.name,
+          topicId: matchingPool?.primary_topic_id || topicId,
+          topicName: matchingPool?.topic_name || topicObj.name,
           sourceType: matchingPool ? 'pdf' : 'ai',
           sourceTitle: pdfSourceTitle,
           pdfId: matchingPool?.pdf_id || targetPdf?.id,
@@ -814,6 +831,14 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
       setCompiledQuestions(results);
       if (overrideTitle) setExamTitle(overrideTitle);
+      // Öğretmen kaç sorunun gerçekten PDF'ten geldiğini görsün
+      if (pdfCount > 0) {
+        setCompileNotice(pdfShortfall === 0
+          ? `PDF'ten istenen ${pdfCount} sorunun hepsi seçili PDF'lerin onaylı sorularından alındı.`
+          : `PDF'ten ${pdfCount} soru istendi: ${pdfCount - pdfShortfall} tanesi PDF'ten alındı, ${pdfShortfall} tanesi için seçili PDF'lerde bu konularda kullanılmamış onaylı soru kalmadığından üretilen soru kullanıldı. Daha fazla PDF sorusu için PDF'ten Soru Çıkarma sayfasında soruları onaylayın ya da başka PDF/konu seçin.`);
+      } else {
+        setCompileNotice('');
+      }
     } catch (e: any) {
       alert('Deneme derlenirken hata oluştu: ' + (e.message || String(e)));
     } finally {
@@ -822,7 +847,76 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
   };
 
   // Tekil Soru Değiştirici (Mükerrerlik Önleyici ile Tek Tıkla Yenisini Getir)
+  // PDF sorusu ise seçili PDF'lerden aynı konuda başka bir onaylı soru dener (yoksa null).
+  // setState güncelleyicisinin dışında çalışır: gösterilen soruların kaydı (ref) bir kez güncellensin.
+  const trySwapWithPdfQuestion = (prev: HybridQuestionItem[], questionNo: number): HybridQuestionItem[] | null => {
+      const targetIndex = prev.findIndex(q => q.questionNo === questionNo);
+      if (targetIndex === -1) return null;
+      const targetQ = prev[targetIndex];
+
+      const otherQuestions = prev
+        .filter((_, idx) => idx !== targetIndex)
+        .map(q => ({ id: q.id, text: q.questionText }));
+
+      if (targetQ.sourceType === 'pdf' && poolRef.current.length > 0) {
+        const selectedTitles = availablePdfs.filter(p => selectedPdfIds.includes(p.id)).map(p => p.title);
+        // Bu sırada daha önce gösterilenleri de atla; hepsi gösterildiyse baştan başla
+        const shown = shownForSlotRef.current.get(questionNo) || new Set<string>([targetQ.id]);
+        const pick = (exclude: Set<string>) => pickPoolQuestion(poolRef.current, {
+          topicId: targetQ.topicId,
+          topicName: targetQ.topicName,
+          difficulty: targetQ.difficulty,
+          selectedPdfIds,
+          selectedPdfTitles: selectedTitles,
+          preferredPdfId: null,
+          usedIds: new Set([...prev.map(q => q.id), ...exclude]),
+          isDuplicate: (text) => checkDuplicateQuestion(text, otherQuestions, 0.40).isDuplicate,
+        });
+        let alt = pick(shown);
+        if (!alt && shown.size > 1) { shown.clear(); alt = pick(shown); }
+        if (alt) {
+          shown.add(targetQ.id);
+          shown.add(alt.id);
+          shownForSlotRef.current.set(questionNo, shown);
+          const ans = alt.correct_answer || targetQ.correctAnswer;
+          const d = alt.difficulty || targetQ.difficulty;
+          const dl: 'Kolay' | 'Orta' | 'Zor' = d <= 2 ? 'Kolay' : d === 3 ? 'Orta' : 'Zor';
+          const traps = getTopicTrapsAndWarnings(alt.primary_topic_id || targetQ.topicId, ans);
+          const copy = [...prev];
+          copy[targetIndex] = {
+            ...targetQ,
+            id: alt.id,
+            topicId: alt.primary_topic_id || targetQ.topicId,
+            topicName: alt.topic_name || targetQ.topicName,
+            sourceTitle: `${alt.source_title || 'PDF'}${alt.page_no ? ` (Sayfa ${alt.page_no}, Soru ${alt.question_no})` : ''}`,
+            pdfId: alt.pdf_id,
+            pageNo: alt.page_no,
+            questionNoInPdf: alt.question_no,
+            difficulty: d,
+            difficultyLabel: dl,
+            questionType: alt.question_type || targetQ.questionType,
+            questionText: (alt.question_text || '').trim(),
+            options: alt.options || { A: '', B: '', C: '', D: '' },
+            correctAnswer: ans,
+            solutionExplanation: `1. Adım: ${alt.topic_name || targetQ.topicName} (${dl}) sorusunda verilenler çözümlenir.\n2. Adım: İlgili matematiksel bağıntı uygulanır.\n3. Adım: Doğru seçenek ${ans} olarak bulunur.`,
+            criticalWarning: traps.criticalWarning,
+            traps: traps.traps,
+            hasVisual: Boolean(alt.image_url) || targetQ.hasVisual,
+            imageUrl: alt.image_url || undefined,
+            svgContent: undefined,
+          };
+          return copy;
+        }
+      }
+      return null;
+  };
+
   const handleShuffleSingleQuestion = (questionNo: number) => {
+    const swapped = trySwapWithPdfQuestion(compiledQuestions, questionNo);
+    if (swapped) {
+      setCompiledQuestions(swapped);
+      return;
+    }
     setCompiledQuestions(prev => {
       const targetIndex = prev.findIndex(q => q.questionNo === questionNo);
       if (targetIndex === -1) return prev;
@@ -1937,6 +2031,12 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                         )}
                       </div>
                     </div>
+
+                    {compileNotice && (
+                      <div className={`p-3 rounded-2xl border text-xs font-semibold ${compileNotice.includes('üretilen soru') ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-300'}`}>
+                        📁 {compileNotice}
+                      </div>
+                    )}
 
                     {/* C. Zorluk Seviyesi Ayrımı & Filtreleme Çubuğu */}
                     <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">

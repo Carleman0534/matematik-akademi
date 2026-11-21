@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     // 1. PDF extracted questions
     if (!source || source === 'all' || source === 'pdf') {
       let qSql = `
-        SELECT q.id, q.pdf_id, q.page_no, q.question_no, q.question_text, q.options_json, q.correct_answer, q.primary_topic_id, q.difficulty, q.question_type,
+        SELECT q.id, q.pdf_id, q.page_no, q.question_no, q.question_text, q.options_json, q.correct_answer, q.primary_topic_id, q.difficulty, q.question_type, q.approval_status,
                p.title as source_title, p.file_name as pdf_file_name, 'pdf_extracted' as source_type, t.name as topic_name, NULL as svg_content, q.image_url
         FROM pdf_extracted_questions q
         LEFT JOIN pdf_documents p ON q.pdf_id = p.id
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      qSql += ' ORDER BY q.pdf_id, q.page_no, q.question_no';
       const qStmt = db.prepare(qSql);
       qStmt.bind(qParams);
       while (qStmt.step()) {
