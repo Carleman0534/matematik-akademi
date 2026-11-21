@@ -15,6 +15,7 @@ export default function SoruHavuzuPage() {
   
   // Filtreler
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [pdfFilter, setPdfFilter] = useState('');
   const [topicFilter, setTopicFilter] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [hasVisualFilter, setHasVisualFilter] = useState(false);
@@ -25,15 +26,16 @@ export default function SoruHavuzuPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (sourceFilter !== 'all') params.set('source', sourceFilter);
+      if (pdfFilter) params.set('pdfId', pdfFilter);
       if (topicFilter) params.set('topicId', topicFilter);
       if (difficultyFilter) params.set('difficulty', difficultyFilter);
       if (hasVisualFilter) params.set('hasVisual', 'true');
-      if (searchQuery) params.set('search', searchQuery);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
 
       const res = await fetch(`/api/lgs/question-pool?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
-        setQuestions(data.questions);
+        setQuestions(data.questions || data.pool || []);
       }
     } catch (e) {
       console.error(e);
@@ -44,7 +46,7 @@ export default function SoruHavuzuPage() {
 
   useEffect(() => {
     loadQuestions();
-  }, [sourceFilter, topicFilter, difficultyFilter, hasVisualFilter]);
+  }, [sourceFilter, pdfFilter, topicFilter, difficultyFilter, hasVisualFilter]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -103,16 +105,23 @@ export default function SoruHavuzuPage() {
 
       {/* Filtreleme Çubuğu */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <Search className="h-4 w-4 text-slate-400" />
+        <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+          <Search className="h-4 w-4 text-slate-400 shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && loadQuestions()}
-            placeholder="Soru metni veya konu ara..."
+            placeholder="Soru metni, bisiklet, çember, konu ara..."
             className="w-full bg-transparent text-sm focus:outline-none dark:text-white"
           />
+          <button
+            type="button"
+            onClick={loadQuestions}
+            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shrink-0 shadow-xs"
+          >
+            Ara
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -125,6 +134,19 @@ export default function SoruHavuzuPage() {
             <option value="all">Tüm Kaynaklar (PDF + AI)</option>
             <option value="pdf">Yalnızca PDF Kaynakları</option>
             <option value="ai">Yalnızca Yapay Zekâ Soruları</option>
+          </select>
+
+          {/* PDF Dokümanı Filtresi */}
+          <select
+            value={pdfFilter}
+            onChange={e => setPdfFilter(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          >
+            <option value="">Tüm PDF Dokümanları</option>
+            <option value="pdf_meb_64_soru">📘 MEB 1. Dönem 64 Soru Bankası</option>
+            <option value="pdf_lgs_2024">📕 2024 LGS Çıkmış Sınav (20 Soru)</option>
+            <option value="pdf_lgs_2023">📙 2023 LGS Çıkmış Sınav (20 Soru)</option>
+            <option value="pdf_lgs_odsgm">📗 ÖDSGM LGS Örnek Fasikül (25 Soru)</option>
           </select>
 
           {/* Konu Filtresi */}
@@ -217,6 +239,11 @@ export default function SoruHavuzuPage() {
 
                     <div className="flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
+                        {q.question_no && (
+                          <span className="rounded-md bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                            Soru #{q.question_no}
+                          </span>
+                        )}
                         <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${
                           q.source_type === 'ai_generated'
                             ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300'
@@ -224,6 +251,11 @@ export default function SoruHavuzuPage() {
                         }`}>
                           {q.source_title}
                         </span>
+                        {q.page_no && (
+                          <span className="text-[11px] font-semibold text-slate-400">
+                            (Sayfa {q.page_no})
+                          </span>
+                        )}
                         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                           {q.topic_name || q.primary_topic_id}
                         </span>
@@ -232,13 +264,24 @@ export default function SoruHavuzuPage() {
                         </span>
                         {q.has_visual && (
                           <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1">
-                            <ImageIcon className="h-3 w-3" /> Şekilli Soru
+                            <ImageIcon className="h-3 w-3" /> Şekilli / Çizimli Soru
                           </span>
                         )}
                       </div>
 
+                      {/* Fotoğraflı veya Kırpılmış Soru Görseli Varsa Render Et */}
+                      {q.image_url && (
+                        <div className="my-3 flex justify-center rounded-2xl bg-slate-50 p-3 border border-slate-200/80 dark:bg-slate-800/40 dark:border-slate-800 overflow-x-auto">
+                          <img 
+                            src={q.image_url} 
+                            alt={`Soru ${q.question_no || ''}`} 
+                            className="max-h-80 w-auto object-contain rounded-xl shadow-xs" 
+                          />
+                        </div>
+                      )}
+
                       {/* SVG Görseli Varsa Render Et */}
-                      {q.svg_content && (
+                      {q.svg_content && !q.image_url && (
                         <div 
                           className="my-3 overflow-hidden" 
                           dangerouslySetInnerHTML={{ __html: q.svg_content }} 

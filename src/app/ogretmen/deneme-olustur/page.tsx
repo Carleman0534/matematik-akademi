@@ -608,8 +608,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       try {
         const res = await fetch('/api/lgs/question-pool?source=pdf');
         const data = await res.json();
-        if (data.success && data.pool) {
-          poolQuestions = data.pool;
+        if (data.success) {
+          poolQuestions = data.questions || data.pool || [];
         }
       } catch (err) {
         console.warn('Could not fetch pool questions, will use fallback:', err);

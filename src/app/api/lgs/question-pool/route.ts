@@ -96,14 +96,21 @@ export async function GET(req: NextRequest) {
       filtered = filtered.filter(q => q.has_visual);
     }
     if (search && search.trim() !== '') {
-      const s = search.toLowerCase();
-      filtered = filtered.filter(q => (q.question_text || '').toLowerCase().includes(s) || (q.topic_name || '').toLowerCase().includes(s));
+      const s = search.toLocaleLowerCase('tr-TR').trim();
+      const normalize = (val: string) => (val || '').toLocaleLowerCase('tr-TR');
+      filtered = filtered.filter(q => 
+        normalize(q.question_text).includes(s) || 
+        normalize(q.topic_name).includes(s) ||
+        normalize(q.source_title).includes(s) ||
+        String(q.question_no || '') === s
+      );
     }
 
     return NextResponse.json({
       success: true,
       totalCount: filtered.length,
-      questions: filtered
+      questions: filtered,
+      pool: filtered
     });
   } catch (error: any) {
     console.error('Error in question pool API:', error);
