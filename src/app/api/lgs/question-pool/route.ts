@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         pool.push({
           ...item,
           options: typeof item.options_json === 'string' ? JSON.parse(item.options_json || '{}') : item.options_json,
-          has_visual: item.question_type === 'grafik_tablo' || item.question_type === 'geometrik_gorsel'
+          has_visual: Boolean(item.image_url) || item.question_type === 'grafik_tablo' || item.question_type === 'geometrik_gorsel'
         });
       }
       qStmt.free();

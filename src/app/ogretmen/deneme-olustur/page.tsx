@@ -158,7 +158,7 @@ export default function DenemeOlusturPage() {
 
   // 5. Kaynak PDF Seçimi (Seçmece Deneme) Durumları
   const [availablePdfs, setAvailablePdfs] = useState<any[]>([]);
-  const [selectedPdfIds, setSelectedPdfIds] = useState<string[]>(['pdf_lgs_2024']);
+  const [selectedPdfIds, setSelectedPdfIds] = useState<string[]>(['pdf_meb_64_soru', 'pdf_lgs_2024']);
   const [pdfSearch, setPdfSearch] = useState<string>('');
 
   // 6. Onay Durumları (Adım Adım Onaylama: Hedef Öğrenci, Kaynak PDF, LGS Konuları)
@@ -439,6 +439,16 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
         // Standart LGS Çıkmış & Resmi Örnek Soru Kaynakları
         const defaultSources = [
           {
+            id: 'pdf_meb_64_soru',
+            title: 'MEB LGS 1. Dönem Matematik 64 Örnek Soru Bankası',
+            file_name: 'meb_lgs_64_ornek_sorular.pdf',
+            file_type: 'soru_bankasi',
+            publisher: 'T.C. Millî Eğitim Bakanlığı',
+            page_count: 39,
+            question_count: 64,
+            badge: 'MEB 64 Soru Bankası'
+          },
+          {
             id: 'pdf_lgs_2024',
             title: '2024 LGS Sayısal Matematik (MEB Çıkmış Sınav)',
             file_name: '2024_lgs_sayisal.pdf',
@@ -498,7 +508,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
   };
 
   const selectOnlyMebPdfs = () => {
-    const meb = availablePdfs.filter(p => p.badge === 'MEB Çıkmış' || p.id.includes('2024') || p.id.includes('2023'));
+    const meb = availablePdfs.filter(p => p.badge?.includes('MEB') || p.id.includes('meb') || p.id.includes('2024') || p.id.includes('2023'));
     if (meb.length > 0) setSelectedPdfIds(meb.map(p => p.id));
   };
 
@@ -750,7 +760,8 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
           solutionExplanation: qSol,
           criticalWarning: trapsInfo.criticalWarning,
           traps: trapsInfo.traps,
-          hasVisual: Boolean(qSvgContent) || qVisual,
+          hasVisual: Boolean(matchingPool?.image_url) || Boolean(qSvgContent) || qVisual,
+          imageUrl: matchingPool?.image_url,
           svgContent: qSvgContent
         });
       }

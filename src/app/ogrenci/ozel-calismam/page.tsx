@@ -532,8 +532,13 @@ export default function OzelCalismamPage() {
                         </div>
                       </div>
 
-                      {/* SVG Görsel Varsa */}
-                      {q.svg_content && (
+                      {/* Fotoğraflı veya SVG Görsel Varsa */}
+                      {(q.image_url || q.imageUrl) && (
+                        <div className="my-2 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl flex justify-center overflow-x-auto">
+                          <img src={q.image_url || q.imageUrl} alt="Soru Görseli" className="max-h-80 rounded-xl object-contain shadow-xs" />
+                        </div>
+                      )}
+                      {q.svg_content && !(q.image_url || q.imageUrl) && (
                         <div 
                           className="my-2 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl flex justify-center overflow-x-auto"
                           dangerouslySetInnerHTML={{ __html: q.svg_content }}
@@ -756,8 +761,13 @@ export default function OzelCalismamPage() {
               </span>
             </div>
 
-            {/* SVG Çizimi Varsa */}
-            {currentQ?.svg_content && (
+            {/* Fotoğraflı veya SVG Çizimi Varsa */}
+            {(currentQ?.image_url || currentQ?.imageUrl) && (
+              <div className="my-2 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl flex justify-center overflow-x-auto">
+                <img src={currentQ.image_url || currentQ.imageUrl} alt="Soru Görseli" className="max-h-96 rounded-xl object-contain shadow-xs" />
+              </div>
+            )}
+            {currentQ?.svg_content && !(currentQ?.image_url || currentQ?.imageUrl) && (
               <div 
                 className="my-2 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl flex justify-center overflow-x-auto"
                 dangerouslySetInnerHTML={{ __html: currentQ.svg_content }} 

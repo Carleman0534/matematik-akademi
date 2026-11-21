@@ -30,6 +30,7 @@ interface QuestionItem {
   correctAnswer: string;
   solutionExplanation?: string;
   svgContent?: string;
+  imageUrl?: string;
   difficulty: number;
 }
 
@@ -108,6 +109,7 @@ export default function StudentDenemeRoomPage({
               correctAnswer: q.correct_answer || 'A',
               solutionExplanation: q.solution_explanation,
               svgContent: q.svg_content,
+              imageUrl: q.image_url || q.imageUrl,
               difficulty: q.difficulty || 3
             }));
             setQuestions(mapped);
@@ -384,8 +386,13 @@ export default function StudentDenemeRoomPage({
               </span>
             </div>
 
-            {/* Vektörel Şekil / Geometri Modeli */}
-            {currentQ?.svgContent && (
+            {/* Fotoğraflı Soru Görseli veya Vektörel Şekil */}
+            {currentQ?.imageUrl && (
+              <div className="my-3 flex justify-center overflow-x-auto p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <img src={currentQ.imageUrl} alt="Soru Görseli" className="max-h-96 rounded-xl object-contain shadow-xs" />
+              </div>
+            )}
+            {currentQ?.svgContent && !currentQ?.imageUrl && (
               <div 
                 className="my-3 flex justify-center overflow-x-auto p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800"
                 dangerouslySetInnerHTML={{ __html: currentQ.svgContent }}
