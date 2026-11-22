@@ -63,6 +63,7 @@ export interface StudentProfileData {
     title: string;
     question_count: number;
     duration_minutes: number;
+    has_key?: number;
   }>;
   bankStats: {
     total: number;
@@ -193,7 +194,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
       LEFT JOIN pdf_documents p ON p.id = ea.exam_id
       LEFT JOIN exam_sessions es ON es.exam_id = ea.exam_id AND (es.student_id = ea.student_id)
       LEFT JOIN exam_results er ON er.exam_id = ea.exam_id AND (er.student_id = ea.student_id)
-      WHERE ea.student_id = ?
+      WHERE ea.student_id = ? AND (e.id IS NOT NULL OR p.id IS NOT NULL)
       GROUP BY ea.id
       ORDER BY ea.assigned_at DESC
     `, [studentId]);
@@ -397,13 +398,33 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
   });
 
   // 5. Atanmaya Hazır Denemeler
+  // Yalnızca gerçekten var olan denemeler: arşivdeki PDF denemeleri ve sistemde kayıtlı denemeler.
+  // (Eskiden burada sabit yazılmış üç uydurma deneme vardı; atanınca hiçbir yerde görünmüyordu.)
   const availableExams: any[] = [];
   try {
+    const pdfRes = db.exec(`
+      SELECT id, title, COALESCE(question_count, 0) AS question_count, 0 AS duration_minutes,
+             CASE WHEN COALESCE(answer_key, '') = '' THEN 0 ELSE 1 END AS has_key
+      FROM pdf_documents
+      WHERE file_type = 'deneme' AND COALESCE(is_archived, 0) = 0
+      ORDER BY created_at DESC
+    `);
+    if (pdfRes.length > 0) {
+      const cols = pdfRes[0].columns;
+      for (const row of pdfRes[0].values) {
+        const obj: any = {};
+        cols.forEach((c, idx) => { obj[c] = row[idx]; });
+        availableExams.push(obj);
+      }
+    }
+  } catch {}
+  try {
     const exRes = db.exec(`
-      SELECT id, title, question_count, duration_minutes 
-      FROM exams 
-      ORDER BY created_at DESC 
-      LIMIT 10
+      SELECT id, title, question_count, duration_minutes, 1 AS has_key
+      FROM exams
+      WHERE id NOT IN (SELECT id FROM pdf_documents)
+      ORDER BY created_at DESC
+      LIMIT 20
     `);
     if (exRes.length > 0) {
       const cols = exRes[0].columns;
@@ -414,17 +435,6 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
       }
     }
   } catch {}
-
-  const defaultExams = [
-    { id: 'exam_lgs_2026_genel_1', title: '2026 LGS 1. Dönem Matematik Genel Prova (20 Soru)', question_count: 20, duration_minutes: 40 },
-    { id: 'exam_lgs_sayilar_cebir', title: 'LGS Çarpanlar & Üslü Sayılar Hedef Tarama (15 Soru)', question_count: 15, duration_minutes: 30 },
-    { id: 'exam_lgs_geometri_ucgen', title: 'LGS Üçgenler ve Pisagor Geometrik Odak Denemesi (12 Soru)', question_count: 12, duration_minutes: 25 }
-  ];
-  for (const de of defaultExams) {
-    if (!availableExams.some(e => e.id === de.id)) {
-      availableExams.push(de);
-    }
-  }
 
   // 6. Soru Bankası İstatistiği
   let bankStats = { total: 0, wrong: 0, blank: 0, due: 0, learned: 0 };

@@ -232,12 +232,16 @@ export default function TopluDenemeAtaPage() {
               </label>
               <input
                 type="number"
-                min="10"
+                min="0"
                 max="300"
                 value={durationMin}
-                onChange={(e) => setDurationMin(parseInt(e.target.value) || 60)}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setDurationMin(Number.isFinite(n) && n >= 0 ? n : 0);
+                }}
                 className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
+              <p className="mt-1 text-[11px] text-slate-500">0 = süresiz (geçen süre kaydedilir)</p>
             </div>
 
             <div>
@@ -406,7 +410,7 @@ export default function TopluDenemeAtaPage() {
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
                 <span className="text-slate-500">Sınav Süresi:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{durationMin} Dakika</span>
+                <span className="font-bold text-slate-900 dark:text-white">{durationMin > 0 ? `${durationMin} Dakika` : 'Süresiz'}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
                 <span className="text-slate-500">Başlangıç:</span>

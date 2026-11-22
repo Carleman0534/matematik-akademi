@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { batchAssignExamToStudents } from '@/lib/pdfDocs';
+import { batchAssignExamToStudents, examExists } from '@/lib/pdfDocs';
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    const teacherId = session?.userId || 'teacher-admin';
+    if (!session || session.role !== 'teacher') {
+      return NextResponse.json({ error: 'Deneme atamak için öğretmen olarak giriş yapın.' }, { status: 403 });
+    }
+    const teacherId = session.userId;
 
     const body = await request.json();
     const { examId, studentIds, startsAt, dueAt, durationMin } = body;
@@ -13,14 +16,19 @@ export async function POST(request: NextRequest) {
     if (!examId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return NextResponse.json({ error: 'Lütfen bir deneme ve en az bir öğrenci seçin.' }, { status: 400 });
     }
+    if (!(await examExists(String(examId)))) {
+      return NextResponse.json({ error: 'Bu deneme sistemde bulunamadı; öğrencilere atanamaz.' }, { status: 404 });
+    }
 
+    // 0 = süresiz. Süre girilmemişse eski varsayılan (60 dk) korunur.
+    const parsedDuration = Number.parseInt(String(durationMin), 10);
     const res = await batchAssignExamToStudents({
       examId,
       studentIds,
       assignedBy: teacherId,
       startsAt,
       dueAt,
-      durationMin: durationMin ? parseInt(durationMin) : 60,
+      durationMin: Number.isFinite(parsedDuration) && parsedDuration >= 0 ? parsedDuration : 60,
     });
 
     return NextResponse.json({

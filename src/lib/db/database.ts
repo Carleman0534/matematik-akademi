@@ -937,6 +937,14 @@ async function initDatabase(initialBytes?: Uint8Array): Promise<Database> {
     }
   }
 
+  // Eski "Deneme Ata" listesi var olmayan, sabit yazılmış denemeler sunuyordu; bunlar atanınca
+  // hiçbir yerde görünmeyen, hiçbir denemeye bağlı olmayan kayıtlar oluşuyordu. Temizle.
+  try {
+    const missing = `exam_id NOT IN (SELECT id FROM exams) AND exam_id NOT IN (SELECT id FROM pdf_documents) AND exam_id NOT IN (SELECT id FROM personalized_study_plans)`;
+    database.run(`DELETE FROM exam_assignments WHERE status = 'assigned' AND ${missing}`);
+    database.run(`DELETE FROM exam_sessions WHERE submitted_at IS NULL AND ${missing}`);
+  } catch {}
+
   // Safe migrations for file_data storage
   try {
     database.run('ALTER TABLE pdf_documents ADD COLUMN file_data TEXT;');

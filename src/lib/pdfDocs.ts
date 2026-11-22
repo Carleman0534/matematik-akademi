@@ -190,6 +190,16 @@ export async function archivePdfDocument(id: string, isArchived: boolean = true)
 }
 
 // TOPLU DENEME ATAMA
+// Atanmak istenen deneme gerçekten var mı (çevrim içi deneme ya da arşivdeki PDF denemesi)?
+export async function examExists(examId: string): Promise<boolean> {
+  const db = await getDb();
+  const st = db.prepare('SELECT 1 FROM exams WHERE id = ? UNION ALL SELECT 1 FROM pdf_documents WHERE id = ? LIMIT 1');
+  st.bind([examId, examId]);
+  const found = st.step();
+  st.free();
+  return found;
+}
+
 export async function batchAssignExamToStudents(params: {
   examId: string;
   studentIds: string[];
@@ -200,7 +210,8 @@ export async function batchAssignExamToStudents(params: {
 }): Promise<{ success: boolean; assignedCount: number }> {
   const db = await getDb();
   let count = 0;
-  const duration = params.durationMin || 60;
+  // 0 = süresiz; yalnızca hiç verilmemişse 60 dakika
+  const duration = params.durationMin ?? 60;
 
   for (const studentId of params.studentIds) {
     const assignId = uuidv4();

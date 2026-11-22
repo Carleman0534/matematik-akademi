@@ -58,8 +58,8 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
 
   // Exam assignment form state
   const [selectedExamId, setSelectedExamId] = useState(availableExams[0]?.id || '');
-  const [customExamTitle, setCustomExamTitle] = useState('');
-  const [examDuration, setExamDuration] = useState(40);
+  // 0 = süresiz: süre öğrenci denemeyi ilk açtığında başlar ve çözüm süresi öğretmene kaydedilir
+  const [examDuration, setExamDuration] = useState(0);
   const [examSubmitting, setExamSubmitting] = useState(false);
   const [examMsg, setExamMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
@@ -188,12 +188,13 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
     setExamSubmitting(true);
     setExamMsg(null);
     try {
-      const isCustom = selectedExamId === 'custom';
-      const examTitle = isCustom ? customExamTitle : (availableExams.find(x => x.id === selectedExamId)?.title || 'LGS Denemesi');
+      const chosen = availableExams.find(x => x.id === selectedExamId);
+      if (!chosen) throw new Error('Lütfen atanacak bir deneme seçin.');
+      const examTitle = chosen.title;
       const payload = {
-        examId: selectedExamId === 'custom' ? `custom_${Date.now()}` : selectedExamId,
+        examId: chosen.id,
         studentIds: [student.id],
-        durationMin: examDuration,
+        durationMin: Math.max(0, Number(examDuration) || 0),
         dueAt: new Date(Date.now() + 7 * 86400000).toISOString()
       };
 
@@ -205,22 +206,22 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Atama başarısız oldu');
 
-      // Optimistic update
+      // Listeyi hemen güncelle (aynı deneme zaten atanmışsa yeni kart eklenmez, mevcut olan yenilenir)
       const newAssignment = {
         assignment_id: 'assign_' + Date.now(),
         exam_id: payload.examId,
         title: examTitle,
-        question_count: 20,
-        duration_min: examDuration,
+        question_count: Number(chosen.question_count) || 0,
+        duration_min: payload.durationMin,
         assigned_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
         due_at: payload.dueAt.slice(0, 10),
-        status: 'active' as const,
+        status: 'pending' as const,
         net_score: null,
         correct_count: null,
         wrong_count: null,
         blank_count: null
       };
-      setAssignedExams([newAssignment, ...assignedExams]);
+      setAssignedExams([newAssignment, ...assignedExams.filter(a => a.exam_id !== payload.examId)]);
       setExamMsg({ type: 'ok', text: 'Deneme başarıyla atandı!' });
       setTimeout(() => {
         setShowExamModal(false);
@@ -932,35 +933,26 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Atanacak Deneme Sınavını Seçin:
                 </label>
-                <select
-                  value={selectedExamId}
-                  onChange={(e) => setSelectedExamId(e.target.value)}
-                  className="input font-medium"
-                >
-                  {availableExams.map((ex) => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.title} ({ex.question_count} Soru · {ex.duration_minutes} dk)
-                    </option>
-                  ))}
-                  <option value="custom">＋ Özel Başlıklı Deneme Tanımla</option>
-                </select>
+                {availableExams.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                    Atanabilecek deneme yok. Önce{' '}
+                    <Link href="/ogretmen/pdf-arsivi" className="font-semibold text-indigo-600 hover:underline">PDF Arşivi</Link>
+                    {' '}sayfasından bir deneme PDF&apos;i yükleyin (cevap anahtarıyla).
+                  </div>
+                ) : (
+                  <select
+                    value={selectedExamId}
+                    onChange={(e) => setSelectedExamId(e.target.value)}
+                    className="input font-medium"
+                  >
+                    {availableExams.map((ex) => (
+                      <option key={ex.id} value={ex.id}>
+                        {ex.title} ({ex.question_count} soru{ex.has_key === 0 ? ' · cevap anahtarı yok' : ''})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-
-              {selectedExamId === 'custom' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Özel Deneme Başlığı:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customExamTitle}
-                    onChange={(e) => setCustomExamTitle(e.target.value)}
-                    placeholder="ör. LGS Matematik 1. Dönem Değerlendirme Denemesi"
-                    className="input"
-                  />
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -969,12 +961,13 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                   </label>
                   <input
                     type="number"
-                    min="15"
-                    max="180"
+                    min="0"
+                    max="300"
                     value={examDuration}
                     onChange={(e) => setExamDuration(Number(e.target.value))}
                     className="input"
                   />
+                  <p className="mt-1 text-[11px] text-slate-500">0 = süresiz (geçen süre kaydedilir)</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -990,7 +983,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
               </div>
 
               <div className="rounded-xl bg-indigo-50 p-3 text-xs text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
-                💡 Atanan bu deneme anında öğrencinin panelindeki <b>"Aktif Denemelerim"</b> ekranında görünecektir.
+                💡 Atanan bu deneme anında öğrencinin <b>Denemelerim</b> ekranında görünür.
               </div>
 
               {examMsg && (
@@ -1019,7 +1012,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                   </button>
                   <button
                     type="submit"
-                    disabled={examSubmitting}
+                    disabled={examSubmitting || availableExams.length === 0}
                     className="btn-primary text-xs"
                   >
                     {examSubmitting ? 'Atanıyor…' : 'Denemeyi Ata'}
