@@ -29,7 +29,7 @@ export default async function StudentHome() {
       ORDER BY p.created_at DESC
       LIMIT 1
     `);
-    stmt.bind([s.studentId || 'student_ali_metin']);
+    stmt.bind([s.studentId || '']);
     if (stmt.step()) {
       activeExams.push(stmt.getAsObject());
     }

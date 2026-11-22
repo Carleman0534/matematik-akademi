@@ -22,10 +22,10 @@ export async function GET(req: NextRequest) {
       FROM student_guardians sg
       JOIN students s ON sg.student_id = s.id
       JOIN users u ON s.user_id = u.id
-      WHERE (sg.guardian_user_id = ? OR sg.guardian_user_id = 'parent_veli' OR sg.guardian_user_id = 'parent_ayse') AND sg.status = 'active'
+      WHERE (sg.guardian_user_id = ? OR sg.guardian_user_id = 'parent_veli') AND sg.status = 'active'
       GROUP BY s.id
       ORDER BY 
-        CASE WHEN s.id = 'student_ali_metin' THEN 1 WHEN s.id = 'student_muhammed_talha' THEN 2 ELSE 3 END,
+        CASE WHEN s.id = 'student_muhammed_talha' THEN 1 ELSE 2 END,
         u.name ASC
     `;
 

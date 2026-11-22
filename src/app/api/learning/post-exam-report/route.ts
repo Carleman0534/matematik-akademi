@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         exam_id: row.exam_id,
         exam_title: row.exam_title || 'LGS Matematik Deneme Sınavı',
         student_id: row.student_id,
-        student_name: (row.user_full_name as string) || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Ali Metin',
+        student_name: (row.user_full_name as string) || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Öğrenci',
         teacher_id: row.teacher_id,
         summary: parseJsonSafe(row.summary_json),
         topics: parseJsonSafe(row.topics_json),

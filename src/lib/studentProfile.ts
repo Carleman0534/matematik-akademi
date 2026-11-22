@@ -131,19 +131,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
       cols.forEach((c, idx) => { student[c] = sRes[0].values[0][idx]; });
     } else {
       // Bilinen öğrenci ID eşleştirmeleri
-      if (studentId === 'student_ali_metin' || studentId === 'user_ali_metin') {
-        student = {
-          id: 'student_ali_metin',
-          full_name: 'Ali Metin (Ali Tarlasüren)',
-          grade_level: 8,
-          school_name: 'Özel Pozitif Kişisel Gelişim Kursu (Kocaeli / Darıca)',
-          is_active: true,
-          notes: '',
-          email: 'ali.metin@test.com',
-          username: 'ali.metin',
-          parent_name: ''
-        };
-      } else if (studentId === 'student_muhammed_talha') {
+      if (studentId === 'student_muhammed_talha') {
         student = {
           id: 'student_muhammed_talha',
           full_name: 'Muhammed Talha',
@@ -197,7 +185,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
   const assignedExams: any[] = [];
   const studentMatchClause = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
     ? `(ea.student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR ea.student_id = 'student_muhammed_talha')`
-    : `(ea.student_id = '${studentId}' OR ea.student_id = 'student_ali_metin' OR ea.student_id = 'user_ali_metin')`;
+    : `ea.student_id = '${studentId}'`;
 
   try {
     const eaRes = db.exec(`
@@ -239,7 +227,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
   try {
     const erMatchClause = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
       ? `(er.student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR er.student_id = 'student_muhammed_talha')`
-      : `(er.student_id = '${studentId}' OR er.student_id = 'student_ali_metin' OR er.student_id = 'user_ali_metin')`;
+      : `er.student_id = '${studentId}'`;
 
     const erRes = db.exec(`
       SELECT 
@@ -456,7 +444,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
   let bankStats = { total: 0, wrong: 0, blank: 0, due: 0, learned: 0 };
   const qStudentMatch = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
     ? `(student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR student_id = 'student_muhammed_talha')`
-    : `(student_id = '${studentId}' OR student_id = 'student_ali_metin' OR student_id = 'user_ali_metin')`;
+    : `student_id = '${studentId}'`;
 
   try {
     const qCountRes = db.exec(`

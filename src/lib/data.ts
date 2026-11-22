@@ -143,21 +143,7 @@ export async function getStudent(sb: SupabaseClient, id: string): Promise<Studen
     }
   } catch {}
 
-  // Özel durum: Ali Metin veya Muhammed Talha
-  if (id === 'student_ali_metin' || id === 'user_ali_metin') {
-    return {
-      id: 'student_ali_metin',
-      profile_id: 'user_ali_metin',
-      full_name: 'Ali Metin (Ali Tarlasüren)',
-      grade_level: 8,
-      school_name: 'Özel Pozitif Kişisel Gelişim Kursu (Kocaeli / Darıca)',
-      is_active: true,
-      notes: '8. Sınıf LGS Hedef Öğrencisi. Sözel ve fen netleri yüksek, matematikte yeni nesil soru ve süre yönetimi desteği gerekmektedir.',
-      created_at: new Date().toISOString(),
-      class_id: null,
-      teacher_id: '170c1e8f-52b4-440e-b605-ec974fa1d56b'
-    } as StudentRow;
-  }
+  // Özel durum: Muhammed Talha
   if (id === 'student_muhammed_talha') {
     return {
       id: 'student_muhammed_talha',

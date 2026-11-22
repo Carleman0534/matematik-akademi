@@ -317,7 +317,7 @@ export default function StudentDenemeRoomPage({
       if (typeof window !== 'undefined') {
         try {
           const completedList = JSON.parse(localStorage.getItem('student_completed_exams') || '[]');
-          const studentDisplayName = localStorage.getItem('student_name') || (studentId.includes('talha') ? 'Muhammed Talha' : 'Ali Metin');
+          const studentDisplayName = localStorage.getItem('student_name') || (studentId.includes('talha') ? 'Muhammed Talha' : 'Öğrenci');
           const newExamRecord = {
             examId,
             studentId,

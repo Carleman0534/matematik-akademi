@@ -57,6 +57,12 @@ export async function PUT(req: Request) {
 
     if (actionType === 'send_parent_note') {
       const msgId = 'msg-' + Date.now();
+      // Öğrencinin kayıtlı aktif velisi
+      const gRes = db.exec(`SELECT guardian_user_id FROM student_guardians sg JOIN users u ON u.id = sg.guardian_user_id WHERE sg.student_id = ? AND sg.status = 'active' LIMIT 1`, [studentId]);
+      const guardianUserId = gRes.length > 0 && gRes[0].values.length > 0 ? String(gRes[0].values[0][0]) : null;
+      if (!guardianUserId) {
+        return NextResponse.json({ error: 'Bu öğrenciye bağlı bir veli hesabı yok.' }, { status: 400 });
+      }
       db.run(`
         INSERT INTO guardian_messages (
           id, student_id, guardian_user_id, teacher_user_id, message, is_from_teacher
@@ -64,7 +70,7 @@ export async function PUT(req: Request) {
       `, [
         msgId,
         studentId,
-        'parent_ayse', // default active guardian
+        guardianUserId,
         session.userId,
         payload?.note || title
       ]);
@@ -83,7 +89,7 @@ export async function PUT(req: Request) {
       `, [
         schedId,
         session.userId,
-        studentId || '50fa22f6-1021-4dde-8278-2339fa65030d',
+        studentId,
         todayStr,
         payload?.durationMin || 60,
         title

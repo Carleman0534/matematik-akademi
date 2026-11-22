@@ -70,7 +70,7 @@ export function analyzeTeacherQuery(db: Database, queryText: string, teacherId?:
       JOIN users u ON s.user_id = u.id
       JOIN exams e ON er.exam_id = e.id
       ORDER BY er.completed_at DESC
-      LIMIT 10
+      LIMIT 50
     `);
 
     const sessions: any[] = [];
@@ -83,17 +83,40 @@ export function analyzeTeacherQuery(db: Database, queryText: string, teacherId?:
       }
     }
 
+    // Her öğrencinin son iki denemesi arasındaki net farkı (gerçek sonuçlardan)
+    const byStudent = new Map<string, any[]>();
+    for (const s of sessions) {
+      const list = byStudent.get(s.student_id) || [];
+      list.push(s);
+      byStudent.set(s.student_id, list);
+    }
+    const changes = Array.from(byStudent.values())
+      .filter(list => list.length >= 2)
+      .map(list => ({
+        student_id: list[0].student_id,
+        student_name: list[0].student_name,
+        last: Number(list[0].net_score) || 0,
+        diff: (Number(list[0].net_score) || 0) - (Number(list[1].net_score) || 0),
+      }));
+    const falling = changes.filter(c => c.diff < 0).sort((a, b) => a.diff - b.diff);
+    const fmt = (n: number) => n.toFixed(2);
+
+    let directAnswer: string;
+    if (sessions.length === 0) directAnswer = 'Henüz tamamlanmış deneme sonucu yok.';
+    else if (changes.length === 0) directAnswer = 'Karşılaştırma için en az iki denemesi olan öğrenci yok.';
+    else if (falling.length === 0) directAnswer = 'Son iki denemesinde neti düşen öğrenci yok.';
+    else directAnswer = `Son iki denemesinde neti düşen öğrenciler: ${falling.map(c => `${c.student_name} (${fmt(c.diff)} net, son: ${fmt(c.last)})`).join(', ')}.`;
+
     return {
       query: queryText,
-      directAnswer: 'Son deneme analizlerine göre Burak Demir öğrencisinde son iki denemede 1.75 netlik bir dalgalanma görülmektedir. Elif Yılmaz ise son denemesinde 14.25 nete çıkarak yükseliş eğilimindedir.',
-      supportingData: sessions,
-      proposedActions: [
-        {
-          actionType: 'schedule_lesson',
-          title: 'Burak Demir ile Deneme Hata Analizi Dersi Planla',
-          payload: { durationMin: 45, topic: 'Deneme Hata Analizi & Taktik' }
-        }
-      ]
+      directAnswer,
+      supportingData: sessions.slice(0, 10),
+      proposedActions: falling.slice(0, 2).map(c => ({
+        actionType: 'schedule_lesson' as const,
+        title: `${c.student_name} ile Deneme Hata Analizi Dersi Planla`,
+        studentId: c.student_id,
+        payload: { durationMin: 45, topic: 'Deneme Hata Analizi' }
+      }))
     };
   }
 
@@ -157,26 +180,36 @@ export function analyzeTeacherQuery(db: Database, queryText: string, teacherId?:
 
     return {
       query: queryText,
-      directAnswer: `Şu anda devam eden ${hwList.length} adet aktif ödev bulunmaktadır. Elif Yılmaz Çarpanlar ve Katlar ödevinin %66'sını tamamlamış; Üslü Sayılar ödevi ise henüz başlama aşamasındadır.`,
+      directAnswer: hwList.length > 0
+        ? `Tamamlanmamış ${hwList.length} ödev var: ${Array.from(new Set(hwList.map(h => h.student_name))).join(', ')}.`
+        : 'Tamamlanmamış ödev yok.',
       supportingData: hwList
     };
   }
 
-  // 5. Genel ders ve planlama önerisi
+  // 5. Genel özet (gerçek verilerden)
+  const one = (sql: string) => { const r = db.exec(sql); return r.length && r[0].values.length ? r[0].values[0][0] : null; };
+  const activeCount = Number(one(`SELECT COUNT(DISTINCT s.id) FROM students s JOIN users u ON u.id = s.user_id WHERE COALESCE(s.status, 'active') = 'active'`)) || 0;
+  const avgMastery = one(`SELECT ROUND(AVG(p.mastery_score), 1) FROM student_topic_performance p JOIN students s ON s.id = p.student_id`);
+  const weakRes = db.exec(`
+    SELECT COALESCE(t.name, p.topic_id) AS name, ROUND(AVG(p.mastery_score)) AS avg
+    FROM student_topic_performance p JOIN students s ON s.id = p.student_id
+    LEFT JOIN curriculum_topics t ON t.id = p.topic_id
+    GROUP BY p.topic_id ORDER BY avg ASC LIMIT 2
+  `);
+  const weak = weakRes.length ? weakRes[0].values.map(v => `${v[0]} (%${v[1]})`) : [];
+  const activePlans = Number(one(`SELECT COUNT(*) FROM personalized_study_plans WHERE status = 'active'`)) || 0;
+
   return {
     query: queryText,
-    directAnswer: 'Matematik Akademi Asistanı veritabanını inceledi: Öğrencilerinizin genel matematik ortalaması %68.2 düzeyindedir. Önümüzdeki günlerde Üslü İfadeler bilimsel gösterim ve Çarpanlar ve Katlar EBOB-EKOK konularına yoğunlaşmanız en yüksek net artışını sağlayacaktır.',
+    directAnswer: avgMastery === null
+      ? `${activeCount} aktif öğrenciniz var. Henüz konu performans verisi oluşmadı; öğrenciler deneme çözdükçe öneriler burada görünecek.`
+      : `${activeCount} aktif öğrencinizin konu ortalaması %${avgMastery}.${weak.length ? ` En zayıf konular: ${weak.join(', ')}.` : ''}`,
     supportingData: [
-      { metric: 'Aktif Öğrenci', value: 3 },
-      { metric: 'Ortalama Başarı', value: '%68.2' },
-      { metric: 'Günün Hedefleri', value: '3 Aktif Plan' }
+      { metric: 'Aktif Öğrenci', value: activeCount },
+      { metric: 'Ortalama Konu Başarısı', value: avgMastery === null ? '—' : `%${avgMastery}` },
+      { metric: 'Aktif Çalışma Planı', value: activePlans }
     ],
-    proposedActions: [
-      {
-        actionType: 'schedule_lesson',
-        title: 'Haftalık LGS Matematik Değerlendirme Dersi Oluştur',
-        payload: { durationMin: 60, topic: 'top_uslu_ifadeler' }
-      }
-    ]
+    proposedActions: []
   };
 }

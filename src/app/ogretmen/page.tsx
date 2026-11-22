@@ -28,14 +28,14 @@ export default async function TeacherDashboard() {
     const { getDb } = await import('@/lib/db/database');
     const db = await getDb();
 
-    // 1. Çözülen Denemeleri Getir (Muhammed Talha & Ali Metin)
+    // 1. Çözülen Denemeleri Getir (yalnızca kayıtlı öğrencilerin)
     const erRes = db.exec(`
       SELECT 
         er.id,
         er.exam_id,
         er.student_id,
         COALESCE(e.title, 'LGS Matematik Denemesi') as exam_title,
-        COALESCE(u.name, CASE WHEN er.student_id LIKE '%talha%' THEN 'Muhammed Talha' ELSE 'Ali Metin (Ali Tarlasüren)' END) as student_name,
+        COALESCE(u.name, 'Öğrenci') as student_name,
         er.correct_count,
         er.wrong_count,
         er.blank_count,
@@ -44,7 +44,9 @@ export default async function TeacherDashboard() {
         COALESCE(er.completed_at, er.created_at) as completed_at
       FROM exam_results er
       LEFT JOIN exams e ON er.exam_id = e.id
-      LEFT JOIN users u ON u.id = er.student_id
+      JOIN students st ON st.id = er.student_id
+      LEFT JOIN users u ON u.id = st.user_id
+      GROUP BY er.id
       ORDER BY COALESCE(er.completed_at, er.created_at) DESC
       LIMIT 20
     `);
@@ -64,7 +66,7 @@ export default async function TeacherDashboard() {
           wrongCount: Number(obj.wrong_count) || 0,
           blankCount: Number(obj.blank_count) || 0,
           netScore: Number(obj.net_score) || 0,
-          totalDurationSeconds: Number(obj.total_duration_seconds) || 1200,
+          totalDurationSeconds: Number(obj.total_duration_seconds) || 0,
           completedAt: String(obj.completed_at || new Date().toISOString())
         });
       }
@@ -96,20 +98,10 @@ export default async function TeacherDashboard() {
     console.warn('Teacher dashboard SQLite fetch notice:', dbErr);
   }
 
-  // Ali Metin ve Muhammed Talha'nın listede yer almasını güvenceye al
-  const hasAli = students.some(s => s.id === 'student_ali_metin' || s.full_name.toLowerCase().includes('ali metin'));
-  if (!hasAli) {
-    students.unshift({
-      id: 'student_ali_metin',
-      full_name: 'Ali Metin (Ali Tarlasüren)',
-      grade_level: 8,
-      is_active: true
-    });
-  }
-
+  // Muhammed Talha'nın listede yer almasını güvenceye al
   const hasTalha = students.some(s => s.id === 'student_muhammed_talha' || s.full_name.toLowerCase().includes('talha'));
   if (!hasTalha) {
-    students.splice(1, 0, {
+    students.unshift({
       id: 'student_muhammed_talha',
       full_name: 'Muhammed Talha',
       grade_level: 8,

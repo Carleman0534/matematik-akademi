@@ -44,41 +44,8 @@ export default function DenemeAnalizleriPage() {
         const data = await res.json();
         setAnalytics(data);
       } else {
-        // Fallback demo dataset for visual presentation
-        setAnalytics({
-          summary: {
-            totalStudents: 12,
-            submittedCount: 11,
-            participationRate: 92,
-            highestNet: 37.5,
-            lowestNet: 18.25,
-            avgNet: 28.4,
-          },
-          studentResults: [
-            { student_name: 'Ahmet Yılmaz', correct_count: 36, wrong_count: 3, blank_count: 1, net_score: 35.25, time_spent: '58 dk' },
-            { student_name: 'Mehmet Demir', correct_count: 34, wrong_count: 4, blank_count: 2, net_score: 33.0, time_spent: '60 dk' },
-            { student_name: 'Ayşe Kaya', correct_count: 38, wrong_count: 2, blank_count: 0, net_score: 37.5, time_spent: '52 dk' },
-            { student_name: 'Zeynep Çelik', correct_count: 30, wrong_count: 6, blank_count: 4, net_score: 28.5, time_spent: '55 dk' },
-            { student_name: 'Can Baran', correct_count: 26, wrong_count: 8, blank_count: 6, net_score: 24.0, time_spent: '60 dk' },
-            { student_name: 'Elif Şahin', correct_count: 32, wrong_count: 5, blank_count: 3, net_score: 30.75, time_spent: '50 dk' },
-            { student_name: 'Burak Öztürk', correct_count: 22, wrong_count: 10, blank_count: 8, net_score: 19.5, time_spent: '59 dk' },
-            { student_name: 'Selin Doğan', correct_count: 21, wrong_count: 11, blank_count: 8, net_score: 18.25, time_spent: '60 dk' },
-          ],
-          questionStats: Array.from({ length: 40 }, (_, i) => {
-            const q = i + 1;
-            const correctRate = q === 14 ? 15 : q === 7 ? 25 : q === 23 ? 20 : Math.floor(Math.random() * 40) + 55;
-            const wrongRate = 100 - correctRate - 10;
-            return {
-              question_no: q,
-              correct_answer: ['A', 'B', 'C', 'D', 'E'][q % 5],
-              correct_rate: correctRate,
-              wrong_rate: Math.max(0, wrongRate),
-              blank_rate: 10,
-              most_common_wrong: ['B', 'C', 'D', 'E', 'A'][(q + 1) % 5],
-              is_defect_warning: correctRate < 25,
-            };
-          }),
-        });
+        // Analiz alınamadıysa uydurma veri gösterme
+        setAnalytics(null);
       }
     } catch (err) {
       console.error(err);
@@ -183,6 +150,24 @@ export default function DenemeAnalizleriPage() {
 
   // Ortak Hata Analizi Listesi (Sınıfın yarısından fazlasının yanlış yaptığı sorular)
   const commonErrors = analytics?.questionStats?.filter((q: any) => q.wrong_rate >= 40 || q.is_defect_warning) || [];
+
+  // Öğrenme durumu: gerçek netlerin soru sayısına oranından hesaplanır
+  const masteryBuckets = (() => {
+    const results: any[] = analytics?.studentResults || [];
+    const qCount = analytics?.questionStats?.length || 0;
+    const rows = [
+      { label: 'Kalıcı Öğrenildi', hint: 'net ≥ %75', text: 'text-blue-600', bar: 'bg-blue-600', count: 0 },
+      { label: 'Öğrenme Sürecinde', hint: '%50–75', text: 'text-emerald-600', bar: 'bg-emerald-500', count: 0 },
+      { label: 'Destek Gerekiyor', hint: 'net < %50', text: 'text-amber-600', bar: 'bg-amber-500', count: 0 },
+      { label: 'Henüz Bitirmedi', hint: 'teslim yok', text: 'text-slate-400', bar: 'bg-slate-400', count: 0 },
+    ];
+    for (const r of results) {
+      if (r.net_score === null || r.net_score === undefined || !qCount) { rows[3].count++; continue; }
+      const ratio = Number(r.net_score) / qCount;
+      rows[ratio >= 0.75 ? 0 : ratio >= 0.5 ? 1 : 2].count++;
+    }
+    return { rows, total: results.length };
+  })();
 
   const EXAM_TABS = [
     { href: '/ogretmen/denemeler', label: 'Deneme Şablonları', icon: '📝' },
@@ -367,7 +352,7 @@ export default function DenemeAnalizleriPage() {
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>📊 Soru & Zorluk Analizi (OnlineExamMaker)</span>
+                <span>📊 Soru Analizi</span>
               </button>
 
               <button
@@ -379,7 +364,7 @@ export default function DenemeAnalizleriPage() {
                 }`}
               >
                 <Award className="w-3.5 h-3.5" />
-                <span>🏅 Öğrenme Kanıtı (Classting)</span>
+                <span>🏅 Öğrenme Durumu</span>
               </button>
             </div>
 
@@ -410,6 +395,11 @@ export default function DenemeAnalizleriPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {analytics.studentResults.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-10 text-center text-slate-400">Bu denemeyi henüz çözen öğrenci yok.</td>
+                      </tr>
+                    )}
                     {analytics.studentResults.map((st: any, idx: number) => {
                       const dynamicNet = penaltyDivisor === 4 
                         ? Number(st.net_score) 
@@ -439,7 +429,7 @@ export default function DenemeAnalizleriPage() {
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-right text-slate-400 font-mono">
-                            {st.time_spent || '55 dk'}
+                            {st.time_spent || '—'}
                           </td>
                         </tr>
                       );
@@ -460,7 +450,7 @@ export default function DenemeAnalizleriPage() {
                     Sınıfın Ortak Hata Yaptığı Sorular (Öğretmen Özel Telafi Raporu)
                   </h3>
                   <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
-                    12 öğrencinin çoğunluğu tarafından yanlış yapılan sorular burada listelenmiştir. Bu sorular sınav kitapçığı hatası veya ortak konu eksiğini gösterir.
+                    Denemeyi çözen {analytics.summary.totalStudents} öğrencinin çoğunluğu tarafından yanlış yapılan sorular burada listelenmiştir. Bu sorular sınav kitapçığı hatası veya ortak konu eksiğini gösterir.
                   </p>
                 </div>
               </div>
@@ -493,7 +483,7 @@ export default function DenemeAnalizleriPage() {
                       <div className="flex justify-between">
                         <span className="text-slate-500">Yanlış Yapan Öğrenci Sayısı:</span>
                         <span className="font-bold text-rose-600">
-                          {Math.round((q.wrong_rate / 100) * 12)} / 12 Öğrenci
+                          {q.wrong_count} / {analytics.summary.totalStudents} Öğrenci
                         </span>
                       </div>
                     </div>
@@ -513,179 +503,11 @@ export default function DenemeAnalizleriPage() {
           {/* 3. SEKME: Soru Bazlı Analiz (OnlineExamMaker stili dağılım ve grafikler) */}
           {activeTab === 'questions' && (
             <div className="space-y-6">
-              {/* OnlineExamMaker Header & Donut Charts */}
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <span>Soru Analizi</span>
-                      <span className="text-xs font-normal text-slate-400">
-                        (Toplam Soru: 40, Soru Kategorisi: 4, Kullanım Oranı: %92)
-                      </span>
-                    </h3>
-                  </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-900">
-                    OnlineExamMaker Analiz Motoru Aktif
-                  </span>
-                </div>
-
-                {/* Donut Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                  {/* Left Chart: Question Type Percentage */}
-                  <div className="flex flex-col items-center p-4 bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
-                      Soru Tipi Dağılımı (Question Type Percentage)
-                    </h4>
-                    
-                    <div className="relative w-44 h-44 flex items-center justify-center my-2">
-                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                        {/* Multiple choice 50.7% */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#3b82f6" strokeWidth="18" strokeDasharray="121 239" strokeDashoffset="0" />
-                        {/* Essay 22.6% */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#6366f1" strokeWidth="18" strokeDasharray="54 239" strokeDashoffset="-121" />
-                        {/* Fill blank 7.4% */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#0ea5e9" strokeWidth="18" strokeDasharray="18 239" strokeDashoffset="-175" />
-                        {/* True/False 5.6% */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#06b6d4" strokeWidth="18" strokeDasharray="13 239" strokeDashoffset="-193" />
-                        {/* Multiple resp 5.6% */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#8b5cf6" strokeWidth="18" strokeDasharray="13 239" strokeDashoffset="-206" />
-                        {/* Package & others ~8% */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#cbd5e1" strokeWidth="18" strokeDasharray="20 239" strokeDashoffset="-219" />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white">40 Soru</span>
-                        <span className="text-[10px] text-slate-400">Toplam</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-[11px] text-slate-600 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 shrink-0"></span>
-                        <span>Çoktan Seçmeli: %50.7</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 shrink-0"></span>
-                        <span>Klasik / Açık Uçlu: %22.6</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-sky-500 shrink-0"></span>
-                        <span>Boşluk Doldurma: %7.4</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500 shrink-0"></span>
-                        <span>Doğru / Yanlış: %5.6</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-purple-500 shrink-0"></span>
-                        <span>Çoklu Yanıt: %5.6</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-700 shrink-0"></span>
-                        <span>Diğer Soru Tipleri: %8.1</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Chart: Question Difficulty Percentage */}
-                  <div className="flex flex-col items-center p-4 bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
-                      Soru Zorluk Derecesi Dağılımı (Question Difficulty Percentage)
-                    </h4>
-
-                    <div className="relative w-44 h-44 flex items-center justify-center my-2">
-                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                        {/* Standart / Belirlenmemiş %89.6 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#0d9488" strokeWidth="18" strokeDasharray="214 239" strokeDashoffset="0" />
-                        {/* Kolay %7.0 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2dd4bf" strokeWidth="18" strokeDasharray="17 239" strokeDashoffset="-214" />
-                        {/* Orta %2.2 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="18" strokeDasharray="5 239" strokeDashoffset="-231" />
-                        {/* Zor %1.1 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#047857" strokeWidth="18" strokeDasharray="3 239" strokeDashoffset="-236" />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                        <span className="text-xs font-bold text-teal-800 dark:text-teal-300">%89.6</span>
-                        <span className="text-[10px] text-slate-400">Standart</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-[11px] text-slate-600 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-teal-600 shrink-0"></span>
-                        <span>Standart Zorluk: %89.6</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-teal-400 shrink-0"></span>
-                        <span>Kolay Seviye: %7.0</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 shrink-0"></span>
-                        <span>Orta Seviye: %2.2</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-700 shrink-0"></span>
-                        <span>Zor / Seçici: %1.1</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Soru Tipleri Matris Tablosu (OnlineExamMaker Table) */}
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="py-3 px-4">Soru Tipi (Question Type)</th>
-                        <th className="py-3 px-4 text-center">Toplam Soru</th>
-                        <th className="py-3 px-4 text-center">Standart Zorluk</th>
-                        <th className="py-3 px-4 text-center text-teal-600">Kolay</th>
-                        <th className="py-3 px-4 text-center text-emerald-600">Orta</th>
-                        <th className="py-3 px-4 text-center text-rose-600">Zor</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-medium">Çoktan Seçmeli (Multiple Choice)</td>
-                        <td className="py-2.5 px-4 text-center font-bold">28</td>
-                        <td className="py-2.5 px-4 text-center text-slate-400">22</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">4</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">1</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">1</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-medium">Çoklu Yanıt (Multiple Response)</td>
-                        <td className="py-2.5 px-4 text-center font-bold">4</td>
-                        <td className="py-2.5 px-4 text-center text-slate-400">2</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">1</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">1</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">0</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-medium">Doğru veya Yanlış (True or False)</td>
-                        <td className="py-2.5 px-4 text-center font-bold">4</td>
-                        <td className="py-2.5 px-4 text-center text-slate-400">3</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">1</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">0</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">0</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-medium">Boşluk Doldurma (Fill in the blank)</td>
-                        <td className="py-2.5 px-4 text-center font-bold">4</td>
-                        <td className="py-2.5 px-4 text-center text-slate-400">3</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-teal-600">0</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-emerald-600">1</td>
-                        <td className="py-2.5 px-4 text-center font-semibold text-rose-600">0</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
               {/* 1 - 40 Soru Bazlı İstatistik Listesi */}
               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
                   <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                    40 Soru Bazlı Detaylı Başarı & Tuzak Şık Dağılımı
+                    {analytics.questionStats.length} Soru Bazlı Detaylı Başarı & Tuzak Şık Dağılımı
                   </h4>
                 </div>
                 <div className="overflow-x-auto">
@@ -758,179 +580,28 @@ export default function DenemeAnalizleriPage() {
           {/* 4. SEKME: Öğrenme Kanıtı & Kalıcılık Analizi (Classting LMS Modeli) */}
           {activeTab === 'mastery' && (
             <div className="space-y-6">
-              {/* Üst Kartlar: Donut Grafiği & Başarı Trendi */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Sol: Öğrenme Durumu (학습 상태 / Learning Status) */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Öğrenme Durumu Dağılımı (Learning Status)
-                    </h3>
-                    <span className="text-[11px] font-semibold text-slate-400">24 Öğrenci Toplam</span>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-2">
-                    {/* Donut Chart */}
-                    <div className="relative w-40 h-40 flex items-center justify-center">
-                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                        {/* Başarıldı %58 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="18" strokeDasharray="138 239" strokeDashoffset="0" />
-                        {/* Devam Ediyor %17 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="18" strokeDasharray="41 239" strokeDashoffset="-138" />
-                        {/* Destek Gerekiyor %13 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f59e0b" strokeWidth="18" strokeDasharray="31 239" strokeDashoffset="-179" />
-                        {/* Katılmadı %12 */}
-                        <circle cx="50" cy="50" r="38" fill="transparent" stroke="#cbd5e1" strokeWidth="18" strokeDasharray="29 239" strokeDashoffset="-210" />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                        <span className="text-sm font-black text-slate-800 dark:text-white">%58</span>
-                        <span className="text-[10px] text-slate-400">Kalıcı</span>
-                      </div>
-                    </div>
-
-                    {/* Lejant ve Öğrenci Sayıları */}
-                    <div className="space-y-2 text-xs">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-blue-600"></span>
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">Kalıcı Öğrenildi</span>
-                        </span>
-                        <strong className="text-blue-600 font-bold">14 Öğr (%58)</strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">Öğrenme Sürecinde</span>
-                        </span>
-                        <strong className="text-emerald-600 font-bold">4 Öğr (%17)</strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-amber-500"></span>
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">Destek Gerekiyor</span>
-                        </span>
-                        <strong className="text-amber-600 font-bold">3 Öğr (%13)</strong>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-700"></span>
-                          <span className="text-slate-500">Henüz Başlanmadı</span>
-                        </span>
-                        <strong className="text-slate-400 font-bold">3 Öğr (%12)</strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sağ: Kazanım Başarı Oranı Değişim Grafiği (성취완료율 변화) */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Kazanım Başarı Oranı Değişim Grafiği (Completion Trend)
-                    </h3>
-                    <span className="text-[11px] font-semibold text-emerald-600">▲ +%32 Artış</span>
-                  </div>
-
-                  <div className="relative h-44 w-full pt-4">
-                    <svg viewBox="0 0 500 140" className="w-full h-full overflow-visible">
-                      {/* Grid lines */}
-                      <line x1="40" y1="20" x2="480" y2="20" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
-                      <line x1="40" y1="60" x2="480" y2="60" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
-                      <line x1="40" y1="100" x2="480" y2="100" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
-
-                      <text x="10" y="24" fill="#94a3b8" fontSize="10">80%</text>
-                      <text x="10" y="64" fill="#94a3b8" fontSize="10">60%</text>
-                      <text x="10" y="104" fill="#94a3b8" fontSize="10">40%</text>
-
-                      {/* Area fill */}
-                      <polygon
-                        fill="rgba(59, 130, 246, 0.1)"
-                        points="50,105 150,95 260,75 370,55 470,30 470,120 50,120"
-                      />
-                      {/* Line */}
-                      <polyline
-                        fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="3.5"
-                        points="50,105 150,95 260,75 370,55 470,30"
-                      />
-                      <circle cx="50" cy="105" r="4" fill="#3b82f6" />
-                      <circle cx="150" cy="95" r="4" fill="#3b82f6" />
-                      <circle cx="260" cy="75" r="4" fill="#3b82f6" />
-                      <circle cx="370" cy="55" r="4" fill="#3b82f6" />
-                      <circle cx="470" cy="30" r="5" fill="#1d4ed8" />
-
-                      <text x="45" y="135" fill="#94a3b8" fontSize="10">1. Hafta</text>
-                      <text x="145" y="135" fill="#94a3b8" fontSize="10">2. Hafta</text>
-                      <text x="255" y="135" fill="#94a3b8" fontSize="10">3. Hafta</text>
-                      <text x="365" y="135" fill="#94a3b8" fontSize="10">4. Hafta</text>
-                      <text x="460" y="135" fill="#94a3b8" fontSize="10">Bugün</text>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Alt Bölüm: Başarı Seviyesi Dağılım Grafiği (성취수준 분포 / Mastery Distribution) */}
               <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Öğrenci Başarı Düzeyi Dağılımı (Mastery Level Distribution)
-                    </h3>
-                    <span className="text-[11px] text-slate-400">
-                      Soru çözümlerinin kalıcılık kanıtına göre seviyelendirilmesi
-                    </span>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Öğrenme Durumu Dağılımı</h3>
+                  <span className="text-[11px] font-semibold text-slate-400">{analytics.summary.totalStudents} Öğrenci</span>
+                </div>
+                {masteryBuckets.total === 0 ? (
+                  <p className="text-xs text-slate-500 py-6 text-center">Bu denemeyi henüz çözen öğrenci yok.</p>
+                ) : (
+                  <div className="space-y-3 text-xs">
+                    {masteryBuckets.rows.map(b => (
+                      <div key={b.label} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{b.label} <span className="text-slate-400">({b.hint})</span></span>
+                          <strong className={b.text}>{b.count} Öğr (%{masteryBuckets.total ? Math.round((b.count / masteryBuckets.total) * 100) : 0})</strong>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className={`h-2 rounded-full ${b.bar}`} style={{ width: `${masteryBuckets.total ? (b.count / masteryBuckets.total) * 100 : 0}%` }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 rounded-full">
-                    Kore LMS Değerlendirme Çanı
-                  </span>
-                </div>
-
-                {/* Sütun Grafiği ve Eğri Çizgisi */}
-                <div className="relative h-56 w-full pt-4">
-                  <svg viewBox="0 0 600 180" className="w-full h-full overflow-visible">
-                    {/* Grid lines */}
-                    <line x1="40" y1="30" x2="580" y2="30" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
-                    <line x1="40" y1="75" x2="580" y2="75" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
-                    <line x1="40" y1="120" x2="580" y2="120" stroke="#f1f5f9" strokeWidth="1" className="dark:stroke-slate-800" />
-
-                    <text x="10" y="34" fill="#94a3b8" fontSize="10">100%</text>
-                    <text x="15" y="79" fill="#94a3b8" fontSize="10">60%</text>
-                    <text x="15" y="124" fill="#94a3b8" fontSize="10">20%</text>
-
-                    {/* Bars: Yetersiz, Gayret Gerekir, Yeterli, Başarılı, İleri Seviye */}
-                    {/* Bar 1 */}
-                    <rect x="65" y="95" width="80" height="55" fill="#bfdbfe" rx="3" className="dark:fill-blue-950/60" />
-                    {/* Bar 2 */}
-                    <rect x="175" y="80" width="80" height="70" fill="#93c5fd" rx="3" className="dark:fill-blue-900/60" />
-                    {/* Bar 3 */}
-                    <rect x="285" y="65" width="80" height="85" fill="#60a5fa" rx="3" className="dark:fill-blue-800/70" />
-                    {/* Bar 4 (Peak) */}
-                    <rect x="395" y="30" width="80" height="120" fill="#3b82f6" rx="3" className="dark:fill-blue-600" />
-                    {/* Bar 5 */}
-                    <rect x="505" y="48" width="70" height="102" fill="#60a5fa" rx="3" className="dark:fill-blue-800/70" />
-
-                    {/* Dashed Bell / Ascending Curve */}
-                    <polyline
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="2"
-                      strokeDasharray="4 4"
-                      points="105,95 215,80 325,65 435,30 540,48"
-                    />
-                    <circle cx="435" cy="30" r="5" fill="#1d4ed8" stroke="#ffffff" strokeWidth="2" />
-
-                    {/* Labels */}
-                    <text x="80" y="165" fill="#64748b" fontSize="11" fontWeight="bold">Yetersiz</text>
-                    <text x="178" y="165" fill="#64748b" fontSize="11" fontWeight="bold">Gayret Gerekir</text>
-                    <text x="305" y="165" fill="#64748b" fontSize="11" fontWeight="bold">Yeterli</text>
-                    <text x="415" y="165" fill="#1d4ed8" fontSize="11" fontWeight="bold">Başarılı (Zirve)</text>
-                    <text x="515" y="165" fill="#64748b" fontSize="11" fontWeight="bold">İleri Seviye</text>
-                  </svg>
-                </div>
+                )}
               </div>
             </div>
           )}

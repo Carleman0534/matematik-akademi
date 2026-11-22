@@ -114,7 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json();
     const {
       questionId,
-      studentId = '50fa22f6-1021-4dde-8278-2339fa65030d',
+      studentId = '',
       studentAnswer,
       durationSeconds = 45,
       streak = 0

@@ -128,19 +128,20 @@ export async function GET(
 
     // 5. Soru Bazlı İstatistiklerin Hesaplanması
     const questionCount = exam.question_count || 40;
-    const totalStudents = studentResults.length || 8; // Fallback count if mock
+    const totalStudents = studentResults.length;
+    const pct = (n: number) => (totalStudents > 0 ? Math.round((n / totalStudents) * 100) : 0);
     const questionStats: QuestionStatItem[] = [];
 
     for (let q = 1; q <= questionCount; q++) {
       const qKey = answerKey.get(q);
-      const correctAns = qKey?.correct || ['A', 'B', 'C', 'D', 'E'][q % 5];
+      const correctAns = qKey?.correct || '';
 
       let correctCount = 0;
       let wrongCount = 0;
       let blankCount = 0;
       const optionCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
 
-      if (studentResults.length > 0) {
+      {
         for (const st of studentResults) {
           const studentAnsObj = allAnswers.find(a => a.session_id === st.session_id && a.question_no === q);
           const ans = studentAnsObj?.answer;
@@ -156,14 +157,9 @@ export async function GET(
             }
           }
         }
-      } else {
-        const isHard = q === 14 || q === 28;
-        correctCount = isHard ? 1 : Math.floor(totalStudents * 0.7);
-        wrongCount = totalStudents - correctCount - 1;
-        blankCount = 1;
       }
 
-      let mostCommonWrong = ['B', 'C', 'D', 'E', 'A'][(q + 1) % 5];
+      let mostCommonWrong = '';
       let maxWrongCount = 0;
       for (const [opt, count] of Object.entries(optionCounts)) {
         if (opt !== correctAns && count > maxWrongCount) {
@@ -172,10 +168,10 @@ export async function GET(
         }
       }
 
-      const correctRate = Math.round((correctCount / totalStudents) * 100);
-      const wrongRate = Math.round((wrongCount / totalStudents) * 100);
-      const blankRate = Math.round((blankCount / totalStudents) * 100);
-      const isDefectWarning = correctRate <= 15;
+      const correctRate = pct(correctCount);
+      const wrongRate = pct(wrongCount);
+      const blankRate = pct(blankCount);
+      const isDefectWarning = totalStudents > 0 && correctRate <= 15;
 
       questionStats.push({
         question_no: q,
@@ -193,12 +189,12 @@ export async function GET(
     }
 
     // 6. Genel Özet Metrikleri
-    const submittedCount = studentResults.filter(s => !!s.submitted_at).length || 7;
+    const submittedCount = studentResults.filter(s => !!s.submitted_at).length;
     const nets = studentResults.filter(s => s.net_score !== null).map(s => Number(s.net_score));
-    const highestNet = nets.length > 0 ? Math.max(...nets) : 36.5;
-    const lowestNet = nets.length > 0 ? Math.min(...nets) : 17.25;
-    const avgNet = nets.length > 0 ? parseFloat((nets.reduce((a, b) => a + b, 0) / nets.length).toFixed(2)) : 27.8;
-    const participationRate = Math.round((submittedCount / totalStudents) * 100);
+    const highestNet = nets.length > 0 ? Math.max(...nets) : 0;
+    const lowestNet = nets.length > 0 ? Math.min(...nets) : 0;
+    const avgNet = nets.length > 0 ? parseFloat((nets.reduce((a, b) => a + b, 0) / nets.length).toFixed(2)) : 0;
+    const participationRate = pct(submittedCount);
 
     return NextResponse.json({
       exam,
@@ -210,14 +206,7 @@ export async function GET(
         lowestNet,
         avgNet,
       },
-      studentResults: studentResults.length > 0 ? studentResults : [
-        { student_name: 'Ahmet Yılmaz', correct_count: 36, wrong_count: 3, blank_count: 1, net_score: 35.25, time_spent: '58 dk' },
-        { student_name: 'Mehmet Demir', correct_count: 34, wrong_count: 4, blank_count: 2, net_score: 33.0, time_spent: '60 dk' },
-        { student_name: 'Ayşe Kaya', correct_count: 38, wrong_count: 2, blank_count: 0, net_score: 37.5, time_spent: '52 dk' },
-        { student_name: 'Zeynep Çelik', correct_count: 30, wrong_count: 6, blank_count: 4, net_score: 28.5, time_spent: '55 dk' },
-        { student_name: 'Can Baran', correct_count: 26, wrong_count: 8, blank_count: 6, net_score: 24.0, time_spent: '60 dk' },
-        { student_name: 'Elif Şahin', correct_count: 32, wrong_count: 5, blank_count: 3, net_score: 30.75, time_spent: '50 dk' },
-      ],
+      studentResults,
       questionStats,
     });
   } catch (err: unknown) {

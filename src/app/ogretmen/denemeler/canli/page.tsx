@@ -33,113 +33,27 @@ export default function CanliSinavlarPage() {
       setLoading(true);
       setLastUpdated(new Date().toLocaleTimeString('tr-TR'));
 
-      // Demo ve gerçek oturumlar
-      setSessions([
-        {
-          rank: '#1',
-          id: 'sess-1',
-          student_name: 'Ahmet Yılmaz',
-          class_name: '12-A Sayısal',
-          score: 93,
-          progress_percent: 90,
-          answered_count: 18,
-          total_questions: 20,
-          device_info: 'Chrome / Windows',
-          completed_time: null,
-          status: 'ongoing',
-        },
-        {
-          rank: '#2',
-          id: 'sess-2',
-          student_name: 'Mehmet Demir',
-          class_name: '12-A Sayısal',
-          score: 84,
-          progress_percent: 85,
-          answered_count: 17,
-          total_questions: 20,
-          device_info: 'Safari / MacOS',
-          completed_time: null,
-          status: 'ongoing',
-        },
-        {
-          rank: '#3',
-          id: 'sess-3',
-          student_name: 'Ayşe Kaya',
-          class_name: '12-B Eşit Ağırlık',
-          score: 99,
-          progress_percent: 100,
-          answered_count: 20,
-          total_questions: 20,
-          device_info: 'Chrome / Windows',
-          completed_time: '23:38',
-          status: 'completed',
-        },
-        {
-          rank: '#4',
-          id: 'sess-4',
-          student_name: 'Zeynep Çelik',
-          class_name: '11-A Sayısal',
-          score: 82,
-          progress_percent: 90,
-          answered_count: 18,
-          total_questions: 20,
-          device_info: 'Firefox / MacOS',
-          completed_time: null,
-          status: 'ongoing',
-        },
-        {
-          rank: '#5',
-          id: 'sess-5',
-          student_name: 'Can Baran',
-          class_name: '12-A Sayısal',
-          score: 79,
-          progress_percent: 95,
-          answered_count: 19,
-          total_questions: 20,
-          device_info: 'Safari / iOS',
-          completed_time: null,
-          status: 'ongoing',
-        },
-        {
-          rank: '#6',
-          id: 'sess-6',
-          student_name: 'Elif Şahin',
-          class_name: '12-B Eşit Ağırlık',
-          score: 88,
-          progress_percent: 100,
-          answered_count: 20,
-          total_questions: 20,
-          device_info: 'Chrome / Windows',
-          completed_time: '23:41',
-          status: 'completed',
-        },
-        {
-          rank: '#7',
-          id: 'sess-7',
-          student_name: 'Burak Öztürk',
-          class_name: '11-B Sayısal',
-          score: 66,
-          progress_percent: 80,
-          answered_count: 16,
-          total_questions: 20,
-          device_info: 'Chrome / Android',
-          completed_time: null,
-          status: 'ongoing',
-        },
-        {
-          rank: '#8',
-          id: 'sess-8',
-          student_name: 'Selin Doğan',
-          class_name: '12-A Sayısal',
-          score: 73,
-          progress_percent: 85,
-          answered_count: 17,
-          total_questions: 20,
-          device_info: 'Safari / MacOS',
-          completed_time: null,
-          status: 'ongoing',
-        },
-      ]);
+      const res = await fetch('/api/exam-sessions/live', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      const rows: any[] = res.ok && Array.isArray(data.sessions) ? data.sessions : [];
+      setSessions(rows.map((r, i) => {
+        const total = Number(r.total_questions) || 0;
+        const answered = Number(r.answered_count) || 0;
+        const done = !!r.submitted_at;
+        return {
+          rank: `#${i + 1}`,
+          id: r.id,
+          student_name: r.student_name,
+          class_name: r.exam_title,
+          score: r.net_score === null || r.net_score === undefined ? null : Number(r.net_score),
+          progress_percent: done ? 100 : total ? Math.round((answered / total) * 100) : 0,
+          answered_count: answered,
+          total_questions: total,
+          device_info: r.last_seen_at ? `Son görülme: ${new Date(r.last_seen_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : '—',
+          completed_time: done ? new Date(r.submitted_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : null,
+          status: done ? 'completed' : 'ongoing',
+        };
+      }));
     } catch (err) {
       console.error(err);
     } finally {
@@ -165,10 +79,10 @@ export default function CanliSinavlarPage() {
       if (res.ok) {
         alert(data.message || `${selectedSessionForExtraTime.student_name} için +${extraMinutes} dakika ek süre tanımlandı.`);
       } else {
-        alert(`${selectedSessionForExtraTime.student_name} için +${extraMinutes} dakika süre uzatıldı.`);
+        alert(data.error || 'Ek süre tanımlanamadı.');
       }
     } catch {
-      alert(`${selectedSessionForExtraTime.student_name} için +${extraMinutes} dakika süre uzatıldı.`);
+      alert('Ek süre tanımlanamadı. Bağlantınızı kontrol edin.');
     }
     setSelectedSessionForExtraTime(null);
     fetchLiveSessions();
@@ -183,18 +97,18 @@ export default function CanliSinavlarPage() {
         body: JSON.stringify({ action: 'reopen', extraMinutes: 30 }),
       });
       const data = await res.json();
-      alert(data.message || 'Sınav başarıyla yeniden açıldı.');
+      alert(res.ok ? (data.message || 'Sınav başarıyla yeniden açıldı.') : (data.error || 'Sınav yeniden açılamadı.'));
     } catch {
-      alert('Sınav yeniden açıldı.');
+      alert('Sınav yeniden açılamadı. Bağlantınızı kontrol edin.');
     }
     fetchLiveSessions();
   };
 
   const completedCount = sessions.filter((s) => s.status === 'completed').length;
   const ongoingCount = sessions.filter((s) => s.status === 'ongoing').length;
-  const scores = sessions.map((s) => s.score);
-  const highestScore = scores.length > 0 ? Math.max(...scores) : 99;
-  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 79;
+  const scores: number[] = sessions.map((s) => s.score).filter((v): v is number => typeof v === 'number');
+  const highestScore = scores.length > 0 ? Math.max(...scores) : '—';
+  const avgScore = scores.length > 0 ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)) : '—';
 
   const filteredSessions = sessions.filter((s) => {
     if (search) {
@@ -227,7 +141,7 @@ export default function CanliSinavlarPage() {
           MATEMATİK AKADEMİ CANLI TAKİP PANELİ
         </h1>
         <p className="text-xs text-slate-500 font-semibold">
-          2026 AYT Matematik Türkiye Geneli Prova Denemesi · Canlı İzleme · {sessions.length} Katılımcı
+          Son 24 saat ve devam eden oturumlar · Canlı İzleme · {sessions.length} Katılımcı
         </p>
       </div>
 
@@ -236,13 +150,13 @@ export default function CanliSinavlarPage() {
         {/* Yeşil: En Yüksek Skor */}
         <div className="bg-[#48bb78] text-white p-5 rounded-2xl shadow-sm text-center flex flex-col justify-center">
           <div className="text-3xl font-black">{highestScore}</div>
-          <div className="text-xs font-bold uppercase tracking-wider mt-1 opacity-95">En Yüksek Skor</div>
+          <div className="text-xs font-bold uppercase tracking-wider mt-1 opacity-95">En Yüksek Net</div>
         </div>
 
         {/* Mavi: Ortalama Puan */}
         <div className="bg-[#4299e1] text-white p-5 rounded-2xl shadow-sm text-center flex flex-col justify-center">
           <div className="text-3xl font-black">{avgScore}</div>
-          <div className="text-xs font-bold uppercase tracking-wider mt-1 opacity-95">Ortalama Puan</div>
+          <div className="text-xs font-bold uppercase tracking-wider mt-1 opacity-95">Ortalama Net</div>
         </div>
 
         {/* Sarı/Amber: Sınavı Tamamlayanlar */}
@@ -296,15 +210,22 @@ export default function CanliSinavlarPage() {
               <tr>
                 <th className="py-3 px-4 w-16">Sıra</th>
                 <th className="py-3 px-4">Öğrenci Adı</th>
-                <th className="py-3 px-4">Sınıf</th>
-                <th className="py-3 px-4 text-center">Puan / Net</th>
+                <th className="py-3 px-4">Deneme</th>
+                <th className="py-3 px-4 text-center">Net</th>
                 <th className="py-3 px-4">İlerleme (Soru)</th>
-                <th className="py-3 px-4">Teknik Bilgi & Cihaz</th>
+                <th className="py-3 px-4">Son Etkinlik</th>
                 <th className="py-3 px-4 text-center">Bitiş</th>
                 <th className="py-3 px-4 text-right">Müdahale</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredSessions.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center text-slate-400">
+                    {loading ? 'Yükleniyor…' : 'Şu an devam eden ya da son 24 saatte çözülen deneme yok.'}
+                  </td>
+                </tr>
+              )}
               {filteredSessions.map((st) => (
                 <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
                   <td className="py-3 px-4 font-mono font-bold text-slate-400">
@@ -319,12 +240,8 @@ export default function CanliSinavlarPage() {
                     {st.class_name}
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <span
-                      className={`font-black text-sm ${
-                        st.score >= 80 ? 'text-[#38a169]' : st.score >= 60 ? 'text-[#3182ce]' : 'text-[#e53e3e]'
-                      }`}
-                    >
-                      {st.score}
+                    <span className="font-black text-sm text-indigo-600 dark:text-indigo-400">
+                      {st.score ?? '—'}
                     </span>
                   </td>
                   <td className="py-3 px-4">

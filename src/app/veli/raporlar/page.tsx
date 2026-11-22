@@ -232,10 +232,12 @@ export default function VeliRaporlarPage() {
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <div className="text-[11px] font-bold text-slate-400">Çalışma Disiplini</div>
                   <div className="text-2xl font-black text-emerald-600 mt-1">
-                    %95
+                    {Number(selectedReport.total_homeworks) > 0
+                      ? `%${Math.round((Number(selectedReport.completed_homeworks) / Number(selectedReport.total_homeworks)) * 100)}`
+                      : '—'}
                   </div>
-                  <div className="text-[10px] text-emerald-600 font-bold mt-1">
-                    İstikrarlı Katılım
+                  <div className="text-[10px] text-slate-500 mt-1">
+                    Tamamlanan görev oranı
                   </div>
                 </div>
               </div>

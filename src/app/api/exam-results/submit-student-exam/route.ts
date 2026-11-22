@@ -32,7 +32,7 @@ function ensureStudentExists(db: any, studentId: string) {
           `INSERT OR IGNORE INTO users (id, name, email, role) VALUES (?, ?, ?, 'student')`,
           [
             studentId,
-            studentId.includes('muhammed') ? 'Muhammed Talha' : 'Ali Metin (Ali Tarlasüren)',
+            studentId.includes('muhammed') || studentId.includes('talha') ? 'Muhammed Talha' : 'Öğrenci',
             `${studentId}@matematikakademi.internal`
           ]
         );

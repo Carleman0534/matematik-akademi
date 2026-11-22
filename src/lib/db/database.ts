@@ -991,28 +991,6 @@ async function initDatabase(): Promise<Database> {
     }
   }
 
-  // Seed sample PDF documents if empty
-  try {
-    const checkPdfs = database.exec("SELECT count(*) as c FROM pdf_documents");
-    if (!checkPdfs.length || checkPdfs[0].values[0][0] === 0) {
-      database.run(`
-        INSERT INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count)
-        VALUES 
-        ('pdf-1', 'teacher-admin', '2026 AYT Matematik Türkiye Geneli Prova Denemesi', '2026-ayt-mat-tg.pdf', '/uploads/sample-exam.pdf', 'deneme', 'Matematik', 'AYT', 'Tüm AYT Müfredatı', 'Özdebir', 3.4, 16, 'ÖSYM tarzı yeni nesil 40 soruluk tam prova denemesi', '1.C 2.A 3.D 4.B 5.E 6.A 7.C 8.D 9.B 10.E 11.A 12.B 13.C 14.D 15.E 16.A 17.B 18.C 19.D 20.E', 40),
-        ('pdf-2', 'teacher-admin', 'TYT Matematik İlk 12 Soru Özel Tarama Fasikülü', 'tyt-ilk-12-soru.pdf', '/uploads/sample-exam.pdf', 'calisma_foyu', 'Matematik', 'TYT', 'Temel Kavramlar & Sayılar', '3D Yayınları', 1.8, 8, 'Temel kavramlar, basamak kavramı, bölünebilme kuralları', '1.B 2.E 3.A 4.C 5.D 6.B 7.A 8.E 9.C 10.D', 24),
-        ('pdf-3', 'teacher-admin', '2026 AYT Matematik Prova Denemesi Çözüm Kitapçığı', '2026-ayt-mat-tg-cozumler.pdf', '/uploads/sample-exam.pdf', 'cozum', 'Matematik', 'AYT', 'Ayrıntılı Çözümler', 'Özdebir', 4.1, 24, 'Her sorunun detaylı adım adım video/yazılı çözümleri', '', 40);
-      `);
-
-      database.run(`
-        INSERT OR IGNORE INTO exams (id, title, teacher_id, question_count, duration_min, penalty_divisor, pdf_id, is_template, status)
-        VALUES 
-        ('pdf-1', '2026 AYT Matematik Türkiye Geneli Prova Denemesi', 'teacher-admin', 40, 60, 4, 'pdf-1', 1, 'published');
-      `);
-    }
-  } catch (e) {
-    console.warn('Could not seed initial pdf_documents:', e);
-  }
-
   // Seed LGS official PDF documents & extracted questions
   try {
     seedLgsPdfQuestionsIfMissing(database);

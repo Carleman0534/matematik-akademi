@@ -18,11 +18,8 @@ export async function GET(req: NextRequest) {
     let studentClause = '';
     if (studentId) {
       const isTalha = studentId.includes('talha');
-      const isAli = studentId.includes('ali');
       if (isTalha) {
         studentClause = ` AND (er.student_id = '${studentId}' OR er.student_id = 'student_muhammed_talha')`;
-      } else if (isAli) {
-        studentClause = ` AND (er.student_id = '${studentId}' OR er.student_id = 'student_ali_metin' OR er.student_id = 'user_ali_metin')`;
       } else {
         studentClause = ` AND er.student_id = '${studentId}'`;
       }

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const examId = searchParams.get('examId');
     const studentIdParam = searchParams.get('studentId');
 
-    const effectiveStudentId = studentIdParam || session?.studentId || '50fa22f6-1021-4dde-8278-2339fa65030d';
+    const effectiveStudentId = studentIdParam || session?.studentId || '';
 
     if (examId) {
       // Denemeye atanmış öğrencileri getir

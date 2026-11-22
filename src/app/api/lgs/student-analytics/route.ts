@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
     const session = await getSession();
-    const studentId = searchParams.get('studentId') || session?.studentId || 'student_ali_metin';
+    const studentId = searchParams.get('studentId') || session?.studentId || 'student_muhammed_talha';
 
     // 1. Öğrenci bilgisi
     const sRes = db.exec(`
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     const totalBlank = topicPerformance.reduce((acc, p) => acc + (p.blank_count || 0), 0);
     const avgMastery = topicPerformance.length > 0
       ? Math.round(topicPerformance.reduce((acc, p) => acc + (p.mastery_score || 0), 0) / topicPerformance.length)
-      : 55;
+      : 0;
 
     return NextResponse.json({
       success: true,

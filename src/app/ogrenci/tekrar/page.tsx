@@ -27,7 +27,7 @@ export default async function ReviewPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Feyn Stili Unutma Eğrisi & Akıllı Tekrar Özeti */}
-      <FeynRetentionDashboard dueCount={list.length || 23} newCount={17} hardCount={8} />
+      <FeynRetentionDashboard dueCount={list.length} hardCount={list.filter(x => x.wrongCount >= 2).length} />
 
       <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
         <h2 className="text-xl font-black">Bugünkü Tekrar Seansı</h2>

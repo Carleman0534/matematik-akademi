@@ -36,8 +36,8 @@ export function LoginForm({ notice, initialKimlik = '' }: { notice?: string; ini
     }
     // Rol değiştiğinde kullanıcı adına mantıklı hızlı öneri yap
     if (role === 'student' && kimlik === 'ogretmen') {
-      setKimlik('ali.metin');
-    } else if (role === 'teacher' && (kimlik === 'ali.metin' || kimlik === 'muhammedtalha')) {
+      setKimlik('muhammedtalha');
+    } else if (role === 'teacher' && kimlik === 'muhammedtalha') {
       setKimlik('ogretmen');
     }
   };
@@ -53,30 +53,15 @@ export function LoginForm({ notice, initialKimlik = '' }: { notice?: string; ini
 
       // Öğrenci kimliğini localStorage ve çerezlere yaz
       if (selectedRole === 'student') {
-        const lower = kimlik.toLowerCase().trim();
-        const sId = (lower.includes('muhammed') || lower.includes('talha'))
-          ? 'student_muhammed_talha'
-          : (lower.includes('ali') ? 'student_ali_metin' : 'student_muhammed_talha');
-        localStorage.setItem('student_id', sId);
-        localStorage.setItem('student_name', sId === 'student_muhammed_talha' ? 'Muhammed Talha' : 'Ali Metin');
-        document.cookie = `student_id=${sId}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `studentId=${sId}; path=/; max-age=2592000; SameSite=Lax`;
+        // Öğrenci kimliğini sunucu girişte ayarlar; burada yalnızca eski tahmini temizle
+        localStorage.removeItem('student_id');
+        localStorage.removeItem('student_name');
       }
     }
   };
 
   const handleQuickSelect = (username: string) => {
     setKimlik(username);
-    if (typeof window !== 'undefined') {
-      const lower = username.toLowerCase();
-      const sId = (lower.includes('muhammed') || lower.includes('talha'))
-        ? 'student_muhammed_talha'
-        : (lower.includes('ali') ? 'student_ali_metin' : 'student_muhammed_talha');
-      localStorage.setItem('student_id', sId);
-      localStorage.setItem('student_name', sId === 'student_muhammed_talha' ? 'Muhammed Talha' : 'Ali Metin');
-      document.cookie = `student_id=${sId}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `studentId=${sId}; path=/; max-age=2592000; SameSite=Lax`;
-    }
   };
 
   return (
@@ -151,17 +136,6 @@ export function LoginForm({ notice, initialKimlik = '' }: { notice?: string; ini
 
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Hızlı Seç:</span>
-            <button
-              type="button"
-              onClick={() => handleQuickSelect('ali.metin')}
-              className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border transition ${
-                kimlik === 'ali.metin'
-                  ? 'bg-amber-100 border-amber-400 text-amber-900 dark:bg-amber-950 dark:text-amber-200 shadow-xs'
-                  : 'bg-white dark:bg-slate-800 border-indigo-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              ⭐ Ali Metin
-            </button>
             <button
               type="button"
               onClick={() => handleQuickSelect('muhammedtalha')}
@@ -270,7 +244,7 @@ export function LoginForm({ notice, initialKimlik = '' }: { notice?: string; ini
             required 
             placeholder={
               selectedRole === 'student'
-                ? 'ör. ali.metin veya muhammedtalha'
+                ? 'ör. muhammedtalha'
                 : selectedRole === 'teacher'
                 ? 'ör. ogretmen veya e-posta'
                 : 'ör. 0532... veya veli e-postası'

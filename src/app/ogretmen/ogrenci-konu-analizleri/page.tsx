@@ -8,7 +8,7 @@ import {
 
 export default function OgrenciKonuAnalizleriPage() {
   const [students, setStudents] = useState<any[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('50fa22f6-1021-4dde-8278-2339fa65030d');
+  const [selectedStudentId, setSelectedStudentId] = useState('student_muhammed_talha');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,6 +20,7 @@ export default function OgrenciKonuAnalizleriPage() {
         const data = await res.json();
         if (data.success && data.students.length > 0) {
           setStudents(data.students);
+          setSelectedStudentId(prev => (data.students.some((s: any) => s.id === prev) ? prev : data.students[0].id));
         }
       } catch (e) {
         console.error(e);

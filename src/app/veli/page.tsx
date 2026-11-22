@@ -15,7 +15,7 @@ export default function VeliAnaEkranPage() {
     try {
       setLoading(true);
       const saved = localStorage.getItem('parent_active_student_id');
-      const studentId = (saved && saved !== '50fa22f6-1021-4dde-8278-2339fa65030d') ? saved : 'student_ali_metin';
+      const studentId = (saved && saved !== '50fa22f6-1021-4dde-8278-2339fa65030d') ? saved : 'student_muhammed_talha';
       const res = await fetch(`/api/parent/student-data?studentId=${studentId}`);
       const json = await res.json();
       if (json.success) {
@@ -76,23 +76,23 @@ export default function VeliAnaEkranPage() {
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
                 <span className="text-xs font-semibold text-slate-500">Son Deneme Neti</span>
                 <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
-                  {data?.kpis?.lastNet || '14,25 net'}
+                  {data?.kpis?.lastNet || '—'}
                 </p>
-                <span className="text-[11px] text-slate-400">Önceki: {data?.kpis?.prevNet || '11,50 net'}</span>
+                <span className="text-[11px] text-slate-400">Önceki: {data?.kpis?.prevNet || '—'}</span>
               </div>
 
               <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-950 dark:bg-emerald-950/20">
                 <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Net Değişimi</span>
                 <p className="mt-1 text-2xl font-black text-emerald-600">
-                  {data?.kpis?.netChange || '+2,75'}
+                  {data?.kpis?.netChange || '—'}
                 </p>
-                <span className="text-[11px] text-emerald-600 font-bold">Artış eğiliminde 📈</span>
+                <span className="text-[11px] text-slate-400">Son iki denemeye göre</span>
               </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
                 <span className="text-xs font-semibold text-slate-500">Çözülen Soru</span>
                 <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
-                  {data?.kpis?.totalQuestionsSolved || 320}
+                  {data?.kpis?.totalQuestionsSolved ?? 0}
                 </p>
                 <span className="text-[11px] text-slate-400">Deneme ve test toplamı</span>
               </div>
@@ -100,7 +100,7 @@ export default function VeliAnaEkranPage() {
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
                 <span className="text-xs font-semibold text-slate-500">Genel Başarı Oranı</span>
                 <p className="mt-1 text-2xl font-black text-indigo-600">
-                  {data?.kpis?.generalSuccessRate || '%72'}
+                  {data?.kpis?.generalSuccessRate || '—'}
                 </p>
                 <span className="text-[11px] text-slate-400">Kazanım ortalaması</span>
               </div>
@@ -108,9 +108,8 @@ export default function VeliAnaEkranPage() {
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
                 <span className="text-xs font-semibold text-slate-500">En Güçlü Alan</span>
                 <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white line-clamp-1">
-                  Doğrusal Denklemler
+                  {data?.kpis?.strongTopic || '—'}
                 </p>
-                <span className="text-[11px] text-emerald-600 font-bold">%90 Ustalık</span>
               </div>
             </div>
           </div>

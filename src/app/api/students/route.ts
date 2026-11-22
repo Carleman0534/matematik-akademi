@@ -94,21 +94,6 @@ export async function GET() {
       } catch {}
     }
 
-    // 4. Ali Metin kontrolü
-    const hasAli = students.some(s => String(s.full_name || '').toLowerCase().includes('ali metin'));
-    if (!hasAli) {
-      const aliObj = {
-        id: 'student_ali_metin',
-        full_name: 'Ali Metin (Ali Tarlasüren)',
-        grade_level: 8,
-        class_name: '8-A Sayısal',
-        school_name: 'Özel Pozitif Kişisel Gelişim Kursu',
-        status: 'active',
-        username: 'alimetin'
-      };
-      students.unshift(aliObj);
-    }
-
     const finalStudents = students.filter(s => 
       !String(s.full_name || '').toLowerCase().includes('deneme öğrenci') && 
       !String((s as any).username || '').toLowerCase().includes('deneme.ogrenci')

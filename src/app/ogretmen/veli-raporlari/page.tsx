@@ -167,10 +167,7 @@ export default function VeliRaporlariYonetimPage() {
           totalHomeworks: newTotalHw,
           attendedExams: newAttendedExams,
           netChange: newNetChange,
-          topicsSummary: [
-            { topic: 'Çarpanlar ve Katlar', solved: Math.round(newTotalQ * 0.5), accuracy: 82 },
-            { topic: 'Üslü İfadeler', solved: Math.round(newTotalQ * 0.5), accuracy: 86 }
-          ],
+          topicsSummary: [],
           teacherMessage: newMessage,
           nextWeekGoals: newGoals,
           isApproved: true,

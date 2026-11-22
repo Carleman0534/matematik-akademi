@@ -18,7 +18,6 @@ export default function AiUretimGecmisiPage() {
         const res = await fetch('/api/lgs/generate-questions');
         const data = await res.json();
         if (data.success) {
-          // Sorulardan simüle edilmiş üretim günlüğü
           setLogs(data.questions || []);
         }
       } catch (e) {
@@ -71,25 +70,22 @@ export default function AiUretimGecmisiPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-bold text-slate-500">Üretilen Soru Sayısı</p>
           <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
-            {logs.length || 8} Soru
+            {logs.length} Soru
           </p>
-          <p className="mt-0.5 text-xs text-emerald-600 font-semibold">%100 Doğrulandı</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-xs font-bold text-slate-500">Toplam Harcanan Token</p>
-          <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
-            ~{(logs.length || 8) * 1050}
-          </p>
-          <p className="mt-0.5 text-xs text-slate-400">Prompt & Çözüm Tokenları</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-xs font-bold text-slate-500">Tahmini Maliyet</p>
+          <p className="text-xs font-bold text-slate-500">Doğrulanmış</p>
           <p className="mt-1 text-2xl font-black text-emerald-600">
-            $0.0012
+            {logs.filter(l => l.math_validation_status === 'verified').length} Soru
           </p>
-          <p className="mt-0.5 text-xs text-slate-400">Düşük maliyetli üretim</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-xs font-bold text-slate-500">Doğrulama Bekleyen</p>
+          <p className="mt-1 text-2xl font-black text-amber-600">
+            {logs.filter(l => l.math_validation_status !== 'verified').length} Soru
+          </p>
         </div>
       </div>
 
@@ -102,6 +98,8 @@ export default function AiUretimGecmisiPage() {
 
         {loading ? (
           <div className="p-12 text-center text-sm text-slate-500">Kayıtlar yükleniyor...</div>
+        ) : logs.length === 0 ? (
+          <div className="p-12 text-center text-sm text-slate-500">Henüz yapay zekâ ile üretilmiş soru yok.</div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {logs.map((item, idx) => (
@@ -115,7 +113,7 @@ export default function AiUretimGecmisiPage() {
                       ID: {item.id}
                     </span>
                     <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1">
-                      <ShieldCheck className="h-3 w-3" /> {item.math_validation_status || 'verified'}
+                      <ShieldCheck className="h-3 w-3" /> {item.math_validation_status || 'doğrulanmadı'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-1">

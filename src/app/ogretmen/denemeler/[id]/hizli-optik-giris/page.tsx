@@ -39,16 +39,6 @@ export default function HizliOptikGirisPage({
             setStudents(data.students);
             if (data.students.length > 0) setSelectedStudentId(data.students[0].id);
           }
-        } else {
-          // Demo fallback
-          const demoList = [
-            { id: 'st-1', full_name: 'Ahmet Yılmaz', grade_level: 12 },
-            { id: 'st-2', full_name: 'Mehmet Demir', grade_level: 12 },
-            { id: 'st-3', full_name: 'Ayşe Kaya', grade_level: 12 },
-            { id: 'st-4', full_name: 'Can Baran', grade_level: 12 },
-          ];
-          setStudents(demoList);
-          setSelectedStudentId('st-1');
         }
       } catch (err) {
         console.error(err);

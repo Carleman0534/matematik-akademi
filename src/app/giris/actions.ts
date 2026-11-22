@@ -35,8 +35,6 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
       queryCondition += ` OR role = 'parent' OR id = 'parent_veli'`;
     } else if (normalizedId === 'ogretmen' || normalizedId === 'teacher' || normalizedId === 'admin') {
       queryCondition += ` OR role = 'teacher'`;
-    } else if (normalizedId === 'alimetin' || normalizedId === 'ali.metin' || normalizedId === 'ali') {
-      queryCondition += ` OR id = 'user_ali_metin' OR id = 'student_ali_metin'`;
     } else if (normalizedId === 'muhammedtalha' || normalizedId === 'muhammed.talha' || normalizedId === 'talha') {
       queryCondition += ` OR id = 'student_muhammed_talha'`;
     }
@@ -72,9 +70,9 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
           if (sRes.length > 0 && sRes[0].values.length > 0) {
             studentId = String(sRes[0].values[0][0]);
           } else {
-            studentId = user.id.includes('muhammed') || user.id.includes('talha') 
-              ? 'student_muhammed_talha' 
-              : (user.id.includes('ali') ? 'student_ali_metin' : user.id);
+            studentId = user.id.includes('muhammed') || user.id.includes('talha')
+              ? 'student_muhammed_talha'
+              : user.id;
           }
         }
 

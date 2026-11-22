@@ -126,10 +126,9 @@ export default function DenemeOlusturPage() {
   const [durationMin, setDurationMin] = useState<number>(40);
 
   // Öğrenci Seçimi
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['student_ali_metin']);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['student_muhammed_talha']);
   const [studentSearch, setStudentSearch] = useState<string>('');
   const [students, setStudents] = useState<any[]>([
-    { id: 'student_ali_metin', full_name: 'Ali Metin (Ali Tarlasüren)', grade_level: 8, class_name: '8-A Sayısal', school_name: 'Özel Pozitif Kişisel Gelişim Kursu' },
     { id: 'student_muhammed_talha', full_name: 'Muhammed Talha', grade_level: 8, class_name: '8-A LGS', school_name: 'Atatürk Ortaokulu', username: 'muhammedtalha' },
   ]);
 
@@ -151,7 +150,7 @@ export default function DenemeOlusturPage() {
   // 4. Şekilli Soru, Optik Okuyucu & WhatsApp Durumları
   const [visualRatio, setVisualRatio] = useState<number>(50); // %0 Metin, %25, %50, %75, %100 Tamamı Şekilli
   const [showOpticModal, setShowOpticModal] = useState<boolean>(false);
-  const [opticStudentId, setOpticStudentId] = useState<string>('student_ali_metin');
+  const [opticStudentId, setOpticStudentId] = useState<string>('student_muhammed_talha');
   const [opticAnswers, setOpticAnswers] = useState<Record<number, string>>({});
   const [opticInputString, setOpticInputString] = useState<string>('');
   const [opticResult, setOpticResult] = useState<any>(null);
@@ -317,7 +316,7 @@ export default function DenemeOlusturPage() {
   const handleShareWhatsApp = () => {
     if (!opticResult) return;
     const targetStudent = students.find(s => s.id === opticStudentId) || students[0];
-    const sName = targetStudent?.full_name || 'Ali Metin';
+    const sName = targetStudent?.full_name || 'Öğrenci';
 
     const weakTopics = Array.from(new Set(
       opticResult.details
@@ -360,21 +359,6 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
     if (isLiveTimerRunning && liveSecondsRemaining > 0) {
       timer = setInterval(() => {
         setLiveSecondsRemaining(prev => Math.max(0, prev - 1));
-        
-        // Simüle canlı ilerleme güncellemesi
-        setLiveStudentProgress(prev => 
-          prev.map(p => {
-            if (p.status === 'completed') return p;
-            const advance = Math.random() < 0.25 && p.currentQuestion < totalQuestions;
-            const newQ = advance ? p.currentQuestion + 1 : p.currentQuestion;
-            return {
-              ...p,
-              currentQuestion: newQ,
-              answeredCount: advance ? p.answeredCount + 1 : p.answeredCount,
-              status: newQ >= totalQuestions ? 'completed' : 'active'
-            };
-          })
-        );
       }, 1000);
     }
     return () => clearInterval(timer);
@@ -395,17 +379,6 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
             class_name: s.class_name || (s.grade_level ? `${s.grade_level}-A` : '8-A'),
             school_name: s.school_name || s.school || ''
           }));
-
-          const hasAli = normalized.some(s => s.full_name.toLowerCase().includes('ali metin'));
-          if (!hasAli) {
-            normalized.unshift({
-              id: 'student_ali_metin',
-              full_name: 'Ali Metin (Ali Tarlasüren)',
-              grade_level: 8,
-              class_name: '8-A Sayısal',
-              school_name: 'Özel Pozitif Kişisel Gelişim Kursu'
-            });
-          }
 
           const hasTalha = normalized.some(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
           if (!hasTalha) {
@@ -517,9 +490,9 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
     setSelectedStudentIds(students.map(s => s.id));
   };
 
-  const selectOnlyAli = () => {
-    const ali = students.find(s => s.id === 'student_ali_metin' || s.full_name.toLowerCase().includes('ali metin')) || students[0];
-    if (ali) setSelectedStudentIds([ali.id]);
+  const selectOnlyTalha = () => {
+    const talha = students.find(s => s.id === 'student_muhammed_talha' || s.full_name.toLowerCase().includes('talha')) || students[0];
+    if (talha) setSelectedStudentIds([talha.id]);
   };
 
   const filteredStudents = students.filter(s => {
@@ -553,15 +526,6 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
       'top_veri_analizi',
       'top_olasilik',
       'top_cebirsel_ifadeler'
-    ]);
-  };
-
-  const selectAliMetinWeakTopics = () => {
-    // Ali Metin'in son denemesinde eksik kaldığı öncelikli konular
-    setSelectedTopics([
-      'top_carpanlar_katlar',
-      'top_uslu_ifadeler',
-      'top_karekoklu_ifadeler'
     ]);
   };
 
@@ -977,15 +941,21 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
     try {
       const targetStudent = selectedStudentsInfo[0] || students[0];
-      const sName = targetStudent?.full_name || 'Ali Metin';
+      const sName = targetStudent?.full_name || 'Öğrenci';
 
-      // 4 ana eksik LGS konusu (öğrencinin geçmiş denemelerde en çok takıldığı ve en çok puan kaybettiği üniteler)
-      const weakTopics = [
-        'top_carpanlar_katlar',
-        'top_uslu_ifadeler',
-        'top_karekoklu_ifadeler',
-        'top_dogrusal_denklemler'
-      ];
+      // Öğrencinin gerçek konu performansından en zayıf 4 konu (çözülmüş soru verisi olanlar arasından)
+      const res = await fetch(`/api/lgs/student-analytics?studentId=${encodeURIComponent(targetStudent?.id || '')}`);
+      const data = await res.json().catch(() => ({}));
+      const weakTopics: string[] = (Array.isArray(data.topicPerformance) ? data.topicPerformance : [])
+        .filter((t: any) => Number(t.solved_count) > 0)
+        .sort((a: any, b: any) => Number(a.mastery_score) - Number(b.mastery_score))
+        .slice(0, 4)
+        .map((t: any) => String(t.topic_id));
+      if (weakTopics.length === 0) {
+        setWeakModeActive(false);
+        alert(`${sName} için henüz konu performans verisi yok. Öğrenci deneme çözdükçe eksik konular burada otomatik belirlenir.`);
+        return;
+      }
 
       setSelectedTopics(weakTopics);
       const newTitle = `8. Sınıf LGS Matematik — ${sName} Kişiselleştirilmiş Eksik Kapatma Provası`;
@@ -1013,13 +983,14 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
     setIsLiveTimerRunning(true);
 
     const activeSelected = students.filter(s => selectedStudentIds.includes(s.id));
-    const initialProgress = (activeSelected.length > 0 ? activeSelected : [students[0]]).map((st, idx) => ({
+    // Gerçek ilerleme "Canlı Takip" sayfasından izlenir; burada uydurma ilerleme üretilmez
+    const initialProgress = (activeSelected.length > 0 ? activeSelected : [students[0]]).map((st) => ({
       id: st.id,
       name: st.full_name,
-      currentQuestion: Math.max(1, Math.min(totalQuestions, 2 + (idx % 3))),
-      answeredCount: Math.max(1, 1 + (idx % 2)),
-      correctCount: Math.max(1, 1 + (idx % 2)),
-      lastActiveSec: idx * 10,
+      currentQuestion: 0,
+      answeredCount: 0,
+      correctCount: 0,
+      lastActiveSec: 0,
       extraSec: 0,
       status: 'active' as 'active' | 'completed'
     }));
@@ -1283,10 +1254,10 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                   <button
                     type="button"
-                    onClick={selectOnlyAli}
+                    onClick={selectOnlyTalha}
                     className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
                   >
-                    <span>⭐ Ali Metin</span>
+                    <span>⭐ Muhammed Talha</span>
                   </button>
                   <button
                     type="button"
@@ -1580,13 +1551,6 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
                 {/* Hızlı Filtre Butonları */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={selectAliMetinWeakTopics}
-                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 transition"
-                  >
-                    🎯 Ali Metin Öncelikli (Çarpanlar & Üslü)
-                  </button>
                   <button
                     type="button"
                     onClick={selectTerm1Topics}

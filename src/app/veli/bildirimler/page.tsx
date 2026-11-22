@@ -14,33 +14,17 @@ export default function VeliBildirimlerPage() {
     async function loadNotifications() {
       try {
         setLoading(true);
-        // Örnek bildirimler
-        setNotifications([
-          {
-            id: 'n-1',
-            title: 'Yeni Deneme Sonucu Açıklandı',
-            message: 'Öğrenciniz 2026 LGS Matematik Denemesini 14.25 net ile tamamladı (+2.75 net artış).',
-            type: 'exam_result',
-            time: '2 saat önce',
-            isRead: false
-          },
-          {
-            id: 'n-2',
-            title: 'Öğretmeninizden Yeni Değerlendirme Notu',
-            message: 'Matematik öğretmeniniz haftalık gelişim ve çalışma tavsiyesi paylaştı.',
-            type: 'teacher_note',
-            time: 'Dün',
-            isRead: true
-          },
-          {
-            id: 'n-3',
-            title: 'Yeni Matematik Çalışması Atandı',
-            message: 'Çarpanlar ve Katlar Pekiştirme Testi (15 soru) öğrencinizin paneline eklendi.',
-            type: 'assignment_new',
-            time: '3 gün önce',
-            isRead: true
-          }
-        ]);
+        const res = await fetch('/api/guardians/notifications', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        const rows: any[] = Array.isArray(data.notifications) ? data.notifications : [];
+        setNotifications(rows.map(n => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          type: n.type,
+          time: n.created_at ? new Date(String(n.created_at).replace(' ', 'T')).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '',
+          isRead: !!n.read_at,
+        })));
       } catch (e) {
         console.error(e);
       } finally {
@@ -74,6 +58,8 @@ export default function VeliBildirimlerPage() {
 
         {loading ? (
           <div className="p-12 text-center text-sm text-slate-500">Bildirimler yükleniyor...</div>
+        ) : notifications.length === 0 ? (
+          <div className="p-12 text-center text-sm text-slate-500">Henüz bildiriminiz yok.</div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {notifications.map((n) => (

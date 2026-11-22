@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const authStmt = db.prepare(`
       SELECT relationship_type, status 
       FROM student_guardians 
-      WHERE (guardian_user_id = ? OR guardian_user_id = 'parent_ayse' OR guardian_user_id = 'parent_veli') AND student_id = ? AND status = 'active'
+      WHERE (guardian_user_id = ? OR guardian_user_id = 'parent_veli') AND student_id = ? AND status = 'active'
     `);
     authStmt.bind([guardianUserId, studentId]);
     const isAuthorized = authStmt.step();
@@ -71,50 +71,43 @@ export async function GET(req: NextRequest) {
       email: sRes[0].values[0][4]
     } : { id: studentId, name: 'Öğrenci', grade: 8 };
 
-    // 4. Deneme Sınavı Sonuçları (İzinliyse)
+    // 4. Deneme Sınavı Sonuçları (İzinliyse) — gerçek sonuçlar, en yenisi önce
     let examResults: any[] = [];
     if (permissions.show_exam_results === 1) {
-      examResults = [
-        {
-          id: 'res-1',
-          title: '2026 LGS Matematik Prova Denemesi 2',
-          date: '15 Kasım 2026',
-          totalQuestions: 20,
-          correct: 15,
-          wrong: 3,
-          blank: 2,
-          net: 14.25,
-          pct: 71.25,
-          durationMin: 38,
-          netChange: '+2.75'
-        },
-        {
-          id: 'res-2',
-          title: '2026 LGS Matematik Prova Denemesi 1',
-          date: '02 Kasım 2026',
-          totalQuestions: 20,
-          correct: 13,
-          wrong: 6,
-          blank: 1,
-          net: 11.50,
-          pct: 57.5,
-          durationMin: 42,
-          netChange: '+1.50'
-        },
-        {
-          id: 'res-3',
-          title: 'LGS Matematik Genel Tarama 1',
-          date: '18 Ekim 2026',
-          totalQuestions: 20,
-          correct: 11,
-          wrong: 4,
-          blank: 5,
-          net: 10.00,
-          pct: 50.0,
-          durationMin: 40,
-          netChange: '0.00'
-        }
-      ];
+      const rStmt = db.prepare(`
+        SELECT er.id, COALESCE(e.title, p.title, 'Deneme') AS title, er.correct_count, er.wrong_count, er.blank_count,
+               er.net_score, er.total_duration_seconds, COALESCE(er.completed_at, er.created_at) AS done_at,
+               COALESCE(e.question_count, er.correct_count + er.wrong_count + er.blank_count) AS total_q
+        FROM exam_results er
+        LEFT JOIN exams e ON e.id = er.exam_id
+        LEFT JOIN pdf_documents p ON p.id = er.exam_id
+        WHERE er.student_id = ? AND er.net_score IS NOT NULL
+        GROUP BY er.id
+        ORDER BY done_at ASC
+      `);
+      rStmt.bind([studentId]);
+      const asc: any[] = [];
+      while (rStmt.step()) asc.push(rStmt.getAsObject());
+      rStmt.free();
+      examResults = asc.map((r, i) => {
+        const net = Number(r.net_score) || 0;
+        const totalQ = Number(r.total_q) || 0;
+        const prev = i > 0 ? Number(asc[i - 1].net_score) || 0 : null;
+        const diff = prev === null ? null : net - prev;
+        return {
+          id: r.id,
+          title: r.title,
+          date: r.done_at ? new Date(String(r.done_at).replace(' ', 'T')).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+          totalQuestions: totalQ,
+          correct: Number(r.correct_count) || 0,
+          wrong: Number(r.wrong_count) || 0,
+          blank: Number(r.blank_count) || 0,
+          net,
+          pct: totalQ ? parseFloat(((net / totalQ) * 100).toFixed(1)) : 0,
+          durationMin: r.total_duration_seconds ? Math.round(Number(r.total_duration_seconds) / 60) : null,
+          netChange: diff === null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}`,
+        };
+      }).reverse();
     }
 
     // 5. Konu Bazlı Gelişim (İzinliyse - Yapıcı ve cesaretlendirici dil)
@@ -206,15 +199,23 @@ export async function GET(req: NextRequest) {
       success: true,
       student,
       permissions,
-      kpis: {
-        lastNet: '14,25 net',
-        prevNet: '11,50 net',
-        netChange: '+2,75',
-        totalQuestionsSolved: 320,
-        generalSuccessRate: '%72',
-        strongTopic: 'Doğrusal Denklemler (%90)',
-        focusTopic: 'Çarpanlar ve Katlar'
-      },
+      kpis: (() => {
+        const fmt = (n: number) => `${n.toFixed(2).replace('.', ',')} net`;
+        const last = examResults[0];
+        const prev = examResults[1];
+        const solved = topicMastery.reduce((a, t) => a + (Number(t.solved_count) || 0), 0);
+        const correct = topicMastery.reduce((a, t) => a + (Number(t.correct_count) || 0), 0);
+        const sorted = [...topicMastery].sort((a, b) => Number(b.mastery_score) - Number(a.mastery_score));
+        return {
+          lastNet: last ? fmt(last.net) : '—',
+          prevNet: prev ? fmt(prev.net) : '—',
+          netChange: last && prev ? `${last.net - prev.net >= 0 ? '+' : ''}${(last.net - prev.net).toFixed(2).replace('.', ',')}` : '—',
+          totalQuestionsSolved: solved,
+          generalSuccessRate: solved ? `%${Math.round((correct / solved) * 100)}` : '—',
+          strongTopic: sorted[0] ? `${sorted[0].topic_name} (%${sorted[0].mastery_score})` : '—',
+          focusTopic: sorted.length ? sorted[sorted.length - 1].topic_name : '—',
+        };
+      })(),
       examResults,
       topicMastery,
       assignments,

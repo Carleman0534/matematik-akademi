@@ -64,18 +64,6 @@ export default function TopluDenemeAtaPage() {
         if (stRes && stRes.ok) {
           const stData = await stRes.json();
           if (stData.students) setStudents(stData.students);
-        } else {
-          // Demo fallback
-          setStudents([
-            { id: 'st-1', full_name: 'Ahmet Yılmaz', grade_level: 12, class_name: '12-A Sayısal' },
-            { id: 'st-2', full_name: 'Mehmet Demir', grade_level: 12, class_name: '12-A Sayısal' },
-            { id: 'st-3', full_name: 'Ayşe Kaya', grade_level: 12, class_name: '12-B Eşit Ağırlık' },
-            { id: 'st-4', full_name: 'Zeynep Çelik', grade_level: 11, class_name: '11-A Sayısal' },
-            { id: 'st-5', full_name: 'Can Baran', grade_level: 12, class_name: '12-A Sayısal' },
-            { id: 'st-6', full_name: 'Elif Şahin', grade_level: 12, class_name: '12-B Eşit Ağırlık' },
-            { id: 'st-7', full_name: 'Burak Öztürk', grade_level: 11, class_name: '11-B Sayısal' },
-            { id: 'st-8', full_name: 'Selin Doğan', grade_level: 12, class_name: '12-A Sayısal' },
-          ]);
         }
 
         setExams(allExams);
@@ -228,43 +216,6 @@ export default function TopluDenemeAtaPage() {
                   </div>
                 </div>
 
-                {/* MaivenPoint Examena Tarzı Sınav İskeleti (Paper Skeleton) */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                      <span>Sınav İskeleti (Paper Skeleton 01)</span>
-                    </span>
-                    <span className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-bold px-1.5 py-0.5 rounded-sm">
-                      Dengeli Dağılım
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] text-slate-500 font-semibold">
-                    <div className="bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      Kolay: <strong className="text-teal-600">%30</strong>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      Orta: <strong className="text-emerald-600">%50</strong>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      Zor: <strong className="text-rose-600">%20</strong>
-                    </div>
-                  </div>
-
-                  <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                    <span>Mükerrer Filtresi: Son 30 gün hariç</span>
-                    <span className="text-emerald-600 font-bold">✓ Aktif</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => alert('Sınav soruları dengeli iskelete göre (Kolay %30, Orta %50, Zor %20) optimize edildi.')}
-                    className="w-full py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl font-bold text-[11px] text-slate-700 dark:text-slate-200 transition"
-                  >
-                    🔄 İskelete Göre Yeniden Üret (Regenerate)
-                  </button>
-                </div>
               </div>
             )}
           </div>

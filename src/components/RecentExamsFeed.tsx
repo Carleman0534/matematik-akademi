@@ -43,7 +43,7 @@ export function RecentExamsFeed({ initialExams }: Props) {
             examId: l.examId,
             examTitle: l.title || 'LGS Matematik Denemesi',
             studentId: l.studentId || 'student_muhammed_talha',
-            studentName: l.studentName || (l.studentId?.includes('talha') ? 'Muhammed Talha' : 'Ali Metin'),
+            studentName: l.studentName || (l.studentId?.includes('talha') ? 'Muhammed Talha' : 'Öğrenci'),
             correctCount: Number(l.correctCount) || 0,
             wrongCount: Number(l.wrongCount) || 0,
             blankCount: Number(l.blankCount) || 0,
@@ -143,17 +143,6 @@ export function RecentExamsFeed({ initialExams }: Props) {
             }`}
           >
             <span>⭐ Muhammed Talha</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterStudent('ali')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
-              filterStudent === 'ali'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-            }`}
-          >
-            <span>Ali Metin</span>
           </button>
         </div>
       </div>
