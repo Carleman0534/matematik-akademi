@@ -883,7 +883,8 @@ CREATE TABLE IF NOT EXISTS upload_chunks (
 );
 `;
 
-async function initDatabase(): Promise<Database> {
+// initialBytes verilirse (Blob'dan indirilen kopya) veritabanı ondan açılır ve /tmp'ye de yazılır.
+async function initDatabase(initialBytes?: Uint8Array): Promise<Database> {
   const dataDir = path.dirname(DB_PATH);
   if (!fs.existsSync(dataDir)) {
     try {
@@ -896,14 +897,18 @@ async function initDatabase(): Promise<Database> {
 
   const SQL = await initSqlJs({ wasmBinary: wasmBinary.buffer as ArrayBuffer });
 
-  let database: Database;
-  if (IS_SERVERLESS && !fs.existsSync(DB_PATH) && fs.existsSync(ORIGINAL_DB_PATH)) {
+  if (initialBytes) {
+    try { fs.writeFileSync(DB_PATH, Buffer.from(initialBytes)); } catch {}
+  } else if (IS_SERVERLESS && !fs.existsSync(DB_PATH) && fs.existsSync(ORIGINAL_DB_PATH)) {
     try {
       fs.copyFileSync(ORIGINAL_DB_PATH, DB_PATH);
     } catch {}
   }
 
-  if (fs.existsSync(DB_PATH)) {
+  let database: Database;
+  if (initialBytes) {
+    database = new SQL.Database(initialBytes);
+  } else if (fs.existsSync(DB_PATH)) {
     const fileBuffer = fs.readFileSync(DB_PATH);
     database = new SQL.Database(fileBuffer);
   } else if (fs.existsSync(ORIGINAL_DB_PATH)) {
@@ -1098,8 +1103,29 @@ async function initDatabase(): Promise<Database> {
   return database;
 }
 
+// Next.js sayfaları ve API uç noktalarını aynı süreçte ayrı modül kopyalarında çalıştırabilir.
+// Her kopyanın kendi bellek içi veritabanı olursa biri diğerinin yazdığını görmez ve eski
+// kopyasını dosyaya geri yazabilir. Bağlantı bu yüzden süreç genelinde (globalThis) paylaşılır.
+const shared = globalThis as unknown as {
+  __appDb?: Database | null;
+  __appDbInit?: Promise<Database> | null;
+  // Vercel Blob eşitlemesi (yalnızca Vercel'de ve Blob deposu bağlıysa)
+  __blobEtag?: string | null;
+  __blobLastCheck?: number;
+  __blobSynced?: boolean;          // Blob'daki kopya en az bir kez başarıyla okundu/oluşturuldu
+  __blobDirty?: boolean;           // bellekte Blob'a henüz yazılmamış değişiklik var
+  __blobFlushScheduled?: boolean;
+  __blobRefresh?: Promise<void> | null;
+  __blobPush?: Promise<void> | null;
+};
+
+const BLOB_REFRESH_INTERVAL_MS = 1000;
+function useBlobStore(): boolean {
+  return IS_SERVERLESS && Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+}
+
 export function saveDb(database?: Database): void {
-  const d = database || db || (globalThis as unknown as { __appDb?: Database | null }).__appDb;
+  const d = database || db || shared.__appDb;
   if (!d) return;
   try {
     const data = d.export();
@@ -1108,14 +1134,107 @@ export function saveDb(database?: Database): void {
   } catch (err) {
     console.warn('Could not save database file:', err);
   }
+  if (useBlobStore() && d === shared.__appDb) {
+    shared.__blobDirty = true;
+    void scheduleBlobFlush();
+  }
 }
 
-// Next.js sayfaları ve API uç noktalarını aynı süreçte ayrı modül kopyalarında çalıştırabilir.
-// Her kopyanın kendi bellek içi veritabanı olursa biri diğerinin yazdığını görmez ve eski
-// kopyasını dosyaya geri yazabilir. Bağlantı bu yüzden süreç genelinde (globalThis) paylaşılır.
-const shared = globalThis as unknown as { __appDb?: Database | null; __appDbInit?: Promise<Database> | null };
+// Değişikliği yanıt gönderildikten sonra Blob'a yazar (Vercel bu işi bitene kadar örneği açık tutar).
+// Aynı istekteki birden çok saveDb() tek bir yüklemede birleşir.
+async function scheduleBlobFlush(): Promise<void> {
+  if (shared.__blobFlushScheduled) return;
+  shared.__blobFlushScheduled = true;
+  const run = async () => {
+    shared.__blobFlushScheduled = false;
+    await flushToBlob();
+  };
+  try {
+    const { after } = await import('next/server');
+    after(run);
+  } catch {
+    // İstek bağlamı dışında (ör. betik): hemen yaz
+    await run();
+  }
+}
+
+async function flushToBlob(): Promise<void> {
+  if (shared.__blobPush) await shared.__blobPush.catch(() => {});
+  if (!shared.__blobDirty || !shared.__appDb) return;
+  if (!shared.__blobSynced) {
+    // Blob'daki asıl kopya hiç okunamadıysa yerel (eski olabilecek) kopyayla üzerine yazma
+    console.error('Veritabanı Blob ile eşitlenmediği için değişiklik buluta yazılmadı.');
+    return;
+  }
+  shared.__blobPush = (async () => {
+    const { pushDbToBlob } = await import('./blobStore.ts');
+    shared.__blobDirty = false;
+    const bytes = shared.__appDb!.export();
+    let res = await pushDbToBlob(bytes, shared.__blobEtag);
+    if (res.status === 'conflict') {
+      // Arada başka bir sunucu örneği de yazmış. Bu örneğin son hali kaydedilir (son yazan kazanır).
+      console.warn('Blob yazma çakışması: başka bir örnek de yazmış; bu örneğin son hali kaydediliyor.');
+      res = await pushDbToBlob(bytes, null);
+    }
+    if (res.status === 'ok') {
+      shared.__blobEtag = res.etag;
+      shared.__blobLastCheck = Date.now();
+    }
+  })()
+    .catch((err) => {
+      shared.__blobDirty = true;
+      console.error('Veritabanı Blob\'a yazılamadı:', err);
+    })
+    .finally(() => {
+      shared.__blobPush = null;
+    });
+  await shared.__blobPush;
+}
+
+// Blob'daki kopya değiştiyse indirip bellekteki veritabanını onunla değiştirir.
+async function refreshFromBlob(): Promise<void> {
+  const { pullDbFromBlob, pushDbToBlob } = await import('./blobStore.ts');
+  if (shared.__blobDirty && shared.__blobSynced) await flushToBlob();
+  try {
+    const res = await pullDbFromBlob(shared.__appDb && shared.__blobSynced ? shared.__blobEtag : null);
+    if (res.status === 'changed') {
+      shared.__appDb = await initDatabase(res.bytes);
+      shared.__blobEtag = res.etag;
+      shared.__blobDirty = false;
+    } else if (res.status === 'unchanged') {
+      shared.__blobEtag = res.etag;
+    } else {
+      // Blob'da henüz kopya yok: projeyle gelen data/app.db'den başlat ve buluta yükle
+      if (!shared.__appDb) shared.__appDb = await initDatabase();
+      const put = await pushDbToBlob(shared.__appDb.export(), null);
+      if (put.status === 'ok') shared.__blobEtag = put.etag;
+      console.log('Veritabanının ilk kopyası Vercel Blob\'a yüklendi.');
+    }
+    shared.__blobSynced = true;
+  } catch (err) {
+    console.error('Vercel Blob okunamadı; geçici yerel kopya kullanılıyor:', err);
+    if (!shared.__appDb) shared.__appDb = await initDatabase();
+  }
+  shared.__blobLastCheck = Date.now();
+}
+
+async function getDbFromBlobStore(): Promise<Database> {
+  if (shared.__blobPush) await shared.__blobPush.catch(() => {});
+  const fresh = shared.__appDb && shared.__blobSynced && Date.now() - (shared.__blobLastCheck || 0) < BLOB_REFRESH_INTERVAL_MS;
+  if (!fresh) {
+    if (!shared.__blobRefresh) {
+      shared.__blobRefresh = refreshFromBlob().finally(() => {
+        shared.__blobRefresh = null;
+      });
+    }
+    await shared.__blobRefresh;
+  }
+  db = shared.__appDb!;
+  return db;
+}
 
 export async function getDb(): Promise<Database> {
+  if (useBlobStore()) return getDbFromBlobStore();
   if (db) return db;
   if (shared.__appDb) {
     db = shared.__appDb;
