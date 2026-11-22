@@ -3,6 +3,10 @@ import { getDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session || session.role !== 'parent') {
+    return NextResponse.json({ success: false, error: 'Veli oturumu gerekli.' }, { status: 401 });
+  }
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
@@ -12,25 +16,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Öğrenci kimliği belirtilmedi' }, { status: 400 });
     }
 
-    const session = await getSession();
-    // Oturum açıksa session.userId, aksi halde 'parent_veli' veya 'parent_ayse'
-    const guardianUserId = session?.userId && session.role === 'parent' 
-      ? session.userId 
-      : 'parent_veli';
-    const isTeacher = session?.role === 'teacher';
+    const guardianUserId = session.userId;
 
     // 1. GÜVENLİK KONTROLÜ (Section 20.9):
     // Velinin bu öğrenciye aktif erişim yetkisi var mı?
     const authStmt = db.prepare(`
-      SELECT relationship_type, status 
-      FROM student_guardians 
-      WHERE (guardian_user_id = ? OR guardian_user_id = 'parent_veli') AND student_id = ? AND status = 'active'
+      SELECT relationship_type, status
+      FROM student_guardians
+      WHERE guardian_user_id = ? AND student_id = ? AND status = 'active'
     `);
     authStmt.bind([guardianUserId, studentId]);
     const isAuthorized = authStmt.step();
     authStmt.free();
 
-    if (!isAuthorized && !isTeacher) {
+    if (!isAuthorized) {
       return NextResponse.json({ 
         success: false, 
         error: 'Bu öğrencinin verilerini görüntüleme yetkiniz bulunmamaktadır (Yetkisiz Erişim Engellendi).' 
@@ -61,8 +60,8 @@ export async function GET(req: NextRequest) {
       SELECT s.id, s.grade, s.school, u.name, u.email 
       FROM students s
       JOIN users u ON s.user_id = u.id
-      WHERE s.id = '${studentId}'
-    `);
+      WHERE s.id = ?
+    `, [studentId]);
     const student = sRes.length > 0 ? {
       id: sRes[0].values[0][0],
       grade: sRes[0].values[0][1],
@@ -117,9 +116,9 @@ export async function GET(req: NextRequest) {
         SELECT p.*, t.name as topic_name
         FROM student_topic_performance p
         JOIN curriculum_topics t ON p.topic_id = t.id
-        WHERE p.student_id = '${studentId}'
+        WHERE p.student_id = ?
         ORDER BY t.sort_order ASC
-      `);
+      `, [studentId]);
       if (pRes.length > 0) {
         const cols = pRes[0].columns;
         for (const row of pRes[0].values) {
@@ -154,9 +153,9 @@ export async function GET(req: NextRequest) {
     if (permissions.show_assignments === 1) {
       const planRes = db.exec(`
         SELECT * FROM personalized_study_plans 
-        WHERE student_id = '${studentId}'
+        WHERE student_id = ?
         ORDER BY created_at DESC
-      `);
+      `, [studentId]);
       if (planRes.length > 0) {
         const cols = planRes[0].columns;
         for (const row of planRes[0].values) {
@@ -182,9 +181,9 @@ export async function GET(req: NextRequest) {
         SELECT gm.*, u.name as teacher_name 
         FROM guardian_messages gm
         JOIN users u ON gm.teacher_user_id = u.id
-        WHERE gm.student_id = '${studentId}' AND gm.guardian_user_id = '${guardianUserId}'
+        WHERE gm.student_id = ? AND gm.guardian_user_id = ?
         ORDER BY gm.created_at DESC
-      `);
+      `, [studentId, guardianUserId]);
       if (msgRes.length > 0) {
         const cols = msgRes[0].columns;
         for (const row of msgRes[0].values) {

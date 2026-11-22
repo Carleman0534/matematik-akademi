@@ -4,19 +4,36 @@ import { getSession } from '@/lib/auth';
 import { INITIAL_LGS_TOPICS } from '@/lib/ai/lgsCurriculum';
 
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ success: false, error: 'Oturum gerekli.' }, { status: 401 });
+
+  const requested = new URL(req.url).searchParams.get('studentId');
+  // Öğretmen istediği öğrenciyi seçebilir; öğrenci yalnızca kendi kaydını görür.
+  let studentId: string | null;
+  if (session.role === 'teacher') {
+    studentId = requested || null;
+  } else if (session.role === 'student') {
+    if (requested && requested !== session.studentId) {
+      return NextResponse.json({ success: false, error: 'Yalnızca kendi verilerinizi görebilirsiniz.' }, { status: 403 });
+    }
+    studentId = session.studentId;
+  } else {
+    return NextResponse.json({ success: false, error: 'Yetkisiz erişim' }, { status: 403 });
+  }
+  if (!studentId) {
+    return NextResponse.json({ success: false, error: 'Öğrenci kimliği belirtilmedi' }, { status: 400 });
+  }
+
   try {
     const db = await getDb();
-    const { searchParams } = new URL(req.url);
-    const session = await getSession();
-    const studentId = searchParams.get('studentId') || session?.studentId || 'student_muhammed_talha';
 
     // 1. Öğrenci bilgisi
     const sRes = db.exec(`
-      SELECT s.id, s.grade, s.school, u.name, u.email 
+      SELECT s.id, s.grade, s.school, u.name, u.email
       FROM students s
       JOIN users u ON s.user_id = u.id
-      WHERE s.id = '${studentId}'
-    `);
+      WHERE s.id = ?
+    `, [studentId]);
     const student = sRes.length > 0 ? {
       id: sRes[0].values[0][0],
       grade: sRes[0].values[0][1],
@@ -30,9 +47,9 @@ export async function GET(req: NextRequest) {
       SELECT p.*, t.name as topic_name, t.code as topic_code
       FROM student_topic_performance p
       JOIN curriculum_topics t ON p.topic_id = t.id
-      WHERE p.student_id = '${studentId}'
+      WHERE p.student_id = ?
       ORDER BY t.sort_order ASC
-    `);
+    `, [studentId]);
     const topicPerformance: any[] = [];
     if (pRes.length > 0) {
       const cols = pRes[0].columns;
@@ -68,9 +85,9 @@ export async function GET(req: NextRequest) {
       SELECT r.*, t.name as topic_name
       FROM learning_recommendations r
       JOIN curriculum_topics t ON r.topic_id = t.id
-      WHERE r.student_id = '${studentId}'
+      WHERE r.student_id = ?
       ORDER BY r.created_at DESC
-    `);
+    `, [studentId]);
     const recommendations: any[] = [];
     if (recRes.length > 0) {
       const cols = recRes[0].columns;
@@ -115,6 +132,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getSession();
+  if (!session || session.role !== 'teacher') {
+    return NextResponse.json({ success: false, error: 'Önerileri yalnızca öğretmen onaylayabilir.' }, { status: 403 });
+  }
   try {
     const body = await req.json();
     const { recommendationId, action } = body;

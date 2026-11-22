@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db/database';
+import { getSession } from '@/lib/auth';
 
 export async function GET() {
+  const session = await getSession();
+  if (!session || session.role !== 'teacher') {
+    return NextResponse.json({ error: 'Bu listeyi yalnızca öğretmen görebilir.' }, { status: 403 });
+  }
   try {
     const students: Record<string, unknown>[] = [];
     const seenIds = new Set<string>();

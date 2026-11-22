@@ -48,3 +48,6 @@ next-env.d.ts
 *.sqlite
 !data/app.db
 public/uploads/pdfs/*.pdf
+
+# scripts/set-passwords.js çıktısı (açık parolalar)
+data/yerel-parolalar.txt
