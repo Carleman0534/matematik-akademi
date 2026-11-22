@@ -75,7 +75,8 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
           fullName: user.name,
           role: user.role,
           isAdmin: user.role === 'teacher',
-          studentId
+          studentId,
+          remember
         }), {
           httpOnly: true,
           path: '/',

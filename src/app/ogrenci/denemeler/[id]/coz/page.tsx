@@ -206,6 +206,8 @@ export default function OgrenciSinavOdasiPage({
   });
   const [loadingExam, setLoadingExam] = useState(true);
   const [submitError, setSubmitError] = useState('');
+  // Oturum çerezi dolduysa gönderim 401 döner; cevaplar cihazda saklı kalır, yeni sekmede giriş yapılıp tekrar gönderilir
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [resultDetails, setResultDetails] = useState<Record<number, ResultDetail>>({});
   const [clientDoc, setClientDoc] = useState<any>(null);
 
@@ -349,6 +351,12 @@ export default function OgrenciSinavOdasiPage({
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        setSessionExpired(true);
+        setSubmitError('');
+        setSavingStatus('offline');
+        return;
+      }
       if (res.status === 409) {
         // Zaten tamamlanmış: kayıtlı sonucu göster
         const sess = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { cache: 'no-store' }).then(r => r.json()).catch(() => null);
@@ -364,6 +372,7 @@ export default function OgrenciSinavOdasiPage({
         setSavingStatus('offline');
         return;
       }
+      setSessionExpired(false);
       applyResult(data.result, data.details || []);
       setSavingStatus('saved');
       localStorage.removeItem(`exam_answers_${examId}`);
@@ -372,6 +381,31 @@ export default function OgrenciSinavOdasiPage({
       setSavingStatus('offline');
     }
   };
+
+  // Oturum nöbetçisi: sınav sürerken 4 dakikada bir ve sekmeye dönüldüğünde oturumu yoklar.
+  // (Bu istek aynı zamanda oturum çerezinin süresini uzatır; dolduysa öğrenci cevapları göndermeden önce uyarılır.)
+  useEffect(() => {
+    if (isSubmitted || isViewOnly || loadingExam) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const r = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { cache: 'no-store' });
+        if (cancelled) return;
+        if (r.status === 401) setSessionExpired(true);
+        else if (r.ok) setSessionExpired(false);
+      } catch {
+        // Ağ yoksa uyarı verme; gönderimde zaten hata gösterilir
+      }
+    };
+    const timer = setInterval(check, 4 * 60 * 1000);
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isSubmitted, isViewOnly, loadingExam, examId]);
 
   const handleAutoSubmit = () => {
     handleFinalSubmit();
@@ -506,6 +540,35 @@ export default function OgrenciSinavOdasiPage({
         </div>
       </div>
 
+      {sessionExpired && !isSubmitted && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-2xl text-sm text-amber-900 dark:text-amber-200 space-y-3">
+          <div className="flex items-start gap-2 font-semibold">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>Oturumunuz sona erdi, ama cevaplarınız kaybolmadı: bu cihazda saklı. Bu sayfayı kapatmayın.</span>
+          </div>
+          <ol className="list-decimal pl-6 text-xs space-y-1">
+            <li>Aşağıdaki düğmeyle <b>yeni bir sekmede</b> yeniden giriş yapın.</li>
+            <li>Giriş yaptıktan sonra bu sekmeye dönüp <b>Tekrar Gönder</b>&apos;e basın.</li>
+          </ol>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/giris"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Giriş yap (yeni sekme)
+            </a>
+            <button
+              type="button"
+              onClick={handleFinalSubmit}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Send className="w-3.5 h-3.5" /> Tekrar Gönder
+            </button>
+          </div>
+        </div>
+      )}
       {submitError && (
         <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl text-sm font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />

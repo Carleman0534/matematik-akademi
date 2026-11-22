@@ -11,8 +11,11 @@ export const dynamic = 'force-dynamic';
 // (öğretmen paneli, yanlış havuzu, konu başarısı) mevcut gönderme akışıyla işler.
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session || session.role !== 'student' || !session.studentId) {
-    return NextResponse.json({ success: false, error: 'Sınavı göndermek için öğrenci olarak giriş yapın.' }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Oturumunuz sona erdi; yeniden giriş yapın. Cevaplarınız cihazda saklı.' }, { status: 401 });
+  }
+  if (session.role !== 'student' || !session.studentId) {
+    return NextResponse.json({ success: false, error: 'Bu hesapla sınav gönderilemez; öğrenci hesabıyla giriş yapın (öğretmen hesabı sınavı gönderemez).' }, { status: 403 });
   }
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));

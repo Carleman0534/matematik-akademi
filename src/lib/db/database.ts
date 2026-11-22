@@ -1114,6 +1114,8 @@ async function initDatabase(initialBytes?: Uint8Array): Promise<Database> {
 // Next.js sayfaları ve API uç noktalarını aynı süreçte ayrı modül kopyalarında çalıştırabilir.
 // Her kopyanın kendi bellek içi veritabanı olursa biri diğerinin yazdığını görmez ve eski
 // kopyasını dosyaya geri yazabilir. Bağlantı bu yüzden süreç genelinde (globalThis) paylaşılır.
+type JournalEntry = { sql: string; params?: unknown };
+
 const shared = globalThis as unknown as {
   __appDb?: Database | null;
   __appDbInit?: Promise<Database> | null;
@@ -1124,7 +1126,9 @@ const shared = globalThis as unknown as {
   __blobDirty?: boolean;           // bellekte Blob'a henüz yazılmamış değişiklik var
   __blobFlushScheduled?: boolean;
   __blobRefresh?: Promise<void> | null;
-  __blobPush?: Promise<void> | null;
+  __blobLock?: Promise<unknown>;   // yükleme ve yenilemeyi sıraya sokar
+  __blobJournal?: JournalEntry[];  // Blob'a henüz yazılmamış değişiklik komutları (SQL + parametreler)
+  __blobHandle?: Database;
 };
 
 const BLOB_REFRESH_INTERVAL_MS = 1000;
@@ -1132,8 +1136,104 @@ function useBlobStore(): boolean {
   return IS_SERVERLESS && Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
+// ── Değişiklik günlüğü ────────────────────────────────────────────────────────────────────────
+// Veritabanı tek bir dosya olarak Blob'da durur. İki sunucu aynı anda yazarsa ikincisi çakışır.
+// Eskiden çakışmada "son yazan kazanır" diye başkasının değişikliği ezilirdi. Artık her örnek,
+// henüz buluta yazmadığı değişiklikleri (INSERT/UPDATE/DELETE...) bir günlükte tutar; çakışmada
+// buluttaki en son kopyayı alır, günlüğü onun üstüne yeniden uygular ve yeniden yazar.
+const WRITE_SQL = /^\s*(insert|update|delete|replace|create|alter|drop)\b/i;
+let journalDepth = 0; // iç içe çağrılarda (run → prepare → step) aynı komut iki kez yazılmasın
+
+function pendingJournal(): JournalEntry[] {
+  return (shared.__blobJournal ??= []);
+}
+function copyParams(p: unknown): unknown {
+  if (Array.isArray(p)) return [...p];
+  if (p && typeof p === 'object') return { ...(p as Record<string, unknown>) };
+  return p;
+}
+
+function instrument(d: Database): Database {
+  const tagged = d as unknown as { __journaled?: boolean };
+  if (tagged.__journaled) return d;
+  tagged.__journaled = true;
+
+  const rawRun = d.run.bind(d);
+  const rawExec = d.exec.bind(d);
+  const rawPrepare = d.prepare.bind(d);
+
+  d.run = ((sql: string, params?: any) => {
+    journalDepth++;
+    try { return rawRun(sql, params); } finally { journalDepth--; if (journalDepth === 0 && WRITE_SQL.test(sql)) pendingJournal().push({ sql, params: copyParams(params) }); }
+  }) as Database['run'];
+
+  d.exec = ((sql: string, params?: any) => {
+    journalDepth++;
+    try { return rawExec(sql, params); } finally { journalDepth--; if (journalDepth === 0 && WRITE_SQL.test(sql)) pendingJournal().push({ sql, params: copyParams(params) }); }
+  }) as Database['exec'];
+
+  d.prepare = ((sql: string, params?: any) => {
+    const st = rawPrepare(sql, params);
+    if (!WRITE_SQL.test(sql)) return st;
+    // Hazırlanmış yazma komutları: her step() bağlı parametrelerle bir değişikliktir
+    let bound: unknown = copyParams(params);
+    const rawBind = st.bind.bind(st);
+    const rawStep = st.step.bind(st);
+    st.bind = ((p?: any) => { bound = copyParams(p); return rawBind(p); }) as typeof st.bind;
+    st.step = (() => {
+      const r = rawStep();
+      if (journalDepth === 0) pendingJournal().push({ sql, params: bound });
+      return r;
+    }) as typeof st.step;
+    return st;
+  }) as Database['prepare'];
+
+  return d;
+}
+
+function replayJournal(target: Database, entries: JournalEntry[]): void {
+  for (const e of entries) {
+    try {
+      target.run(e.sql, e.params as any);
+    } catch (err) {
+      console.warn('Çakışma sonrası yeniden uygulanamayan değişiklik atlandı:', String(err).slice(0, 200));
+    }
+  }
+}
+
+// Bağlantıyı dışarı veren sabit bir "tutamaç": altındaki veritabanı nesnesi yenilenebilir (uzak kopya
+// alınınca), ama istek içinde `const db = await getDb()` ile tutulan referans geçerli kalır.
+function blobHandle(): Database {
+  if (!shared.__blobHandle) {
+    shared.__blobHandle = new Proxy({} as Database, {
+      get(_t, prop) {
+        const real = shared.__appDb as unknown as Record<string | symbol, unknown>;
+        const v = real[prop];
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(real) : v;
+      },
+    });
+  }
+  return shared.__blobHandle;
+}
+
+function withBlobLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = shared.__blobLock ?? Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  shared.__blobLock = next.catch(() => {});
+  return next;
+}
+
+// Uzak kopyayı benimser: yeni veritabanı açılır, bu örneğin henüz yazılmamış değişiklikleri üstüne uygulanır.
+async function adoptRemote(bytes: Uint8Array, etag: string): Promise<void> {
+  const fresh = await initDatabase(bytes);
+  replayJournal(fresh, pendingJournal());
+  shared.__appDb = instrument(fresh);
+  shared.__blobEtag = etag;
+}
+
 export function saveDb(database?: Database): void {
-  const d = database || db || shared.__appDb;
+  const blob = useBlobStore();
+  const d = blob ? shared.__appDb : (database || db || shared.__appDb);
   if (!d) return;
   try {
     const data = d.export();
@@ -1142,7 +1242,7 @@ export function saveDb(database?: Database): void {
   } catch (err) {
     console.warn('Could not save database file:', err);
   }
-  if (useBlobStore() && d === shared.__appDb) {
+  if (blob) {
     shared.__blobDirty = true;
     void scheduleBlobFlush();
   }
@@ -1167,67 +1267,80 @@ async function scheduleBlobFlush(): Promise<void> {
 }
 
 async function flushToBlob(): Promise<void> {
-  if (shared.__blobPush) await shared.__blobPush.catch(() => {});
-  if (!shared.__blobDirty || !shared.__appDb) return;
-  if (!shared.__blobSynced) {
-    // Blob'daki asıl kopya hiç okunamadıysa yerel (eski olabilecek) kopyayla üzerine yazma
-    console.error('Veritabanı Blob ile eşitlenmediği için değişiklik buluta yazılmadı.');
-    return;
-  }
-  shared.__blobPush = (async () => {
-    const { pushDbToBlob } = await import('./blobStore.ts');
-    shared.__blobDirty = false;
-    const bytes = shared.__appDb!.export();
-    let res = await pushDbToBlob(bytes, shared.__blobEtag);
-    if (res.status === 'conflict') {
-      // Arada başka bir sunucu örneği de yazmış. Bu örneğin son hali kaydedilir (son yazan kazanır).
-      console.warn('Blob yazma çakışması: başka bir örnek de yazmış; bu örneğin son hali kaydediliyor.');
-      res = await pushDbToBlob(bytes, null);
+  await withBlobLock(async () => {
+    if (!shared.__appDb || !(shared.__blobDirty || pendingJournal().length > 0)) return;
+    if (!shared.__blobSynced) {
+      // Blob'daki asıl kopya hiç okunamadıysa yerel (eski olabilecek) kopyayla üzerine yazma
+      console.error('Veritabanı Blob ile eşitlenmediği için değişiklik buluta yazılmadı.');
+      return;
     }
-    if (res.status === 'ok') {
-      shared.__blobEtag = res.etag;
-      shared.__blobLastCheck = Date.now();
+    const { pushDbToBlob, pullDbFromBlob } = await import('./blobStore.ts');
+
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      const pending = pendingJournal().length;
+      shared.__blobDirty = false;
+      const bytes = shared.__appDb!.export();
+      let res;
+      try {
+        res = await pushDbToBlob(bytes, shared.__blobEtag);
+      } catch (err) {
+        shared.__blobDirty = true;
+        console.error('Veritabanı Blob\'a yazılamadı:', err);
+        return;
+      }
+      if (res.status === 'ok') {
+        pendingJournal().splice(0, pending);
+        shared.__blobEtag = res.etag;
+        shared.__blobLastCheck = Date.now();
+        if (pendingJournal().length > 0) shared.__blobDirty = true; // yükleme sürerken gelen yeni değişiklikler
+        return;
+      }
+
+      // Çakışma: başka bir örnek bu arada yazmış. Onunkini ezmeden, en son kopyayı alıp değişikliklerimizi üstüne uygula.
+      console.warn(`Blob yazma çakışması (deneme ${attempt}): uzak kopya alınıp ${pendingJournal().length} değişiklik yeniden uygulanıyor.`);
+      try {
+        const remote = await pullDbFromBlob(null);
+        if (remote.status === 'changed') await adoptRemote(remote.bytes, remote.etag);
+        else shared.__blobEtag = null; // uzak kopya yok olmuş: koşulsuz yaz
+      } catch (err) {
+        shared.__blobDirty = true;
+        console.error('Çakışma sonrası uzak kopya alınamadı:', err);
+        return;
+      }
     }
-  })()
-    .catch((err) => {
-      shared.__blobDirty = true;
-      console.error('Veritabanı Blob\'a yazılamadı:', err);
-    })
-    .finally(() => {
-      shared.__blobPush = null;
-    });
-  await shared.__blobPush;
+    shared.__blobDirty = true;
+    console.error('Blob çakışması 6 denemede çözülemedi; değişiklikler sonraki yazmada yeniden denenecek.');
+  });
 }
 
-// Blob'daki kopya değiştiyse indirip bellekteki veritabanını onunla değiştirir.
+// Blob'daki kopya değiştiyse indirip bellekteki veritabanını onunla değiştirir (yazılmamış değişiklikler korunur).
 async function refreshFromBlob(): Promise<void> {
-  const { pullDbFromBlob, pushDbToBlob } = await import('./blobStore.ts');
-  if (shared.__blobDirty && shared.__blobSynced) await flushToBlob();
-  try {
-    const res = await pullDbFromBlob(shared.__appDb && shared.__blobSynced ? shared.__blobEtag : null);
-    if (res.status === 'changed') {
-      shared.__appDb = await initDatabase(res.bytes);
-      shared.__blobEtag = res.etag;
-      shared.__blobDirty = false;
-    } else if (res.status === 'unchanged') {
-      shared.__blobEtag = res.etag;
-    } else {
-      // Blob'da henüz kopya yok: projeyle gelen data/app.db'den başlat ve buluta yükle
-      if (!shared.__appDb) shared.__appDb = await initDatabase();
-      const put = await pushDbToBlob(shared.__appDb.export(), null);
-      if (put.status === 'ok') shared.__blobEtag = put.etag;
-      console.log('Veritabanının ilk kopyası Vercel Blob\'a yüklendi.');
+  await flushToBlob();
+  await withBlobLock(async () => {
+    const { pullDbFromBlob, pushDbToBlob } = await import('./blobStore.ts');
+    try {
+      const res = await pullDbFromBlob(shared.__appDb && shared.__blobSynced ? shared.__blobEtag : null);
+      if (res.status === 'changed') {
+        await adoptRemote(res.bytes, res.etag);
+      } else if (res.status === 'unchanged') {
+        shared.__blobEtag = res.etag;
+      } else {
+        // Blob'da henüz kopya yok: projeyle gelen data/app.db'den başlat ve buluta yükle
+        if (!shared.__appDb) shared.__appDb = instrument(await initDatabase());
+        const put = await pushDbToBlob(shared.__appDb.export(), null);
+        if (put.status === 'ok') shared.__blobEtag = put.etag;
+        console.log('Veritabanının ilk kopyası Vercel Blob\'a yüklendi.');
+      }
+      shared.__blobSynced = true;
+    } catch (err) {
+      console.error('Vercel Blob okunamadı; geçici yerel kopya kullanılıyor:', err);
+      if (!shared.__appDb) shared.__appDb = instrument(await initDatabase());
     }
-    shared.__blobSynced = true;
-  } catch (err) {
-    console.error('Vercel Blob okunamadı; geçici yerel kopya kullanılıyor:', err);
-    if (!shared.__appDb) shared.__appDb = await initDatabase();
-  }
-  shared.__blobLastCheck = Date.now();
+    shared.__blobLastCheck = Date.now();
+  });
 }
 
 async function getDbFromBlobStore(): Promise<Database> {
-  if (shared.__blobPush) await shared.__blobPush.catch(() => {});
   const fresh = shared.__appDb && shared.__blobSynced && Date.now() - (shared.__blobLastCheck || 0) < BLOB_REFRESH_INTERVAL_MS;
   if (!fresh) {
     if (!shared.__blobRefresh) {
@@ -1237,8 +1350,7 @@ async function getDbFromBlobStore(): Promise<Database> {
     }
     await shared.__blobRefresh;
   }
-  db = shared.__appDb!;
-  return db;
+  return blobHandle();
 }
 
 export async function getDb(): Promise<Database> {
