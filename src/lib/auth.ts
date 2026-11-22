@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase/server';
 import { isConfigured, isLocalMode } from '@/lib/env';
+import { verifySession } from '@/lib/sessionCookie';
 
 export interface SessionInfo {
   userId: string;
@@ -19,23 +20,34 @@ export const getSession = cache(async (): Promise<SessionInfo | null> => {
   try {
     const store = await cookies();
     const raw = store.get('local_session')?.value;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.userId) {
-        // Ad, girişte çereze yazılır; sonradan değiştirildiyse güncelini veritabanından al
-        let fullName = String(parsed.fullName || '');
-        try {
-          const { getDb } = await import('@/lib/db/database');
-          const db = await getDb();
-          const r = db.exec('SELECT name FROM users WHERE id = ? LIMIT 1', [String(parsed.userId)]);
-          if (r.length && r[0].values.length && r[0].values[0][0]) fullName = String(r[0].values[0][0]);
-        } catch {}
+    // Çerez imzalıdır: imzasız, değiştirilmiş ya da eski biçimdeki çerezler geçersiz sayılır
+    const parsed = raw ? await verifySession(raw) : null;
+    if (parsed) {
+      // Ad ve rol veritabanından yenilenir: silinen hesabın oturumu geçersiz olur, rol değişikliği hemen etkili olur
+      let fullName = parsed.fullName;
+      let role: SessionInfo['role'] = parsed.role;
+      let accountExists = true;
+      try {
+        const { getDb } = await import('@/lib/db/database');
+        const db = await getDb();
+        const r = db.exec('SELECT name, role FROM users WHERE id = ? LIMIT 1', [parsed.userId]);
+        if (r.length && r[0].values.length) {
+          if (r[0].values[0][0]) fullName = String(r[0].values[0][0]);
+          const dbRole = String(r[0].values[0][1]);
+          if (dbRole === 'teacher' || dbRole === 'student' || dbRole === 'parent') role = dbRole;
+        } else {
+          accountExists = false;
+        }
+      } catch {
+        // Veritabanı o an okunamadıysa imzalı çerezdeki bilgiye güvenilir
+      }
+      if (accountExists) {
         return {
           userId: parsed.userId,
           fullName,
-          role: parsed.role || 'teacher',
-          isAdmin: parsed.isAdmin ?? (parsed.role === 'teacher'),
-          studentId: parsed.studentId ?? null,
+          role,
+          isAdmin: role === 'teacher' && parsed.isAdmin,
+          studentId: role === 'student' ? parsed.studentId : null,
         };
       }
     }

@@ -6,6 +6,7 @@ import { loginIdToEmail } from '@/lib/usernames';
 import { STUDENT_EMAIL_DOMAIN, isLocalMode } from '@/lib/env';
 import { getDb } from '@/lib/db/database';
 import bcrypt from 'bcryptjs';
+import { signSession } from '@/lib/sessionCookie';
 
 export interface LoginState { error?: string }
 
@@ -70,7 +71,8 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
             : user.id;
         }
 
-        store.set('local_session', JSON.stringify({
+        // Çerez HMAC ile imzalıdır; sunucudaki gizli anahtar olmadan sahte oturum üretilemez
+        store.set('local_session', await signSession({
           userId: user.id,
           fullName: user.name,
           role: user.role,
