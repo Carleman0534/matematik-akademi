@@ -31,6 +31,7 @@ export interface StudentProfileData {
     correct_count: number | null;
     wrong_count: number | null;
     blank_count: number | null;
+    total_duration_seconds?: number | null;
     is_study_plan?: boolean;
   }>;
   assignedHomeworks: Array<{
@@ -130,32 +131,17 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
       student = {};
       cols.forEach((c, idx) => { student[c] = sRes[0].values[0][idx]; });
     } else {
-      // Bilinen öğrenci ID eşleştirmeleri
-      if (studentId === 'student_muhammed_talha') {
-        student = {
-          id: 'student_muhammed_talha',
-          full_name: 'Muhammed Talha',
-          grade_level: 8,
-          school_name: 'Atatürk Ortaokulu',
-          is_active: true,
-          notes: '',
-          email: 'muhammedtalha@matematikakademi.internal',
-          username: 'muhammedtalha',
-          parent_name: ''
-        };
-      } else {
-        student = {
-          id: studentId,
-          full_name: 'Öğrenci',
-          grade_level: 8,
-          school_name: '',
-          is_active: true,
-          notes: '',
-          email: '',
-          username: '',
-          parent_name: ''
-        };
-      }
+      student = {
+        id: studentId,
+        full_name: 'Öğrenci',
+        grade_level: 8,
+        school_name: '',
+        is_active: true,
+        notes: '',
+        email: '',
+        username: '',
+        parent_name: ''
+      };
     }
   }
 
@@ -183,17 +169,14 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
 
   // 2. Atanmış Deneme ve Sınavlar
   const assignedExams: any[] = [];
-  const studentMatchClause = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
-    ? `(ea.student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR ea.student_id = 'student_muhammed_talha')`
-    : `ea.student_id = '${studentId}'`;
-
   try {
+    // PDF denemeleri exams'te değil pdf_documents'ta durur; başlık ve soru sayısı oradan da okunur.
     const eaRes = db.exec(`
-      SELECT 
+      SELECT
         ea.id as assignment_id,
         ea.exam_id,
-        COALESCE(e.title, 'LGS Prova Denemesi') as title,
-        COALESCE(e.question_count, 20) as question_count,
+        COALESCE(e.title, p.title, 'Deneme') as title,
+        COALESCE(p.question_count, e.question_count, er.correct_count + er.wrong_count + er.blank_count, 0) as question_count,
         COALESCE(ea.duration_min, e.duration_minutes, 40) as duration_min,
         ea.assigned_at,
         ea.due_at,
@@ -201,15 +184,19 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
         er.correct_count,
         er.wrong_count,
         er.blank_count,
+        er.total_duration_seconds,
+        es.started_at,
         COALESCE(er.completed_at, es.submitted_at) as submitted_at,
         es.id as session_id
       FROM exam_assignments ea
       LEFT JOIN exams e ON ea.exam_id = e.id
+      LEFT JOIN pdf_documents p ON p.id = ea.exam_id
       LEFT JOIN exam_sessions es ON es.exam_id = ea.exam_id AND (es.student_id = ea.student_id)
       LEFT JOIN exam_results er ON er.exam_id = ea.exam_id AND (er.student_id = ea.student_id)
-      WHERE ${studentMatchClause}
+      WHERE ea.student_id = ?
+      GROUP BY ea.id
       ORDER BY ea.assigned_at DESC
-    `);
+    `, [studentId]);
     if (eaRes.length > 0) {
       const cols = eaRes[0].columns;
       for (const row of eaRes[0].values) {
@@ -217,7 +204,7 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
         cols.forEach((c, idx) => { obj[c] = row[idx]; });
         assignedExams.push({
           ...obj,
-          status: (obj.submitted_at || obj.net_score !== null) ? 'completed' : 'pending'
+          status: (obj.submitted_at || obj.net_score !== null) ? 'completed' : obj.started_at ? 'active' : 'pending'
         });
       }
     }
@@ -225,31 +212,30 @@ export async function getStudentProfileHubData(studentId: string): Promise<Stude
 
   // B. exam_results tablosundaki doğrudan çözülen tüm sınavları da listeye ekle
   try {
-    const erMatchClause = (studentId === 'f9c13771-f97f-42ea-aa59-e35098bec387' || studentId === 'student_muhammed_talha')
-      ? `(er.student_id = 'f9c13771-f97f-42ea-aa59-e35098bec387' OR er.student_id = 'student_muhammed_talha')`
-      : `er.student_id = '${studentId}'`;
-
     const erRes = db.exec(`
-      SELECT 
+      SELECT
         er.id as assignment_id,
         er.exam_id,
-        COALESCE(e.title, 'LGS Çözülen Deneme') as title,
-        COALESCE(e.question_count, er.correct_count + er.wrong_count + er.blank_count, 20) as question_count,
-        COALESCE(e.duration_minutes, 40) as duration_min,
+        COALESCE(e.title, p.title, 'Deneme') as title,
+        COALESCE(p.question_count, e.question_count, er.correct_count + er.wrong_count + er.blank_count, 0) as question_count,
+        COALESCE(e.duration_minutes, 0) as duration_min,
         COALESCE(er.created_at, datetime('now')) as assigned_at,
         COALESCE(er.completed_at, er.created_at) as due_at,
         er.net_score,
         er.correct_count,
         er.wrong_count,
         er.blank_count,
+        er.total_duration_seconds,
         COALESCE(er.completed_at, er.created_at) as submitted_at,
         es.id as session_id
       FROM exam_results er
       LEFT JOIN exams e ON er.exam_id = e.id
+      LEFT JOIN pdf_documents p ON p.id = er.exam_id
       LEFT JOIN exam_sessions es ON es.exam_id = er.exam_id AND (es.student_id = er.student_id)
-      WHERE ${erMatchClause}
+      WHERE er.student_id = ?
+      GROUP BY er.id
       ORDER BY er.created_at DESC
-    `);
+    `, [studentId]);
     if (erRes.length > 0) {
       const cols = erRes[0].columns;
       for (const row of erRes[0].values) {

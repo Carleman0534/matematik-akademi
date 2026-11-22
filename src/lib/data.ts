@@ -143,22 +143,6 @@ export async function getStudent(sb: SupabaseClient, id: string): Promise<Studen
     }
   } catch {}
 
-  // Özel durum: Muhammed Talha
-  if (id === 'student_muhammed_talha') {
-    return {
-      id: 'student_muhammed_talha',
-      profile_id: 'student_muhammed_talha',
-      full_name: 'Muhammed Talha',
-      grade_level: 8,
-      school_name: 'Atatürk Ortaokulu',
-      is_active: true,
-      notes: '8. Sınıf LGS Öğrencisi. Düzenli çalışma takibi yapılıyor.',
-      created_at: new Date().toISOString(),
-      class_id: null,
-      teacher_id: '170c1e8f-52b4-440e-b605-ec974fa1d56b'
-    } as StudentRow;
-  }
-
   return null;
 }
 

@@ -56,9 +56,6 @@ export default function RaporlarPage() {
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center">
                 <BarChart3 className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
-                OnlineExamMaker Modeli
-              </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               1. Toplu Deneme Analizleri & Sıralama
@@ -88,9 +85,6 @@ export default function RaporlarPage() {
               <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950 text-teal-600 flex items-center justify-center">
                 <Map className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
-                Pedagogy Suite Modeli
-              </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               2. Konu Bazlı Eksiklik Isı Haritası
@@ -101,7 +95,6 @@ export default function RaporlarPage() {
             <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
               <div>✓ Beceriler vs. Öğrenci Yetkinlik Isı Haritası</div>
               <div>✓ Sınıf Konu Başarı Ortalaması çubukları</div>
-              <div>✓ Tahmini YKS/LGS Gelişim Yörüngesi</div>
             </div>
           </div>
 
@@ -120,20 +113,17 @@ export default function RaporlarPage() {
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                Student Progress Modeli
-              </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               3. Gelişim & Seri Karşılaştırma
             </h2>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Bir öğrencinin veya tüm sınıfın denemeler arasındaki net değişimlerini delta rozetleriyle (+2.1%, +0.2) kıyaslayın.
+              Bir öğrencinin denemeler arasındaki net değişimini bir önceki denemeye göre karşılaştırın.
             </p>
             <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-              <div>✓ Delta değişim rozetleri (+1.8% Başarı)</div>
-              <div>✓ Güçlü Konular (Key Strengths) listesi</div>
-              <div>✓ Acil Telafi Gereken Konular (Areas for Improvement)</div>
+              <div>✓ Denemeden denemeye net farkı</div>
+              <div>✓ Güçlü konular listesi</div>
+              <div>✓ Telafi gereken konular</div>
             </div>
           </div>
 
@@ -152,9 +142,6 @@ export default function RaporlarPage() {
               <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
                 <Award className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                Classting Kore Modeli
-              </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               4. Öğrenme Kanıtı & Kalıcılık Dağılımı

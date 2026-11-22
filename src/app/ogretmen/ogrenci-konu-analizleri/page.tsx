@@ -8,7 +8,7 @@ import {
 
 export default function OgrenciKonuAnalizleriPage() {
   const [students, setStudents] = useState<any[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('student_muhammed_talha');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -88,7 +88,7 @@ export default function OgrenciKonuAnalizleriPage() {
             className="rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur focus:bg-white focus:text-slate-900 focus:outline-none"
           >
             {students.map(s => (
-              <option key={s.id} value={s.id} className="text-slate-900">{s.name} ({s.grade}. Sınıf)</option>
+              <option key={s.id} value={s.id} className="text-slate-900">{s.full_name || s.name} ({s.grade_level || s.grade || 8}. Sınıf)</option>
             ))}
           </select>
         </div>
@@ -99,35 +99,35 @@ export default function OgrenciKonuAnalizleriPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-bold text-slate-500">Genel Matematik Başarısı</p>
           <p className="mt-1 text-2xl font-black text-indigo-600">
-            %{analyticsData?.summary?.avgMastery || 60}
+            {analyticsData?.summary?.totalSolved ? `%${analyticsData.summary.avgMastery ?? 0}` : '—'}
           </p>
-          <p className="mt-0.5 text-xs text-slate-400">12 ana konu ortalaması</p>
+          <p className="mt-0.5 text-xs text-slate-400">{analyticsData?.summary?.totalSolved ? 'çalışılan konuların ortalaması' : 'henüz veri yok'}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-bold text-slate-500">Toplam Çözülen Soru</p>
           <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
-            {analyticsData?.summary?.totalSolved || 80}
+            {analyticsData?.summary?.totalSolved ?? 0}
           </p>
           <p className="mt-0.5 text-xs text-emerald-600">
-            {analyticsData?.summary?.totalCorrect || 50} Doğru • {analyticsData?.summary?.totalWrong || 25} Yanlış
+            {analyticsData?.summary?.totalCorrect ?? 0} Doğru • {analyticsData?.summary?.totalWrong ?? 0} Yanlış
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-bold text-slate-500">Öncelikli Eksik Konu</p>
           <p className="mt-1 text-2xl font-black text-rose-600">
-            {analyticsData?.summary?.criticalWeakCount || 2} Konu
+            {analyticsData?.summary?.criticalWeakCount ?? 0} Konu
           </p>
-          <p className="mt-0.5 text-xs text-rose-500 font-semibold">Acil hedefli çalışma gerekli</p>
+          <p className="mt-0.5 text-xs text-rose-500 font-semibold">hedefli çalışma gereken</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-bold text-slate-500">Güçlü / Pekişmiş Konu</p>
           <p className="mt-1 text-2xl font-black text-emerald-600">
-            {analyticsData?.summary?.masteredCount || 1} Konu
+            {analyticsData?.summary?.masteredCount ?? 0} Konu
           </p>
-          <p className="mt-0.5 text-xs text-emerald-600 font-semibold">İstikrarlı yüksek net</p>
+          <p className="mt-0.5 text-xs text-emerald-600 font-semibold">pekişmiş konu</p>
         </div>
       </div>
 

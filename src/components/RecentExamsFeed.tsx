@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
   CheckCircle2, XCircle, Clock, Award, 
@@ -26,60 +26,15 @@ interface Props {
 }
 
 export function RecentExamsFeed({ initialExams }: Props) {
-  const [exams, setExams] = useState<ExamFeedItem[]>(initialExams);
+  // Yalnızca sunucudaki gerçek sonuçlar gösterilir (tarayıcı belleğindeki eski/örnek kayıtlar karıştırılmaz)
+  const exams = initialExams;
   const [filterStudent, setFilterStudent] = useState<string>('all');
+  const studentsInFeed = Array.from(new Map(exams.map(e => [e.studentId, e.studentName])).entries());
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Tarayıcı hafızasındaki (localStorage) en son çözülen denemeleri de birleştir
-    try {
-      const raw = localStorage.getItem('student_completed_exams');
-      if (raw) {
-        const localList = JSON.parse(raw);
-        if (Array.isArray(localList) && localList.length > 0) {
-          const mappedLocal: ExamFeedItem[] = localList.map((l: any, idx: number) => ({
-            id: l.id || `local_${l.examId}_${idx}`,
-            examId: l.examId,
-            examTitle: l.title || 'LGS Matematik Denemesi',
-            studentId: l.studentId || 'student_muhammed_talha',
-            studentName: l.studentName || (l.studentId?.includes('talha') ? 'Muhammed Talha' : 'Öğrenci'),
-            correctCount: Number(l.correctCount) || 0,
-            wrongCount: Number(l.wrongCount) || 0,
-            blankCount: Number(l.blankCount) || 0,
-            netScore: Number(l.netScore) || 0,
-            totalDurationSeconds: l.durationSeconds || 1200,
-            completedAt: l.completedAt || new Date().toISOString()
-          }));
-
-          setExams(prev => {
-            const map = new Map<string, ExamFeedItem>();
-            // Önce yerel hafızadakileri ekle
-            mappedLocal.forEach(item => map.set(`${item.examId}_${item.studentId}`, item));
-            // Sonra sunucudan gelenleri ekle
-            prev.forEach(item => {
-              const k = `${item.examId}_${item.studentId}`;
-              if (!map.has(k)) map.set(k, item);
-            });
-            return Array.from(map.values()).sort((a, b) => 
-              new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-            );
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('RecentExamsFeed local sync error:', e);
-    }
-  }, []);
-
-  const filtered = exams.filter(e => {
-    if (filterStudent === 'all') return true;
-    return e.studentId.toLowerCase().includes(filterStudent.toLowerCase()) || 
-           e.studentName.toLowerCase().includes(filterStudent.toLowerCase());
-  });
+  const filtered = exams.filter(e => filterStudent === 'all' || e.studentId === filterStudent);
 
   const formatDuration = (secs?: number) => {
-    if (!secs) return '20 dk';
+    if (!secs) return '—';
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m} dk ${s > 0 ? `${s} sn` : ''}`;
@@ -133,17 +88,20 @@ export function RecentExamsFeed({ initialExams }: Props) {
           >
             Tüm Öğrenciler ({exams.length})
           </button>
-          <button
-            type="button"
-            onClick={() => setFilterStudent('talha')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
-              filterStudent === 'talha'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-            }`}
-          >
-            <span>⭐ Muhammed Talha</span>
-          </button>
+          {studentsInFeed.length > 1 && studentsInFeed.map(([sid, sname]) => (
+            <button
+              key={sid}
+              type="button"
+              onClick={() => setFilterStudent(sid)}
+              className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                filterStudent === sid
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              {sname}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -151,7 +109,7 @@ export function RecentExamsFeed({ initialExams }: Props) {
         <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
           <FileText className="w-8 h-8 text-slate-400 mx-auto" />
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            {filterStudent === 'talha' ? 'Muhammed Talha için henüz çözülmüş deneme bulunmuyor.' : 'Henüz tamamlanan bir deneme sınavı bulunmuyor.'}
+            Henüz tamamlanan bir deneme sınavı bulunmuyor.
           </p>
           <p className="text-xs text-slate-500">
             Öğrenci kendi profilinden bir deneme veya çalışma çözdüğünde burada net puanı ve yanlışlarıyla birlikte otomatik olarak listelenir.
@@ -173,9 +131,8 @@ export function RecentExamsFeed({ initialExams }: Props) {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filtered.map((item, idx) => {
-                const totalQ = item.correctCount + item.wrongCount + item.blankCount || 20;
+                const totalQ = item.correctCount + item.wrongCount + item.blankCount;
                 const accuracy = totalQ > 0 ? Math.round((item.correctCount / totalQ) * 100) : 0;
-                const isTalha = item.studentId.includes('talha') || item.studentName.toLowerCase().includes('talha');
 
                 return (
                   <tr key={item.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-850/50 transition">
@@ -184,11 +141,7 @@ export function RecentExamsFeed({ initialExams }: Props) {
                         href={`/ogretmen/ogrenciler/${item.studentId}?tab=exams`}
                         className="font-bold text-slate-900 dark:text-white hover:text-indigo-600 flex items-center gap-1.5"
                       >
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
-                          isTalha 
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' 
-                            : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
-                        }`}>
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                           {item.studentName.charAt(0)}
                         </span>
                         <span>{item.studentName}</span>
@@ -200,7 +153,7 @@ export function RecentExamsFeed({ initialExams }: Props) {
                         {item.examTitle}
                       </div>
                       <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <span>LGS Formatı</span>
+                        <span>{totalQ} soru</span>
                         <span>·</span>
                         <span className={accuracy >= 70 ? 'text-emerald-600 font-bold' : accuracy >= 50 ? 'text-amber-600 font-bold' : 'text-rose-600 font-bold'}>
                           %{accuracy} Başarı

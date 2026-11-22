@@ -48,9 +48,13 @@ export default function HazirbulunuslukPage() {
     fetch('/api/students')
       .then(r => r.json())
       .then(d => {
-        if (d && d.length > 0) {
-          setStudents(d);
-          setSelectedStudentId(d[0].id);
+        // API { students: [...] } döner; alanlar full_name ile gelir
+        const list = (Array.isArray(d) ? d : d?.students || []).map((s: any) => ({ ...s, name: s.name || s.full_name || 'Öğrenci' }));
+        if (list.length > 0) {
+          setStudents(list);
+          setSelectedStudentId(list[0].id);
+        } else {
+          setLoading(false);
         }
       })
       .catch(console.error);
@@ -129,7 +133,7 @@ export default function HazirbulunuslukPage() {
             className="input max-w-xs font-semibold"
           >
             {students.map(s => (
-              <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>

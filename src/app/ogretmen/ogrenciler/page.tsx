@@ -33,8 +33,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           st.school as school_name,
           (st.status = 'active') as is_active,
           st.created_at,
-          u.name as username,
-          (CAST(COALESCE(st.grade, 8) AS TEXT) || '-A') as class_name
+          CASE WHEN instr(u.email, '@') > 0 THEN substr(u.email, 1, instr(u.email, '@') - 1) ELSE '' END as username
         FROM students st
         JOIN users u ON u.id = st.user_id
         ORDER BY u.name ASC
@@ -53,7 +52,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             created_at: String(obj.created_at || new Date().toISOString()),
             profile: { username: String(obj.username || '') },
             teacher: null,
-            cls: { name: String(obj.class_name || '8-A') }
+            cls: null
           };
         });
       }
@@ -62,21 +61,6 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     }
   }
 
-  // Muhammed Talha'nın listede yer almasını garanti et
-  const hasTalha = students.some(s => s.full_name.toLowerCase().includes('talha') || s.id === 'student_muhammed_talha');
-  if (!hasTalha) {
-    students.unshift({
-      id: 'student_muhammed_talha',
-      full_name: 'Muhammed Talha',
-      grade_level: 8,
-      school_name: 'Atatürk Ortaokulu',
-      is_active: true,
-      created_at: new Date().toISOString(),
-      profile: { username: 'muhammedtalha' },
-      teacher: null,
-      cls: { name: '8-A LGS' }
-    });
-  }
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">

@@ -126,11 +126,9 @@ export default function DenemeOlusturPage() {
   const [durationMin, setDurationMin] = useState<number>(40);
 
   // Öğrenci Seçimi
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['student_muhammed_talha']);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState<string>('');
-  const [students, setStudents] = useState<any[]>([
-    { id: 'student_muhammed_talha', full_name: 'Muhammed Talha', grade_level: 8, class_name: '8-A LGS', school_name: 'Atatürk Ortaokulu', username: 'muhammedtalha' },
-  ]);
+  const [students, setStudents] = useState<any[]>([]);
 
   // 2. Derleme Durumu
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
@@ -150,7 +148,7 @@ export default function DenemeOlusturPage() {
   // 4. Şekilli Soru, Optik Okuyucu & WhatsApp Durumları
   const [visualRatio, setVisualRatio] = useState<number>(50); // %0 Metin, %25, %50, %75, %100 Tamamı Şekilli
   const [showOpticModal, setShowOpticModal] = useState<boolean>(false);
-  const [opticStudentId, setOpticStudentId] = useState<string>('student_muhammed_talha');
+  const [opticStudentId, setOpticStudentId] = useState<string>('');
   const [opticAnswers, setOpticAnswers] = useState<Record<number, string>>({});
   const [opticInputString, setOpticInputString] = useState<string>('');
   const [opticResult, setOpticResult] = useState<any>(null);
@@ -376,20 +374,9 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
             id: String(s.id),
             full_name: s.full_name || s.name || s.user_name || 'Öğrenci',
             grade_level: s.grade_level || s.grade || 8,
-            class_name: s.class_name || (s.grade_level ? `${s.grade_level}-A` : '8-A'),
+            class_name: s.class_name || `${s.grade_level || s.grade || 8}. sınıf`,
             school_name: s.school_name || s.school || ''
           }));
-
-          const hasTalha = normalized.some(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
-          if (!hasTalha) {
-            normalized.push({
-              id: 'student_muhammed_talha',
-              full_name: 'Muhammed Talha',
-              grade_level: 8,
-              class_name: '8-A LGS',
-              school_name: 'Atatürk Ortaokulu'
-            });
-          }
           setStudents(normalized);
         }
       } catch (e) {
@@ -488,11 +475,6 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
 
   const selectAllStudents = () => {
     setSelectedStudentIds(students.map(s => s.id));
-  };
-
-  const selectOnlyTalha = () => {
-    const talha = students.find(s => s.id === 'student_muhammed_talha' || s.full_name.toLowerCase().includes('talha')) || students[0];
-    if (talha) setSelectedStudentIds([talha.id]);
   };
 
   const filteredStudents = students.filter(s => {
@@ -1252,23 +1234,6 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
               <div className="space-y-3">
                 {/* Hızlı Seçim Butonları */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <button
-                    type="button"
-                    onClick={selectOnlyTalha}
-                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 transition flex items-center gap-1"
-                  >
-                    <span>⭐ Muhammed Talha</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const talha = students.find(s => s.full_name.toLowerCase().includes('muhammed') || s.full_name.toLowerCase().includes('talha'));
-                      if (talha) setSelectedStudentIds([talha.id]);
-                    }}
-                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition flex items-center gap-1"
-                  >
-                    <span>⭐ Muhammed Talha</span>
-                  </button>
                   <button
                     type="button"
                     onClick={selectAllStudents}
@@ -2514,7 +2479,7 @@ ${strongTopics.length > 0 ? `🌟 *Güçlü Konular:* ${strongTopics.slice(0, 3)
                 >
                   {students.map(s => (
                     <option key={s.id} value={s.id}>
-                      {s.full_name} ({s.class_name || '8-A'})
+                      {s.full_name}{s.class_name ? ` (${s.class_name})` : ''}
                     </option>
                   ))}
                 </select>

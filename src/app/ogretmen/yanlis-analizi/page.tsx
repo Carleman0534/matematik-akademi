@@ -45,9 +45,13 @@ export default function YanlisAnaliziPage() {
     fetch('/api/students')
       .then(r => r.json())
       .then(d => {
-        if (d && d.length > 0) {
-          setStudents(d);
-          setSelectedStudentId(d[0].id);
+        // API { students: [...] } döner; alanlar full_name ile gelir
+        const list = (Array.isArray(d) ? d : d?.students || []).map((s: any) => ({ ...s, name: s.name || s.full_name || 'Öğrenci' }));
+        if (list.length > 0) {
+          setStudents(list);
+          setSelectedStudentId(list[0].id);
+        } else {
+          setLoading(false);
         }
       })
       .catch(console.error);

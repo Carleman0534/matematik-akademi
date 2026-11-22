@@ -24,9 +24,19 @@ export default async function TeacherDashboard() {
 
   // SQLite veritabanından çözülen denemeleri ve yerel öğrencileri çek
   const recentExams: ExamFeedItem[] = [];
+  let pendingAssignments = 0;
   try {
     const { getDb } = await import('@/lib/db/database');
     const db = await getDb();
+
+    // Atanmış ama henüz bitirilmemiş denemeler (yalnızca kayıtlı öğrencilerin)
+    const pRes = db.exec(`
+      SELECT COUNT(*) FROM exam_assignments ea
+      JOIN students st ON st.id = ea.student_id
+      LEFT JOIN exam_sessions es ON es.exam_id = ea.exam_id AND es.student_id = ea.student_id
+      WHERE ea.status != 'completed' AND es.submitted_at IS NULL
+    `);
+    pendingAssignments = pRes.length ? Number(pRes[0].values[0][0]) || 0 : 0;
 
     // 1. Çözülen Denemeleri Getir (yalnızca kayıtlı öğrencilerin)
     const erRes = db.exec(`
@@ -98,17 +108,6 @@ export default async function TeacherDashboard() {
     console.warn('Teacher dashboard SQLite fetch notice:', dbErr);
   }
 
-  // Muhammed Talha'nın listede yer almasını güvenceye al
-  const hasTalha = students.some(s => s.id === 'student_muhammed_talha' || s.full_name.toLowerCase().includes('talha'));
-  if (!hasTalha) {
-    students.unshift({
-      id: 'student_muhammed_talha',
-      full_name: 'Muhammed Talha',
-      grade_level: 8,
-      is_active: true
-    });
-  }
-
   const active = students.filter(s => s.is_active);
   const names = new Map(students.map(s => [s.id, s.full_name]));
   const urls = await signedUrlMap(sb, recent.map(r => { const i = [...r.question_images].sort((a, b) => a.sort_order - b.sort_order)[0]; return i ? i.thumb_path || i.path : ''; }));
@@ -139,8 +138,8 @@ export default async function TeacherDashboard() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Aktif öğrenci" value={active.length} sub={`toplam ${students.length} öğrenci`} />
         <Stat label="Tamamlanan Deneme" value={totalExamResultsCount} sub="öğrenci sınav çözümü" tone="text-indigo-600 dark:text-indigo-400" />
-        <Stat label="Toplam soru" value={a.total > 0 ? a.total : 64} sub={a.total > 0 ? `${a.wrong} yanlış · ${a.blank} boş` : 'MEB LGS Soru Havuzu'} />
-        <Stat label="Sistem Durumu" value="Aktif" sub="Canlı Senkronize" tone="text-emerald-600 dark:text-emerald-400" />
+        <Stat label="Öğrenci soruları" value={a.total} sub={a.total > 0 ? `${a.wrong} yanlış · ${a.blank} boş` : 'henüz soru eklenmedi'} />
+        <Stat label="Bekleyen deneme" value={pendingAssignments} sub="atandı, henüz bitirilmedi" tone="text-amber-600 dark:text-amber-400" />
       </div>
 
       {/* 🌟 KRİTİK EKLENTİ: Öğrencilerin Çözdüğü Denemeler ve Sonuçları (Canlı Akış) */}

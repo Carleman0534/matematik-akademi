@@ -63,8 +63,8 @@ export default function AiUretimGecmisiPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-bold text-slate-500">Kullanılan Ana Model</p>
-          <p className="mt-1 text-lg font-black text-indigo-600">Google Gemini 2.5</p>
-          <p className="mt-0.5 text-xs text-slate-400">Flash Reasoning Engine</p>
+          <p className="mt-1 text-lg font-black text-indigo-600">Yerel soru motoru</p>
+          <p className="mt-0.5 text-xs text-slate-400">kural tabanlı, internet gerekmez</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -121,8 +121,8 @@ export default function AiUretimGecmisiPage() {
                   </p>
                 </div>
                 <div className="text-right text-xs text-slate-400 shrink-0">
-                  <span className="font-semibold text-slate-600 dark:text-slate-300 block">Google Gemini 2.5</span>
-                  <span>{item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : 'Bugün'}</span>
+                  <span className="font-semibold text-slate-600 dark:text-slate-300 block">Yerel soru motoru</span>
+                  <span>{item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : '—'}</span>
                 </div>
               </div>
             ))}

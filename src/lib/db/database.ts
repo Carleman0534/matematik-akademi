@@ -1,7 +1,6 @@
 import initSqlJs, { type Database } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
-import { seedLgsPdfQuestionsIfMissing } from './seedLgsPdfs.ts';
 
 const IS_SERVERLESS = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
 const ORIGINAL_DB_PATH = path.join(process.cwd(), 'data', 'app.db');
@@ -1020,12 +1019,9 @@ async function initDatabase(): Promise<Database> {
     }
   }
 
-  // Seed LGS official PDF documents & extracted questions
-  try {
-    seedLgsPdfQuestionsIfMissing(database);
-  } catch (e) {
-    console.warn('Could not seed LGS PDF questions:', e);
-  }
+  // Not: Eskiden burada seedLgsPdfQuestionsIfMissing() çalışıyordu. Dosyası olmayan "2024/2023 LGS"
+  // PDF kayıtlarını ve uydurma soruları her açılışta geri ekliyordu; kapatıldı. Gerçek PDF'ler
+  // öğretmen panelinden yüklenir.
 
   // Seed LGS curriculum topics if empty
   try {

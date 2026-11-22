@@ -50,33 +50,7 @@ export default function DenemeKonuAnaliziPage() {
         </Link>
       </div>
 
-      {/* Akıllı Sistem Uyarıları (Section 4'teki uyarılar) */}
-      <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20">
-        <div className="flex items-center gap-2 text-sm font-bold text-amber-900 dark:text-amber-200 mb-3">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <span>Yapay Zekâ Konu Çeşitliliği ve Kaynak Tespit Uyarıları</span>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2 text-xs text-amber-800 dark:text-amber-300">
-          <div className="flex items-start gap-2 rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/60">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-            <span><b>Üslü İfadeler:</b> Yeterli soru çeşitliliği ve işlem zenginliği bulunuyor.</span>
-          </div>
-          <div className="flex items-start gap-2 rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/60">
-            <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            <span><b>Çarpanlar ve Katlar:</b> Soru sayısı yeterli ancak farklı problem ve modelleme tipleri sınırlı.</span>
-          </div>
-          <div className="flex items-start gap-2 rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/60">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            <span><b>Kareköklü İfadeler:</b> Yeni nesil günlük yaşam soru çeşitliliği artırılmalı.</span>
-          </div>
-          <div className="flex items-start gap-2 rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/60">
-            <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-            <span><b>Üçgenler & Geometri:</b> Şekil, açı ve görsel yorumlama soruları eksik.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Karşılaştırmalı Tablo */}
+      {/* Karşılaştırmalı Tablo (yalnızca PDF'lerden çıkarılmış gerçek sorulardan hesaplanır) */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
         <div className="border-b border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40 flex items-center justify-between">
           <h2 className="text-base font-bold text-slate-900 dark:text-white">LGS Konu Bazında Kaynak Dağılım Tablosu</h2>

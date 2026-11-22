@@ -312,16 +312,19 @@ export default function TopluDenemeAtaPage() {
                 />
               </div>
 
-              <select
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                className="text-xs p-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              >
-                <option value="ALL">Tüm Sınıflar</option>
-                <option value="12-A">12-A Sayısal</option>
-                <option value="12-B">12-B Eşit Ağırlık</option>
-                <option value="11">11. Sınıflar</option>
-              </select>
+              {/* Sınıf filtresi yalnızca gerçekten tanımlı sınıflar varsa gösterilir */}
+              {Array.from(new Set(students.map((s: any) => s.class_name).filter(Boolean))).length > 0 && (
+                <select
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="text-xs p-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="ALL">Tüm Sınıflar</option>
+                  {Array.from(new Set(students.map((s: any) => String(s.class_name || '')).filter(Boolean))).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Öğrenci Listesi Grid */}

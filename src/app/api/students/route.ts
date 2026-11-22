@@ -29,7 +29,7 @@ export async function GET() {
             grade_level: st.grade_level || 8,
             school_name: st.school_name || '',
             status: st.is_active ? 'active' : 'passive',
-            class_name: st.cls?.name || (st.grade_level ? `${st.grade_level}-A Sayısal` : '8-A LGS'),
+            class_name: st.cls?.name || '',
             username: st.profile?.username || ''
           });
         });
@@ -49,7 +49,7 @@ export async function GET() {
           st.school as school_name,
           st.status,
           COALESCE(st.notes, '') as notes,
-          (CAST(COALESCE(st.grade, 8) AS TEXT) || '-A Sayısal') as class_name
+          '' as class_name
         FROM students st
         JOIN users u ON u.id = st.user_id
         ORDER BY u.name ASC
@@ -67,36 +67,6 @@ export async function GET() {
       stmt.free();
     } catch (dbErr) {
       console.warn('SQLite students query fallback:', dbErr);
-    }
-
-    // 3. Muhammed Talha kontrolü (öğrencinin kesinlikle listede bulunmasını garanti et)
-    const hasTalha = students.some(s => {
-      const name = String(s.full_name || '').toLowerCase();
-      const uName = String((s as any).username || '').toLowerCase();
-      return name.includes('muhammed') || name.includes('talha') || uName.includes('muhammed') || uName.includes('talha');
-    });
-
-    if (!hasTalha) {
-      const talhaObj = {
-        id: 'student_muhammed_talha',
-        full_name: 'Muhammed Talha',
-        grade_level: 8,
-        class_name: '8-A LGS',
-        school_name: 'Atatürk Ortaokulu',
-        status: 'active',
-        username: 'muhammedtalha'
-      };
-      students.push(talhaObj);
-      seenIds.add(talhaObj.id);
-
-      // SQLite veritabanına da yazalım
-      try {
-        const db = await getDb();
-        db.run(`INSERT OR IGNORE INTO users (id, email, password, name, role) VALUES ('student_muhammed_talha', 'muhammedtalha@matematikakademi.internal', 'hash', 'Muhammed Talha', 'student')`);
-        db.run(`INSERT OR IGNORE INTO students (id, user_id, teacher_id, grade, school, status) VALUES ('student_muhammed_talha', 'student_muhammed_talha', '170c1e8f-52b4-440e-b605-ec974fa1d56b', 8, 'Atatürk Ortaokulu', 'active')`);
-        const { saveDb } = await import('@/lib/db/database');
-        await saveDb();
-      } catch {}
     }
 
     const finalStudents = students.filter(s => 

@@ -395,12 +395,13 @@ export default function DenemeAnalizleriPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {analytics.studentResults.length === 0 && (
+                    {/* Sıralamaya yalnızca denemeyi gerçekten bitirenler girer (atanmış ama çözmemiş öğrenci 0 net ile sıralanmaz) */}
+                    {analytics.studentResults.filter((st: any) => st.net_score !== null && st.net_score !== undefined).length === 0 && (
                       <tr>
                         <td colSpan={7} className="py-10 text-center text-slate-400">Bu denemeyi henüz çözen öğrenci yok.</td>
                       </tr>
                     )}
-                    {analytics.studentResults.map((st: any, idx: number) => {
+                    {analytics.studentResults.filter((st: any) => st.net_score !== null && st.net_score !== undefined).map((st: any, idx: number) => {
                       const dynamicNet = penaltyDivisor === 4 
                         ? Number(st.net_score) 
                         : penaltyDivisor > 0 

@@ -22,9 +22,17 @@ export const getSession = cache(async (): Promise<SessionInfo | null> => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.userId) {
+        // Ad, girişte çereze yazılır; sonradan değiştirildiyse güncelini veritabanından al
+        let fullName = String(parsed.fullName || '');
+        try {
+          const { getDb } = await import('@/lib/db/database');
+          const db = await getDb();
+          const r = db.exec('SELECT name FROM users WHERE id = ? LIMIT 1', [String(parsed.userId)]);
+          if (r.length && r[0].values.length && r[0].values[0][0]) fullName = String(r[0].values[0][0]);
+        } catch {}
         return {
           userId: parsed.userId,
-          fullName: parsed.fullName || '',
+          fullName,
           role: parsed.role || 'teacher',
           isAdmin: parsed.isAdmin ?? (parsed.role === 'teacher'),
           studentId: parsed.studentId ?? null,

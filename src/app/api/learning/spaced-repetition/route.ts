@@ -82,13 +82,21 @@ export async function GET(req: Request) {
         const obj: any = {};
         cols.forEach((c, idx) => { obj[c] = row[idx]; });
         
-        let daysAgo = 15;
-        let lastStudyText = 'Çalışılmadı';
-        if (obj.last_study) {
-          const diffMs = Date.now() - new Date(obj.last_study).getTime();
-          daysAgo = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-          lastStudyText = daysAgo === 0 ? 'Bugün' : `${daysAgo} gün önce`;
+        // Bu konuda hiç tekrar kaydı yoksa risk tahmin edilmez (uydurma "yüksek risk" gösterilmez)
+        if (!obj.last_study) {
+          forgettingRiskTable.push({
+            topicId: obj.id,
+            topicName: obj.topic_name,
+            lastStudyText: 'Henüz çalışılmadı',
+            daysAgo: null,
+            forgettingRisk: 'veri_yok',
+            recommendedAction: 'Tekrar verisi oluşunca risk hesaplanır',
+          });
+          continue;
         }
+        const diffMs = Date.now() - new Date(obj.last_study).getTime();
+        const daysAgo = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        const lastStudyText = daysAgo === 0 ? 'Bugün' : `${daysAgo} gün önce`;
 
         const risk = estimateForgettingRisk(daysAgo, (obj.avg_level || 1) * 20);
 

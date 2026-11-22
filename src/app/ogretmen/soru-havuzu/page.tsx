@@ -20,6 +20,14 @@ export default function SoruHavuzuPage() {
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [hasVisualFilter, setHasVisualFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // PDF filtresi: arşivdeki gerçek dokümanlardan doldurulur
+  const [pdfOptions, setPdfOptions] = useState<{ id: string; title: string; question_count?: number }[]>([]);
+  useEffect(() => {
+    fetch('/api/pdf-documents')
+      .then(r => r.json())
+      .then(d => setPdfOptions((d.docs || []).map((x: any) => ({ id: x.id, title: x.title, question_count: x.question_count }))))
+      .catch(() => setPdfOptions([]));
+  }, []);
 
   const loadQuestions = async () => {
     try {
@@ -143,10 +151,9 @@ export default function SoruHavuzuPage() {
             className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           >
             <option value="">Tüm PDF Dokümanları</option>
-            <option value="pdf_meb_64_soru">📘 MEB 1. Dönem 64 Soru Bankası</option>
-            <option value="pdf_lgs_2024">📕 2024 LGS Çıkmış Sınav (20 Soru)</option>
-            <option value="pdf_lgs_2023">📙 2023 LGS Çıkmış Sınav (20 Soru)</option>
-            <option value="pdf_lgs_odsgm">📗 ÖDSGM LGS Örnek Fasikül (25 Soru)</option>
+            {pdfOptions.map(p => (
+              <option key={p.id} value={p.id}>{p.title}{p.question_count ? ` (${p.question_count} soru)` : ''}</option>
+            ))}
           </select>
 
           {/* Konu Filtresi */}

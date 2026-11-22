@@ -41,9 +41,13 @@ export default function UnutmaRiskiPage() {
     fetch('/api/students')
       .then(r => r.json())
       .then(d => {
-        if (d && d.length > 0) {
-          setStudents(d);
-          setSelectedStudentId(d[0].id);
+        // API { students: [...] } döner; alanlar full_name ile gelir
+        const list = (Array.isArray(d) ? d : d?.students || []).map((s: any) => ({ ...s, name: s.name || s.full_name || 'Öğrenci' }));
+        if (list.length > 0) {
+          setStudents(list);
+          setSelectedStudentId(list[0].id);
+        } else {
+          setLoading(false);
         }
       })
       .catch(console.error);
@@ -68,6 +72,8 @@ export default function UnutmaRiskiPage() {
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">🔴 Yüksek Risk</span>;
       case 'orta':
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">🟡 Orta Risk</span>;
+      case 'veri_yok':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Veri yok</span>;
       default:
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">🟢 Düşük Risk</span>;
     }

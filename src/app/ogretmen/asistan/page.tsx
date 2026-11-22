@@ -21,17 +21,8 @@ interface AssistantResponse {
 export default function AsistanPage() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<AssistantResponse[]>([
-    {
-      query: 'Merhaba, bana bu haftaki kritik öğrenci ihtiyaçlarını özetler misin?',
-      directAnswer: 'Merhaba Öğretmenim! Veritabanındaki son deneme sonuçları, aralıklı tekrar sıklıkları ve ödev teslimlerine dayanarak yaptığım analizler hazır. Özellikle Çarpanlar ve Katlar EBOB-EKOK konusunda 2 öğrencimizin acil desteğe ihtiyacı bulunmaktadır. Aşağıdaki hızlı sorulardan birini seçebilir veya dilediğiniz soruyu sorabilirsiniz.',
-      supportingData: [
-        { metric: 'Aktif Öğrenci', value: '3' },
-        { metric: 'Kritik Konu', value: 'Çarpanlar ve Katlar' },
-        { metric: 'Geciken Tekrar', value: '3 Soru' }
-      ]
-    }
-  ]);
+  // Başlangıçta sohbet boştur; yanıtlar yalnızca sorulan soruya göre veritabanından üretilir.
+  const [history, setHistory] = useState<AssistantResponse[]>([]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [approvingIndex, setApprovingIndex] = useState<number | null>(null);

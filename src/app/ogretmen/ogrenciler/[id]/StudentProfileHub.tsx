@@ -602,7 +602,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                         {exam.status === 'completed' ? '✓ Tamamlandı' : exam.status === 'active' ? 'Devam Ediyor' : '⏳ Bekliyor'}
                       </span>
                       <span className="text-[11px] font-medium text-slate-500">
-                        {exam.duration_min} dk · {exam.question_count} soru
+                        {Number(exam.duration_min) > 0 ? `${exam.duration_min} dk` : 'Süresiz'} · {exam.question_count} soru
                       </span>
                     </div>
 
@@ -632,6 +632,11 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                             <span className="font-semibold text-red-600">{exam.wrong_count}Y</span>
                             {' · '}
                             <span className="font-semibold text-slate-500">{exam.blank_count}B</span>
+                            {Number(exam.total_duration_seconds) > 0 && (
+                              <div className="mt-0.5 font-semibold text-slate-600 dark:text-slate-300">
+                                ⏱ Çözüm süresi: {Math.floor(Number(exam.total_duration_seconds) / 60)} dk {Number(exam.total_duration_seconds) % 60} sn
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
