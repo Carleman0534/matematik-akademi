@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
-import { loadPdfAnswerSheet, type SheetFallback } from '@/lib/pdfExtraction/answerSheetDb';
-import { getPdfExamSessionState, loadPdfQuestionSolutions } from '@/lib/pdfExamSession';
-import { POST as submitStudentExam } from '@/app/api/exam-results/submit-student-exam/route';
+import type { SheetFallback } from '@/lib/pdfExtraction/answerSheetDb';
+import { getPdfExamSessionState } from '@/lib/pdfExamSession';
+import { scoreAndStorePdfExam } from '@/lib/pdfExamSubmit';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,64 +32,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const durationSeconds = Number.isFinite(startedMs)
     ? Math.max(1, Math.round((Date.now() - startedMs) / 1000))
     : Math.max(1, Number(body?.durationSeconds) || 1);
-  const solutions = loadPdfQuestionSolutions(db, id);
-  const sheet = loadPdfAnswerSheet(db, id, fallback);
-  const keyedNos = Object.keys(sheet.key).map(Number).filter(n => n >= 1 && n <= sheet.questionCount).sort((a, b) => a - b);
-  if (keyedNos.length === 0) {
-    return NextResponse.json(
-      { success: false, error: 'Bu deneme için cevap anahtarı bulunamadı; cevaplarınız puanlanamadı. Öğretmeninizden PDF\'e cevap anahtarı eklemesini ya da PDF\'ten soru çıkarıp onaylamasını isteyin.' },
-      { status: 422 }
-    );
-  }
 
-  const payload = keyedNos.map(no => {
-    const q = sheet.questions[no];
-    const sol = solutions[no];
-    const studentAnswer = String(answers[String(no)] || '').trim().toUpperCase() || null;
-    return {
-      questionNo: no,
-      questionId: q?.id,
-      questionText: sol?.questionText || q?.text || `${sheet.title} — Soru ${no}`,
-      options: q?.options || undefined,
-      studentAnswer,
-      correctAnswer: sheet.key[no],
-      topicName: sol?.topicName || q?.topicName || undefined,
-      solutionExplanation: sol?.solutionText || undefined,
-    };
+  const out = await scoreAndStorePdfExam(req, db, {
+    examId: id,
+    studentId: session.studentId,
+    answers,
+    durationSeconds,
+    fallback,
+    startedAtIso: state.startedAt,
   });
-
-  // Mevcut gönderme uç noktasını aynı istek bağlamında (oturum çerezleriyle) çağır
-  const inner = new NextRequest(new URL('/api/exam-results/submit-student-exam', req.url), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
-    body: JSON.stringify({ examId: id, examTitle: sheet.title, durationSeconds, answers: payload }),
-  });
-  const res = await submitStudentExam(inner);
-  const data = await res.json();
-  if (!res.ok || !data?.success) {
-    return NextResponse.json({ success: false, error: data?.error || 'Sonuç kaydedilemedi.' }, { status: 500 });
-  }
-  if (state.startedAt) {
-    try {
-      db.run('UPDATE exam_results SET started_at = ? WHERE exam_id = ? AND student_id = ?', [state.startedAt, id, session.studentId]);
-      saveDb();
-    } catch {}
-  }
+  if (!out.ok) return NextResponse.json({ success: false, error: out.error }, { status: out.status });
 
   return NextResponse.json({
     success: true,
-    result: data.result,
-    gradedCount: keyedNos.length,
-    questionCount: sheet.questionCount,
-    // Sınav bittiği için doğru cevaplar ve çözümler artık gösterilebilir
-    details: payload.map(p => ({
-      questionNo: p.questionNo,
-      studentAnswer: p.studentAnswer,
-      correctAnswer: p.correctAnswer,
-      isCorrect: p.studentAnswer ? p.studentAnswer === p.correctAnswer : null,
-      questionText: solutions[p.questionNo]?.questionText || null,
-      solutionText: p.solutionExplanation || null,
-      topicName: p.topicName || null,
-    })),
+    result: out.result,
+    gradedCount: out.gradedCount,
+    questionCount: out.questionCount,
+    details: out.details,
   });
 }

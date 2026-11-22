@@ -1248,6 +1248,12 @@ export function saveDb(database?: Database): void {
   }
 }
 
+// Yanıt dönmeden önce değişikliğin Blob'a yazılmasını bekler. Bir sonraki isteğin başka bir sunucu örneğine
+// düşebileceği ve önceki adımın verisine ihtiyaç duyduğu akışlarda (ör. parçalı PDF yükleme) kullanılır.
+export async function flushDbNow(): Promise<void> {
+  if (useBlobStore()) await flushToBlob();
+}
+
 // Değişikliği yanıt gönderildikten sonra Blob'a yazar (Vercel bu işi bitene kadar örneği açık tutar).
 // Aynı istekteki birden çok saveDb() tek bir yüklemede birleşir.
 async function scheduleBlobFlush(): Promise<void> {

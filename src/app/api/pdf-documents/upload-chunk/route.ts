@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, saveDb, flushDbNow } from '@/lib/db/database';
 import { createPdfDocument, type PdfDocument } from '@/lib/pdfDocs';
 import { saveUploadedPdf } from '@/lib/pdfStorage';
 import path from 'path';
@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
         [`${uploadId}_${chunkIndex}`, uploadId, chunkIndex, chunkB64]
       );
       saveDb(db);
+      // Sonraki parça başka bir sunucuya düşebilir: bu parça buluta yazılmadan yanıt dönülmez
+      if (chunkIndex < totalChunks - 1) await flushDbNow();
     } catch (dbErr) {
       console.warn('Could not store chunk in SQLite:', dbErr);
     }

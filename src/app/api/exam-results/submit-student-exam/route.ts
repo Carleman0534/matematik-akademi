@@ -25,7 +25,7 @@ interface SubmitRequest {
 
 function ensureStudentExists(db: any, studentId: string) {
   try {
-    const sCheck = db.exec(`SELECT id FROM students WHERE id = '${studentId}' LIMIT 1`);
+    const sCheck = db.exec('SELECT id FROM students WHERE id = ? LIMIT 1', [studentId]);
     if (!sCheck.length || !sCheck[0].values.length) {
       try {
         db.run(

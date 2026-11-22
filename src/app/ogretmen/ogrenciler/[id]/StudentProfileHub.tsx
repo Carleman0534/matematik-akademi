@@ -658,17 +658,27 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" /> Henüz tamamlanmadı
                         </span>
-                        <Link
-                          href={`/ogrenci/deneme/${exam.exam_id}?studentId=${student.id}`}
-                          target="_blank"
-                          className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
-                        >
-                          Öğrenci Gözüyle Aç <ExternalLink className="h-3 w-3" />
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          {!exam.is_study_plan && (
+                            <Link
+                              href={`/ogretmen/denemeler/${exam.exam_id}/hizli-optik-giris?studentId=${student.id}`}
+                              className="text-xs text-emerald-700 hover:underline inline-flex items-center gap-1 font-bold dark:text-emerald-400"
+                            >
+                              ✍️ Cevapları elle gir
+                            </Link>
+                          )}
+                          <Link
+                            href={`/ogrenci/deneme/${exam.exam_id}?studentId=${student.id}`}
+                            target="_blank"
+                            className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
+                          >
+                            Öğrenci Gözüyle Aç <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>
