@@ -918,6 +918,21 @@ async function initDatabase(): Promise<Database> {
   database.run('PRAGMA foreign_keys=ON;');
   database.run(CREATE_TABLES_SQL);
 
+  // Bazı tablolar bir dışa aktarımdan kısıtsız yeniden oluşturulmuş (id birincil anahtar değil).
+  // Bu durumda students/exams'e yabancı anahtarla bağlı tablolara (exam_results…) yazmak
+  // "foreign key mismatch" ile, ON CONFLICT(id) ifadeleri de hata ile düşer. id'ye benzersiz
+  // indeks bu ikisini de düzeltir; tekrar eden id varsa indeks oluşmaz ve uyarı yazılır.
+  for (const table of ['users', 'students', 'exams', 'exam_questions', 'questions', 'question_attempts', 'question_images', 'sources', 'subjects', 'topics', 'subtopics']) {
+    try {
+      const cols = database.exec(`PRAGMA table_info("${table}")`);
+      const hasId = cols.length > 0 && cols[0].values.some(c => c[1] === 'id');
+      const hasPk = cols.length > 0 && cols[0].values.some(c => Number(c[5]) > 0);
+      if (hasId && !hasPk) database.run(`CREATE UNIQUE INDEX IF NOT EXISTS ux_${table}_id ON "${table}"(id);`);
+    } catch (e) {
+      console.warn(`${table}.id için benzersiz indeks oluşturulamadı:`, e);
+    }
+  }
+
   // Safe migrations for file_data storage
   try {
     database.run('ALTER TABLE pdf_documents ADD COLUMN file_data TEXT;');
@@ -946,6 +961,20 @@ async function initDatabase(): Promise<Database> {
   } catch {}
   // Öğrenciye atanan denemelerdeki PDF soru görselleri
   try { database.run('ALTER TABLE study_plan_questions ADD COLUMN image_url TEXT;'); } catch {}
+  // PDF denemelerinin soru metni ve adım adım çözümü: öğrenci sınavı bitirince sonuç ekranında görür
+  try {
+    database.run(`
+      CREATE TABLE IF NOT EXISTS pdf_question_solutions (
+        pdf_id TEXT NOT NULL,
+        question_no INTEGER NOT NULL,
+        question_text TEXT,
+        solution_text TEXT,
+        topic_name TEXT,
+        updated_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (pdf_id, question_no)
+      );
+    `);
+  } catch {}
 
   // PDF'ten kırpılan soru görselleri. Diske değil veritabanına yazılır: Vercel gibi ortamlarda
   // proje klasörü salt okunurdur. Ayrı tablo, soru listelerinin bu büyük veriyi taşımasını önler.
@@ -1074,7 +1103,7 @@ async function initDatabase(): Promise<Database> {
 }
 
 export function saveDb(database?: Database): void {
-  const d = database || db;
+  const d = database || db || (globalThis as unknown as { __appDb?: Database | null }).__appDb;
   if (!d) return;
   try {
     const data = d.export();
@@ -1085,17 +1114,27 @@ export function saveDb(database?: Database): void {
   }
 }
 
+// Next.js sayfaları ve API uç noktalarını aynı süreçte ayrı modül kopyalarında çalıştırabilir.
+// Her kopyanın kendi bellek içi veritabanı olursa biri diğerinin yazdığını görmez ve eski
+// kopyasını dosyaya geri yazabilir. Bağlantı bu yüzden süreç genelinde (globalThis) paylaşılır.
+const shared = globalThis as unknown as { __appDb?: Database | null; __appDbInit?: Promise<Database> | null };
+
 export async function getDb(): Promise<Database> {
   if (db) return db;
+  if (shared.__appDb) {
+    db = shared.__appDb;
+    return db;
+  }
 
-  if (!initPromise) {
-    initPromise = initDatabase().then((database) => {
-      db = database;
+  if (!shared.__appDbInit) {
+    shared.__appDbInit = initDatabase().then((database) => {
+      shared.__appDb = database;
       return database;
     });
   }
-
-  return initPromise;
+  initPromise = shared.__appDbInit;
+  db = await initPromise;
+  return db;
 }
 
 export function closeDb(): void {
@@ -1104,5 +1143,7 @@ export function closeDb(): void {
     db.close();
     db = null;
     initPromise = null;
+    shared.__appDb = null;
+    shared.__appDbInit = null;
   }
 }

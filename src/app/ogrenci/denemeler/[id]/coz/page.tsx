@@ -17,8 +17,165 @@ import {
   Send,
   X,
   Save,
-  Award
+  Award,
+  Sparkles,
+  Copy,
+  ExternalLink,
+  CircleX,
+  CircleMinus,
+  CircleCheck,
+  ChevronDown,
+  Lightbulb,
 } from 'lucide-react';
+
+interface ResultDetail {
+  questionNo: number;
+  studentAnswer: string | null;
+  correctAnswer: string;
+  isCorrect: boolean | null;
+  questionText?: string | null;
+  solutionText?: string | null;
+  topicName?: string | null;
+}
+
+// Yapay zekâ aracına (ChatGPT, Gemini…) yapıştırılacak hazır istem
+function buildAiPrompt(d: ResultDetail, examTitle: string): string {
+  const given = d.studentAnswer ? `Ben ${d.studentAnswer} şıkkını işaretledim, yanlış çıktı.` : 'Bu soruyu boş bıraktım.';
+  return [
+    `8. sınıf LGS matematik sorusu (${examTitle}, Soru ${d.questionNo}).`,
+    `Doğru cevap ${d.correctAnswer}. ${given}`,
+    'Soruyu bir 8. sınıf öğrencisine anlatır gibi adım adım çöz, doğru cevabın neden çıktığını göster ve yaptığım olası hatayı açıkla.',
+    '',
+    d.questionText || '(Soru metni yok; soruyu PDF\'ten bakarak birlikte çözelim.)',
+  ].join('\n');
+}
+
+function ResultReview({ details, examTitle }: { details: ResultDetail[]; examTitle: string }) {
+  const [onlyMistakes, setOnlyMistakes] = useState(true);
+  const [open, setOpen] = useState<Record<number, boolean>>({});
+  const [copied, setCopied] = useState<number | null>(null);
+  const mistakes = details.filter(d => d.isCorrect !== true);
+  const list = onlyMistakes && mistakes.length > 0 ? mistakes : details;
+
+  const copyPrompt = async (d: ResultDetail) => {
+    try {
+      await navigator.clipboard.writeText(buildAiPrompt(d, examTitle));
+      setCopied(d.questionNo);
+      setTimeout(() => setCopied(c => (c === d.questionNo ? null : c)), 2500);
+    } catch {
+      setCopied(null);
+    }
+  };
+
+  return (
+    <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 text-amber-500" /> Sonuçların ve Çözümler
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {mistakes.length === 0
+              ? 'Hepsi doğru, harika! Yine de çözümleri inceleyebilirsin.'
+              : `${mistakes.length} soruda yanlış ya da boş var. Çözümü oku; anlamadığın yeri yapay zekâya sorabilirsin.`}
+          </p>
+        </div>
+        {mistakes.length > 0 && mistakes.length < details.length && (
+          <div className="flex text-xs font-bold bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+            <button onClick={() => setOnlyMistakes(true)} className={`px-3 py-1.5 rounded-lg ${onlyMistakes ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500'}`}>Yanlış & boş</button>
+            <button onClick={() => setOnlyMistakes(false)} className={`px-3 py-1.5 rounded-lg ${!onlyMistakes ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500'}`}>Tüm sorular</button>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {list.map(d => {
+          const status = d.isCorrect === true ? 'correct' : d.isCorrect === false ? 'wrong' : 'blank';
+          const expanded = open[d.questionNo] ?? status !== 'correct';
+          return (
+            <div
+              key={d.questionNo}
+              className={`rounded-2xl border ${
+                status === 'correct'
+                  ? 'border-emerald-200 dark:border-emerald-900'
+                  : status === 'wrong'
+                    ? 'border-rose-200 dark:border-rose-900'
+                    : 'border-amber-200 dark:border-amber-900'
+              }`}
+            >
+              <button
+                onClick={() => setOpen(o => ({ ...o, [d.questionNo]: !expanded }))}
+                className="w-full flex flex-wrap items-center justify-between gap-2 p-3.5 text-left"
+              >
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                  {status === 'correct' && <CircleCheck className="w-5 h-5 text-emerald-600" />}
+                  {status === 'wrong' && <CircleX className="w-5 h-5 text-rose-600" />}
+                  {status === 'blank' && <CircleMinus className="w-5 h-5 text-amber-500" />}
+                  Soru {d.questionNo}
+                  {d.topicName && <span className="text-[11px] font-semibold text-slate-400">· {d.topicName}</span>}
+                </span>
+                <span className="flex items-center gap-3 text-xs font-semibold">
+                  <span className="text-slate-500">
+                    Senin cevabın:{' '}
+                    <strong className={status === 'correct' ? 'text-emerald-600' : status === 'wrong' ? 'text-rose-600' : 'text-amber-600'}>
+                      {d.studentAnswer || 'Boş'}
+                    </strong>
+                  </span>
+                  <span className="text-slate-500">Doğru: <strong className="text-emerald-600">{d.correctAnswer}</strong></span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition ${expanded ? 'rotate-180' : ''}`} />
+                </span>
+              </button>
+
+              {expanded && (
+                <div className="px-4 pb-4 space-y-3 text-sm">
+                  {d.questionText && (
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 whitespace-pre-line text-xs leading-relaxed">
+                      {d.questionText}
+                    </div>
+                  )}
+                  {d.solutionText ? (
+                    <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900">
+                      <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" /> Adım adım çözüm
+                      </div>
+                      <div className="text-slate-800 dark:text-slate-100 whitespace-pre-line leading-relaxed text-[13px]">{d.solutionText}</div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">Bu soru için henüz yazılı çözüm eklenmemiş; aşağıdan yapay zekâya sorabilirsin.</p>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-semibold text-slate-500">Anlamadıysan yapay zekâya sor:</span>
+                    <a
+                      href={`https://chatgpt.com/?q=${encodeURIComponent(buildAiPrompt(d, examTitle))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> ChatGPT'de aç
+                    </a>
+                    <button
+                      onClick={async () => { await copyPrompt(d); window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer'); }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Gemini'de aç
+                    </button>
+                    <button
+                      onClick={() => copyPrompt(d)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> {copied === d.questionNo ? 'Kopyalandı — yapıştır (Ctrl+V)' : 'Soruyu kopyala'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export default function OgrenciSinavOdasiPage({
   params,
@@ -49,7 +206,7 @@ export default function OgrenciSinavOdasiPage({
   });
   const [loadingExam, setLoadingExam] = useState(true);
   const [submitError, setSubmitError] = useState('');
-  const [resultDetails, setResultDetails] = useState<Record<number, { correctAnswer: string; isCorrect: boolean | null }>>({});
+  const [resultDetails, setResultDetails] = useState<Record<number, ResultDetail>>({});
   const [clientDoc, setClientDoc] = useState<any>(null);
 
   // PDF Görüntüleyici Durumu
@@ -64,11 +221,30 @@ export default function OgrenciSinavOdasiPage({
   useEffect(() => { answersRef.current = answers; }, [answers]);
   const [savingStatus, setSavingStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
 
-  // Süre Sayacı
-  const [timeLeftSec, setTimeLeftSec] = useState(60 * 60);
+  // Süre: başlangıç anı sunucuda tutulur (sayfa yenilense de sıfırlanmaz).
+  // durationMin = 0 ise süre sınırı yoktur; sayaç ileri doğru sayar ve öğretmen toplam süreyi görür.
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const autoSubmittedRef = useRef(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(isViewOnly);
   const [examResult, setExamResult] = useState<any | null>(null);
+  const isUnlimited = exam.duration_min <= 0;
+  const timeLeftSec = Math.max(0, exam.duration_min * 60 - elapsedSec);
+
+  const applyResult = (result: any, details: ResultDetail[]) => {
+    const map: Record<number, ResultDetail> = {};
+    const given: Record<number, string> = {};
+    for (const d of details || []) {
+      map[d.questionNo] = d;
+      if (d.studentAnswer) given[d.questionNo] = d.studentAnswer;
+    }
+    setResultDetails(map);
+    setAnswers(given);
+    setExamResult(result);
+    setIsSubmitted(true);
+  };
 
   // 1. LocalStorage ve Veri Yükleme
   useEffect(() => {
@@ -113,17 +289,37 @@ export default function OgrenciSinavOdasiPage({
           hasKey = s.keySource !== 'none';
         }
 
-        const durationMin = 60;
+        // Oturum: bittiyse sonuçları getir, bitmediyse (inceleme modu değilse) başlat
+        let sess = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { cache: 'no-store' })
+          .then(r => r.json()).catch(() => null);
+        if (sess?.success && !sess.submittedAt && !isViewOnly) {
+          sess = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { method: 'POST' })
+            .then(r => r.json()).catch(() => sess);
+        }
+        const durationMin = sess?.success ? Number(sess.durationMin) : 60;
+
         setExam({
           title: doc?.title || sheetRes?.title || 'PDF Denemesi',
           question_count: questionCount,
           letters,
-          duration_min: durationMin,
+          duration_min: Number.isFinite(durationMin) ? durationMin : 60,
           pdf_url: doc?.file_path || `/api/pdf-documents/${examId}/file`,
           total_pages: doc?.page_count || 1,
           hasKey,
         });
-        setTimeLeftSec(durationMin * 60);
+
+        if (sess?.success) {
+          if (sess.serverNow) setClockOffsetMs(new Date(sess.serverNow).getTime() - Date.now());
+          if (sess.submittedAt && sess.result) {
+            applyResult(sess.result, sess.details || []);
+            localStorage.removeItem(`exam_answers_${examId}`);
+          } else if (sess.startedAt) {
+            setStartedAtMs(new Date(sess.startedAt).getTime());
+          }
+        } else {
+          // Oturum bilgisi alınamadıysa sayaç bu cihazdaki açılış anından başlar
+          setStartedAtMs(Date.now());
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -146,23 +342,29 @@ export default function OgrenciSinavOdasiPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           answers: answersRef.current,
-          durationSeconds: Math.max(0, exam.duration_min * 60 - timeLeftSec),
+          durationSeconds: elapsedSec,
           fallback: clientDoc
             ? { title: clientDoc.title, answerKey: clientDoc.answer_key, questionCount: clientDoc.question_count, gradeLevel: clientDoc.grade_level }
             : undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        // Zaten tamamlanmış: kayıtlı sonucu göster
+        const sess = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { cache: 'no-store' }).then(r => r.json()).catch(() => null);
+        if (sess?.success && sess.result) {
+          applyResult(sess.result, sess.details || []);
+          setSavingStatus('saved');
+          localStorage.removeItem(`exam_answers_${examId}`);
+          return;
+        }
+      }
       if (!res.ok || !data?.success) {
         setSubmitError(data?.error || `Sınav gönderilemedi (${res.status}). Cevaplarınız bu cihazda saklı; tekrar deneyin.`);
         setSavingStatus('offline');
         return;
       }
-      const details: Record<number, { correctAnswer: string; isCorrect: boolean | null }> = {};
-      for (const d of data.details || []) details[d.questionNo] = { correctAnswer: d.correctAnswer, isCorrect: d.isCorrect };
-      setResultDetails(details);
-      setExamResult(data.result);
-      setIsSubmitted(true);
+      applyResult(data.result, data.details || []);
       setSavingStatus('saved');
       localStorage.removeItem(`exam_answers_${examId}`);
     } catch {
@@ -175,23 +377,23 @@ export default function OgrenciSinavOdasiPage({
     handleFinalSubmit();
   };
 
-  // 2. Canlı Sayaç (Countdown Timer)
+  // 2. Canlı Sayaç: geçen süre sunucudaki başlangıç anından hesaplanır.
+  // Süre sınırı varsa geri sayar ve süre dolunca otomatik gönderir; yoksa yalnızca ileri sayar.
   useEffect(() => {
-    if (isSubmitted || isViewOnly) return;
+    if (isSubmitted || isViewOnly || startedAtMs === null) return;
 
-    const timer = setInterval(() => {
-      setTimeLeftSec((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
+    const tick = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() + clockOffsetMs - startedAtMs) / 1000));
+      setElapsedSec(elapsed);
+      if (exam.duration_min > 0 && elapsed >= exam.duration_min * 60 && !autoSubmittedRef.current) {
+        autoSubmittedRef.current = true;
+        handleAutoSubmit();
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [isSubmitted, isViewOnly]);
+  }, [isSubmitted, isViewOnly, startedAtMs, clockOffsetMs, exam.duration_min]);
 
   // 3. Anlık Cevap Kaydı (Auto-save)
   const handleSelectAnswer = async (questionNo: number, option: string) => {
@@ -275,14 +477,16 @@ export default function OgrenciSinavOdasiPage({
 
           {!isSubmitted && !isViewOnly ? (
             <div
+              title={isUnlimited ? 'Süre sınırı yok; geçen süre öğretmeninize iletilir' : 'Kalan süre'}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold shadow-sm ${
-                timeLeftSec < 300
+                !isUnlimited && timeLeftSec < 300
                   ? 'bg-red-500 text-white animate-pulse'
                   : 'bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300'
               }`}
             >
               <Clock className="w-4 h-4" />
-              <span>{formatTime(timeLeftSec)}</span>
+              {isUnlimited && <span className="font-sans font-semibold">Geçen süre</span>}
+              <span>{formatTime(isUnlimited ? elapsedSec : timeLeftSec)}</span>
             </div>
           ) : (
             <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-xl text-xs font-bold">
@@ -325,7 +529,9 @@ export default function OgrenciSinavOdasiPage({
             <div>
               <h3 className="font-bold text-base">Tebrikler! Sınavı Tamamladınız.</h3>
               <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                Cevaplarınız başarıyla değerlendirildi ve öğretmeninizin analiz paneline iletildi.
+                Cevaplarınız değerlendirildi ve öğretmeninize iletildi.
+                {Number(examResult.totalDurationSeconds) > 0 && <> Süreniz: <strong>{formatTime(Number(examResult.totalDurationSeconds))}</strong>.</>}
+                {' '}Soruların çözümleri aşağıda.
               </p>
             </div>
           </div>
@@ -486,6 +692,11 @@ export default function OgrenciSinavOdasiPage({
           )}
         </div>
       </div>
+
+      {/* Sınav sonrası: soru soru sonuçlar ve çözümler */}
+      {isSubmitted && Object.keys(resultDetails).length > 0 && (
+        <ResultReview details={Object.values(resultDetails).sort((a, b) => a.questionNo - b.questionNo)} examTitle={exam.title} />
+      )}
 
       {/* Sınavı Erken Bitirme Onay Modalı */}
       {showSubmitModal && (

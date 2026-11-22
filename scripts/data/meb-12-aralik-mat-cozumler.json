@@ -1,0 +1,56 @@
+{
+  "title": "MEB Matematik Örnek Sorular (12 Aralık) – Çarpanlar ve Katlar",
+  "topic": "Çarpanlar ve Katlar",
+  "questions": [
+    {
+      "no": 1,
+      "text": "50 katlı bir iş yerinde 2'den 10'a kadar numaralandırılmış 9 asansör vardır. Her asansör, zemin kat hariç, kat numarası asansör numarasının pozitif tam sayı katı olan katlarda DURMAMAKTADIR (örneğin 9 numaralı asansör 9, 18, 27, 36, 45. katlarda durmaz). Onur'un katında duran asansör sayısı, Erdem'in katında duran asansör sayısından fazladır. Erdem'in katı 30 olduğuna göre Onur'un katı hangisi olabilir?\nA) 48   B) 42   C) 36   D) 24",
+      "solution": "Dikkat: Asansörler, numaralarının KATI olan katlarda DURMUYOR. Yani bir katta duran asansör sayısı = 9 − (o kat numarasını bölen 2–10 arası asansör sayısı).\n\n1) Erdem'in katı 30: 30'u bölen asansörler 2, 3, 5, 6, 10 → 5 tane. Duran asansör sayısı = 9 − 5 = 4.\n\n2) Onur'un katında 4'ten FAZLA asansör durmalı, yani 2–10 arasındaki bölen sayısı 5'ten AZ olmalı.\n• 48 → 2, 3, 4, 6, 8 → 5 bölen → 4 asansör durur ✗\n• 42 → 2, 3, 6, 7 → 4 bölen → 5 asansör durur ✓\n• 36 → 2, 3, 4, 6, 9 → 5 bölen → 4 asansör durur ✗\n• 24 → 2, 3, 4, 6, 8 → 5 bölen → 4 asansör durur ✗\n\nCevap: B) 42\n\nİpucu: Soruda \"durmamaktadır\" kelimesi kritik. Bölenleri sayıp doğrudan karşılaştırırsan ters sonuca gidersin."
+    },
+    {
+      "no": 2,
+      "text": "Dikdörtgen biçimindeki bir iş yerinin kat planında üst sırada Toplantı Odası (24 m²), Arşiv ve Kütüphane (21 m²); ortada tüm genişlik boyunca Koridor (32 m²); alt sırada Yönetici Odası (30 m²), Mutfak ve Çalışma Ofisleri (35 m²) vardır. Tüm bölümler dikdörtgendir ve kenar uzunlukları metre cinsinden doğal sayıdır. Arşiv ve mutfağın alanları toplamı en az kaç m²'dir?\nA) 12   B) 18   C) 21   D) 24",
+      "solution": "Binanın genişliğine G diyelim. Koridor tüm genişlik boyunca uzandığı için G · (koridor eni) = 32, yani G, 32'nin bir bölenidir: 1, 2, 4, 8, 16, 32.\n\n1) Üst sıra: Toplantı (24), arşiv ve kütüphane (21) aynı yüksekliktedir (h₁). h₁ hem 24'ü hem 21'i böler → h₁ = 1 ya da 3.\n2) Alt sıra: Yönetici (30), mutfak ve çalışma ofisleri (35) aynı yüksekliktedir (h₂). h₂ hem 30'u hem 35'i böler → h₂ = 1 ya da 5.\n\n3) Üst sıranın toplam alanı G · h₁ = 24 + 21 + arşiv → arşiv = G·h₁ − 45 (pozitif olmalı).\n   Alt sıranın toplam alanı G · h₂ = 30 + 35 + mutfak → mutfak = G·h₂ − 65 (pozitif olmalı).\n\n4) En küçük toplamı arıyoruz:\n• h₁ = 3, h₂ = 5 seçersek: 3G > 45 → G > 15 ve 5G > 65 → G > 13. 32'nin böleni olan en küçük uygun G = 16.\n   Arşiv = 16·3 − 45 = 3 m², Mutfak = 16·5 − 65 = 15 m² → toplam 18 m².\n• h₁ = 1 ya da h₂ = 1 seçilirse G'nin 45'ten ya da 65'ten büyük olması gerekir; 32'nin bölenleri arasında böyle bir sayı yok.\n\nCevap: B) 18"
+    },
+    {
+      "no": 3,
+      "text": "2 raflı bir dolapta 11'den 50'ye kadar numaralanmış klasörler vardır. Ece ve Melis birer klasör almıştır. Aldıkları klasörlerin etiket numaraları, iki tane asal çarpanı olan, aralarında asal doğal sayılardır. Buna göre bu iki klasörün etiket numaraları arasındaki fark en çok kaçtır?\nA) 38   B) 37   C) 33   D) 31",
+      "solution": "\"İki tane asal çarpanı olan\" = tam olarak iki farklı asal çarpanı olan sayı (örneğin 12 = 2²·3 → asal çarpanları 2 ve 3).\n\nFarkın en büyük olması için bir sayıyı olabildiğince büyük, diğerini olabildiğince küçük seçeriz; ama ortak asal çarpanları olmamalı (aralarında asal).\n\n1) Büyükten başlayalım (11–50 arası, iki farklı asal çarpanlı): 50 = 2·5², 48 = 2⁴·3, 46 = 2·23, 45 = 3²·5, 44 = 2²·11 …\n2) Küçükten: 12 = 2²·3, 14 = 2·7, 15 = 3·5, 18, 20, 21 = 3·7 …\n\n3) Eşleştirelim:\n• 50 (2 ve 5) → 2 ve 5 içermeyen en küçük: 21 → fark 29\n• 48 (2 ve 3) → 2 ve 3 içermeyen en küçük: 35 → fark 13\n• 46 (2 ve 23) → 15 → fark 31 ✓\n• 45 (3 ve 5) → 14 → fark 31 ✓\n• 44 (2 ve 11) → 15 → fark 29\n\nEn büyük fark 31'dir (46 − 15 ya da 45 − 14).\n\nCevap: D) 31"
+    },
+    {
+      "no": 4,
+      "text": "A marka ayçiçek yağı 1,5 litrelik, B marka ayçiçek yağı 2 litrelik şişelerde satılmaktadır. Bir şişe A ile bir şişe B'nin TL cinsinden fiyatları birbirine eşit tam sayılardır. Bir markette 05.10.2020'de A marka yağ satışından 252 TL, B marka yağ satışından 198 TL gelir elde edilmiştir. O gün satılan B marka yağ miktarı, A marka yağ miktarından en az kaç litre fazladır?\nA) 0,5   B) 1   C) 1,5   D) 2",
+      "solution": "Bir şişenin fiyatı (iki marka için de aynı) f TL olsun.\n\n1) Satılan şişe sayıları tam sayı olmalı: A şişe sayısı = 252 / f, B şişe sayısı = 198 / f. Yani f hem 252'yi hem 198'i böler → f, EBOB(252, 198) = 18'in bir bölenidir.\n\n2) Litre farkı:\nB litre − A litre = 2 · (198 / f) − 1,5 · (252 / f) = (396 − 378) / f = 18 / f.\n\n3) Farkın EN AZ olması için f en büyük olmalı → f = 18.\n   A: 252 / 18 = 14 şişe → 21 litre; B: 198 / 18 = 11 şişe → 22 litre. Fark = 1 litre.\n\nCevap: B) 1"
+    },
+    {
+      "no": 5,
+      "text": "Canan Öğretmen eylül ayı boyunca tüm derslerini EBA canlı sınıf üzerinden hafta içi yapmıştır. 2020 Eylül takviminde 1 Eylül Salı'dır; hafta sonları 5-6, 12-13, 19-20, 26-27'dir. Canan Öğretmen'in bir günde yaptığı ders sayısı, o günün tarihine karşılık gelen doğal sayının asal çarpan sayısına eşittir. Eylül ayı boyunca toplam kaç ders yapmıştır?\nA) 29   B) 30   C) 31   D) 32",
+      "solution": "Hafta içi günler: 1–4, 7–11, 14–18, 21–25, 28–30. Her günün ders sayısı = o sayının FARKLI asal çarpanlarının sayısı (1'in asal çarpanı yoktur).\n\n• 1, 2, 3, 4 → 0 + 1 + 1 + 1 (4 = 2²) = 3\n• 7, 8, 9, 10, 11 → 1 + 1 + 1 + 2 (10 = 2·5) + 1 = 6\n• 14, 15, 16, 17, 18 → 2 + 2 + 1 + 1 + 2 = 8\n• 21, 22, 23, 24, 25 → 2 + 2 + 1 + 2 + 1 = 8\n• 28, 29, 30 → 2 + 1 + 3 (30 = 2·3·5) = 6\n\nToplam = 3 + 6 + 8 + 8 + 6 = 31\n\nCevap: C) 31\n\nİpucu: 8 = 2³ gibi sayıların tek bir asal çarpanı vardır (sadece 2); üssü saymıyoruz."
+    },
+    {
+      "no": 6,
+      "text": "Boyları 25 cm (I. yay) ve 35 cm (II. yay) olan iki yaya birer cisim asılmıştır. Yaylarda gerçekleşen uzamaların santimetre cinsinden değerleri aralarında asal iki doğal sayıdır. I. yayın son uzunluğu 45 cm olduğuna göre II. yayın son uzunluğu aşağıdakilerden hangisi olabilir?\nA) 60   B) 61   C) 65   D) 68",
+      "solution": "1) I. yayın uzaması = 45 − 25 = 20 cm. 20 = 2²·5 → asal çarpanları 2 ve 5.\n\n2) II. yayın uzaması = (son uzunluk) − 35. Bu sayı 20 ile aralarında asal olmalı, yani ne 2'ye ne 5'e bölünmeli.\n• 60 → uzama 25 → 5'e bölünür ✗\n• 61 → uzama 26 → 2'ye bölünür ✗\n• 65 → uzama 30 → 2 ve 5'e bölünür ✗\n• 68 → uzama 33 = 3·11 → 20 ile ortak böleni yok ✓\n\nCevap: D) 68\n\nİpucu: Soruda sorulan \"son uzunluk\", ama aralarında asal olan \"uzama\"; önce uzamayı bulmayı unutma."
+    },
+    {
+      "no": 7,
+      "text": "Bir dükkânda eşit uzunluktaki iki rafa lastikler (her birinin çapı 90 cm) ve jantlar (her birinin çapı 60 cm) aralarında boşluk bırakılmadan dizilmiştir; raflar tamamen dolmuştur. Rafların uzunluğu 10 metreden az olduğuna göre bu raflara dizilmiş lastik sayısı ile jant sayısı arasındaki fark en çok kaçtır?\nA) 3   B) 5   C) 7   D) 9",
+      "solution": "1) Raflar boşluksuz dolduğu için raf uzunluğu (R) hem 90'ın hem 60'ın katıdır → R, EKOK(90, 60) = 180'in katıdır: 180, 360, 540, 720, 900, 1080 …\n\n2) R < 10 m = 1000 cm → R en çok 900 cm olabilir.\n\n3) Fark = jant sayısı − lastik sayısı = R/60 − R/90 = R/180.\n   R = 900 için: jant = 15, lastik = 10 → fark = 5.\n\nCevap: B) 5"
+    },
+    {
+      "no": 8,
+      "text": "3×3'lük bir tabloda köşelerdeki 4 kare sarı, kenar ortalarındaki 4 kare mavi, ortadaki kare kırmızıdır. Sarı karelere 32 (sol üst), 45 (sağ üst), 66 (sol alt) ve 91 (sağ alt) yazılmıştır. Her mavi kareye, kendisiyle ortak kenarı olan iki sarı karedeki sayılarla aralarında asal ve iki tane asal çarpanı olan en küçük doğal sayı yazılacaktır. Kırmızı kareye mavi karelerdeki sayıların toplamı yazılacaktır. Kırmızı kareye yazılması gereken sayı kaçtır?\nA) 219   B) 234   C) 250   D) 284",
+      "solution": "Önce sarı sayıların asal çarpanları: 32 = 2⁵ → {2}; 45 = 3²·5 → {3, 5}; 66 = 2·3·11 → {2, 3, 11}; 91 = 7·13 → {7, 13}.\n\nHer mavi kare için komşu iki sarı sayının asal çarpanlarını İÇERMEYEN ve tam olarak iki farklı asal çarpanı olan en küçük sayıyı arıyoruz.\n\n• Üst (32 ve 45): 2, 3, 5 yasak → kullanılabilir en küçük asallar 7 ve 11 → 7·11 = 77\n• Sol (32 ve 66): 2, 3, 11 yasak → 5·7 = 35\n• Sağ (45 ve 91): 3, 5, 7, 13 yasak → 2·11 = 22\n• Alt (66 ve 91): 2, 3, 7, 11, 13 yasak → 5·17 = 85\n\nKırmızı kare = 77 + 35 + 22 + 85 = 219\n\nCevap: A) 219\n\nİpucu: 49 = 7² gibi sayıların tek bir asal çarpanı vardır, bu yüzden uygun değildir."
+    },
+    {
+      "no": 9,
+      "text": "Bir şekerleme fabrikasında şeker, çikolata ve lokum üretilir ve rastgele seçilen beşi bir pakete konur. Paketin etiket numarası, içindeki şekerlemelerin ürün kodlarının çarpımıdır; satış fiyatı birim fiyatlarının toplamıdır. Ürün kodları: şeker 2, çikolata 3, lokum 5. Birim fiyatlar: şeker 1 TL, çikolata 3 TL, lokum 2 TL. (Örnek: 2·2·3·3·5 = 180 etiketli paketin fiyatı 1+1+3+3+2 = 10 TL.) Etiket numaraları 270 ve 300 olan iki paketin satış fiyatlarının toplamı kaç TL'dir?\nA) 21   B) 22   C) 23   D) 24",
+      "solution": "Etiket numarasını asal çarpanlarına ayırırsak paketin içinde ne olduğunu buluruz (2 = şeker, 3 = çikolata, 5 = lokum). Her pakette 5 ürün var.\n\n1) 270 = 2 · 3 · 3 · 3 · 5 → 1 şeker, 3 çikolata, 1 lokum\n   Fiyat = 1 + 3·3 + 2 = 12 TL\n\n2) 300 = 2 · 2 · 3 · 5 · 5 → 2 şeker, 1 çikolata, 2 lokum\n   Fiyat = 2·1 + 3 + 2·2 = 9 TL\n\nToplam = 12 + 9 = 21 TL\n\nCevap: A) 21"
+    },
+    {
+      "no": 10,
+      "text": "Bir teknoloji mağazasında A marka cep telefonunun maliyeti 4800 TL, satış fiyatı 6000 TL; B marka cep telefonunun maliyeti 5200 TL, satış fiyatı 6700 TL'dir. Mağazanın ekim ayında A marka telefonlardan elde ettiği toplam kâr, B marka telefonlardan elde ettiği toplam kâra eşit olmuştur. Buna göre ekim ayında satılan A ve B marka telefonların toplam sayısı en az kaçtır?\nA) 5   B) 7   C) 9   D) 11",
+      "solution": "1) Bir telefondan elde edilen kâr:\n   A: 6000 − 4800 = 1200 TL\n   B: 6700 − 5200 = 1500 TL\n\n2) a tane A, b tane B satılsın. Toplam kârlar eşit: 1200·a = 1500·b → sadeleştirirsek 4a = 5b.\n\n3) En küçük doğal sayı çözümü: a = 5, b = 4 (ortak kâr = EKOK(1200, 1500) = 6000 TL).\n\nToplam telefon = 5 + 4 = 9\n\nCevap: C) 9"
+    }
+  ]
+}

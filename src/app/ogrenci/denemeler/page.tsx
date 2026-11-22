@@ -65,7 +65,8 @@ export default function OgrenciDenemelerPage() {
               id: item.exam_id || item.id,
               title: item.exam_title || item.title || 'Matematik Denemesi',
               question_count: item.question_count || 40,
-              duration_min: item.duration_min || item.default_duration || 60,
+              // 0 = süre sınırı yok (öğretmen süresiz atadı)
+              duration_min: item.duration_min === 0 ? 0 : (item.duration_min || item.default_duration || 60),
               starts_at: item.starts_at,
               due_at: item.due_at || item.deadline,
               status: item.assignment_status || item.status || 'in_progress',
@@ -166,7 +167,7 @@ export default function OgrenciDenemelerPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
-                    {exam.question_count} Soru · {exam.duration_min} Dakika
+                    {exam.question_count} Soru · {exam.duration_min > 0 ? `${exam.duration_min} Dakika` : 'Süre Sınırı Yok'}
                   </span>
                   {exam.due_at && (
                     <span className="text-[11px] text-slate-400 flex items-center gap-1">

@@ -215,12 +215,13 @@ export async function batchAssignExamToStudents(params: {
       [assignId, params.examId, studentId, params.assignedBy, params.startsAt || null, params.dueAt || null, duration]
     );
 
-    // Oturum (exam_sessions) kaydını da hazırla
+    // Oturum (exam_sessions) kaydını da hazırla. started_at boş kalır: öğrenci denemeyi
+    // ilk açtığında doldurulur (süre o andan sayılır; sütunun varsayılanı atama anını yazardı).
     const sessionId = uuidv4();
     const deadline = params.dueAt || new Date(Date.now() + duration * 60000).toISOString();
     db.run(
-      `INSERT OR IGNORE INTO exam_sessions (id, exam_id, student_id, deadline, current_q)
-       VALUES (?, ?, ?, ?, 1)`,
+      `INSERT OR IGNORE INTO exam_sessions (id, exam_id, student_id, started_at, deadline, current_q)
+       VALUES (?, ?, ?, NULL, ?, 1)`,
       [sessionId, params.examId, studentId, deadline]
     );
 
@@ -271,21 +272,31 @@ export async function getStudentExamList(studentId: string) {
       ea.due_at,
       ea.duration_min,
       ea.extra_time_min,
-      e.title as exam_title,
-      e.instructions,
-      e.question_count,
-      e.duration_min as default_duration,
+      COALESCE(e.title, p.title) as exam_title,
+      NULL as instructions,
+      COALESCE(p.question_count, e.question_count) as question_count,
+      ea.duration_min as default_duration,
       es.id as session_id,
       es.started_at,
       es.deadline,
       es.submitted_at,
       p.file_path as pdf_url,
-      p.page_count
+      p.page_count,
+      er.correct_count,
+      er.wrong_count,
+      er.blank_count,
+      er.net_score,
+      er.total_duration_seconds
     FROM exam_assignments ea
-    JOIN exams e ON e.id = ea.exam_id
+    -- Deneme ya exams tablosunda (çevrim içi deneme) ya da pdf_documents'ta (PDF deneme) durur.
+    -- exams sütunları kurulumlar arasında farklı (duration_min / duration_minutes, instructions),
+    -- bu yüzden yalnızca her şemada bulunan sütunlar okunur.
+    LEFT JOIN exams e ON e.id = ea.exam_id
+    LEFT JOIN pdf_documents p ON p.id = ea.exam_id OR (e.id IS NOT NULL AND p.title = e.title)
     LEFT JOIN exam_sessions es ON es.exam_id = ea.exam_id AND es.student_id = ea.student_id
-    LEFT JOIN pdf_documents p ON p.id = e.id OR p.title = e.title
-    WHERE ea.student_id = ?
+    LEFT JOIN exam_results er ON er.exam_id = ea.exam_id AND er.student_id = ea.student_id
+    WHERE ea.student_id = ? AND (e.id IS NOT NULL OR p.id IS NOT NULL)
+    GROUP BY ea.id
     ORDER BY ea.assigned_at DESC
   `;
 
