@@ -254,7 +254,7 @@ export default function OzelCalismamPage() {
           if (cookieMatch) studentId = cookieMatch[1];
         }
         if (!studentId) {
-          studentId = 'student_muhammed_talha';
+          studentId = ''; // sunucu oturumdaki öğrenciyi kullanır
         }
 
         const payloadAnswers = questions.map((q, idx) => {

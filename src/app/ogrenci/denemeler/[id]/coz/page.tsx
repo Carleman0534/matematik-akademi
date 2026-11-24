@@ -321,6 +321,12 @@ export default function OgrenciSinavOdasiPage({
             localStorage.removeItem(`exam_answers_${examId}`);
           } else if (sess.startedAt) {
             setStartedAtMs(new Date(sess.startedAt).getTime());
+            // Bu cihazda yerel taslak yoksa (başka cihaz / temizlenmiş tarayıcı) sunucudaki taslaktan devam et
+            if (!isViewOnly && sess.progress && typeof sess.progress === 'object') {
+              const restored: Record<number, string> = {};
+              for (const [k, v] of Object.entries(sess.progress as Record<string, string>)) restored[Number(k)] = v;
+              setAnswers((prev: Record<number, string>) => (Object.keys(prev).length ? prev : restored));
+            }
           }
         } else {
           // Oturum bilgisi alınamadıysa sayaç bu cihazdaki açılış anından başlar
@@ -410,6 +416,27 @@ export default function OgrenciSinavOdasiPage({
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [isSubmitted, isViewOnly, loadingExam, examId]);
+
+  // Cevap taslağını sunucuya kaydet: en çok 3 dakikada bir, yalnızca değiştiyse (depolama kotasını korumak için seyrek);
+  // sekme arka plana alınınca da bir kez. Öğretmenin Canlı Takip ekranı buradan cevaplanan soru sayısını gösterir.
+  const lastSyncedRef = useRef('');
+  useEffect(() => {
+    if (isSubmitted || isViewOnly || loadingExam || startedAtMs === null) return;
+    const push = async () => {
+      const json = JSON.stringify(answersRef.current);
+      if (json === lastSyncedRef.current || json === '{}') return;
+      try {
+        const r = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: answersRef.current }),
+        });
+        if (r.ok) lastSyncedRef.current = json;
+      } catch {}
+    };
+    const timer = setInterval(push, 3 * 60 * 1000);
+    const onHide = () => { if (document.visibilityState === 'hidden') push(); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onHide); };
+  }, [isSubmitted, isViewOnly, loadingExam, startedAtMs, examId]);
 
   const handleAutoSubmit = () => {
     handleFinalSubmit();
@@ -598,9 +625,9 @@ export default function OgrenciSinavOdasiPage({
               <Award className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-base">Tebrikler! Sınavı Tamamladınız.</h3>
+              <h3 className="font-bold text-base">{isViewOnly ? 'Öğrenci sınavı tamamladı.' : 'Tebrikler! Sınavı Tamamladınız.'}</h3>
               <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                Cevaplarınız değerlendirildi ve öğretmeninize iletildi.
+                {isViewOnly ? 'Cevaplar değerlendirildi.' : 'Cevaplarınız değerlendirildi ve öğretmeninize iletildi.'}
                 {Number(examResult.totalDurationSeconds) > 0 && <> Süreniz: <strong>{formatTime(Number(examResult.totalDurationSeconds))}</strong>.</>}
                 {' '}Soruların çözümleri aşağıda.
               </p>

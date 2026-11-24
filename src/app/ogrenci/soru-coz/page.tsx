@@ -31,7 +31,7 @@ export default function SoruCozPage() {
     setIsAnswered(true);
 
     try {
-      const studentId = (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || 'student_muhammed_talha';
+      const studentId = (typeof window !== 'undefined' ? localStorage.getItem('student_id') : null) || '';
       const isCorrect = selectedOption === currentQuestion.correctAnswer;
       await fetch('/api/student/interactive-question', {
         method: 'POST',

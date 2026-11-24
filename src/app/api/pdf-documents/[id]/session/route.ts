@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
-import { getPdfExamSessionState, startPdfExamSession } from '@/lib/pdfExamSession';
+import { getPdfExamSessionState, startPdfExamSession, saveExamProgress } from '@/lib/pdfExamSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +22,24 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params;
   const db = await getDb();
   return NextResponse.json({ success: true, ...getPdfExamSessionState(db, id, studentId) });
+}
+
+// PUT: cevap taslağını kaydet (istemci en fazla birkaç dakikada bir çağırır)
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Oturum gerekli.' }, { status: 401 });
+  }
+  if (session.role !== 'student' || !session.studentId) {
+    return NextResponse.json({ success: false, error: 'Yalnızca öğrenci hesabı.' }, { status: 403 });
+  }
+  const { id } = await ctx.params;
+  let body: { answers?: Record<string, string> } = {};
+  try { body = await req.json(); } catch {}
+  const db = await getDb();
+  const wrote = saveExamProgress(db, id, session.studentId, body.answers || {});
+  if (wrote) saveDb();
+  return NextResponse.json({ success: true, saved: wrote });
 }
 
 // POST: denemeyi başlat (ilk açılışta başlangıç anı kaydedilir, sonraki açılışlarda değişmez)

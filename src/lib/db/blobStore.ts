@@ -7,7 +7,7 @@
 //
 // Etkinleşmesi için Vercel projesine bir Blob deposu bağlanmalıdır (BLOB_READ_WRITE_TOKEN
 // ortam değişkeni otomatik eklenir). Değişken yoksa uygulama eskisi gibi yerel dosyayla çalışır.
-import { get, put, BlobPreconditionFailedError } from '@vercel/blob';
+import { get, put, list, del, BlobPreconditionFailedError } from '@vercel/blob';
 
 export const BLOB_DB_PATHNAME = process.env.DB_BLOB_PATHNAME || 'db/app.db';
 
@@ -54,6 +54,32 @@ export async function pullDbFromBlob(knownEtag?: string | null): Promise<BlobPul
   if (!res) return { status: 'missing' };
   if (res.statusCode === 304) return { status: 'unchanged', etag: res.blob.etag };
   return { status: 'changed', etag: res.blob.etag, bytes: await streamToBytes(res.stream) };
+}
+
+// Günlük yedek: db/backups/app-YYYY-MM-DD.db. Her gün yalnızca ilk yazmada bir kez oluşur (Blob kotası için),
+// son 14 yedek tutulur. Hata olursa ana yazmayı etkilemez; çağıran yutar.
+export const BACKUP_PREFIX = 'db/backups/';
+const KEEP_BACKUPS = 14;
+
+export async function backupDbToBlob(bytes: Uint8Array, day: string): Promise<'created' | 'exists'> {
+  const name = `${BACKUP_PREFIX}app-${day}.db`;
+  try {
+    await put(name, Buffer.from(bytes), {
+      access: 'private',
+      addRandomSuffix: false,
+      allowOverwrite: false,
+      contentType: 'application/octet-stream',
+    });
+  } catch (err) {
+    if (/already exists|exists/i.test(String((err as Error)?.message))) return 'exists';
+    throw err;
+  }
+  // Eski yedekleri temizle
+  const { blobs } = await list({ prefix: BACKUP_PREFIX, limit: 200 });
+  const sorted = blobs.map((b) => b.pathname).sort();
+  const old = sorted.slice(0, Math.max(0, sorted.length - KEEP_BACKUPS));
+  if (old.length) await del(old);
+  return 'created';
 }
 
 // Kopyayı yazar. expectedEtag verilirse yalnızca Blob'daki kopya hâlâ o sürümse yazar;

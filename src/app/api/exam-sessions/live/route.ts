@@ -16,8 +16,11 @@ export async function GET() {
         COALESCE(e.title, p.title, 'Deneme') AS exam_title,
         COALESCE(e.question_count, p.question_count, 0) AS total_questions,
         er.net_score,
-        (SELECT COUNT(*) FROM exam_answers ea
-          WHERE ea.session_id = es.id AND COALESCE(ea.answer, ea.student_answer, '') <> '') AS answered_count
+        MAX(
+          COALESCE(es.progress_count, 0),
+          (SELECT COUNT(*) FROM exam_answers ea
+            WHERE ea.session_id = es.id AND COALESCE(ea.answer, ea.student_answer, '') <> '')
+        ) AS answered_count
       FROM exam_sessions es
       LEFT JOIN students stu ON stu.id = es.student_id
       LEFT JOIN users u ON u.id = stu.user_id

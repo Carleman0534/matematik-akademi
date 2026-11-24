@@ -26,6 +26,23 @@ export interface PdfExamSessionState {
   serverNow: string;           // istemci saat farkını düzeltmek için
   result: { correctCount: number; wrongCount: number; blankCount: number; netScore: number; totalDurationSeconds: number } | null;
   details: PdfExamResultDetail[];
+  progress: Record<string, string> | null; // sunucuya kaydedilmiş cevap taslağı (soru no → şık); teslimden sonra null
+}
+
+// Cevap taslağını kaydeder (yalnızca başlamış ve teslim edilmemiş oturum). Değişmediyse yazmaz → true döner yalnızca yazıldıysa.
+export function saveExamProgress(db: Database, examId: string, studentId: string, answers: Record<string, string>): boolean {
+  const clean: Record<string, string> = {};
+  for (const [k, v] of Object.entries(answers || {})) {
+    if (/^\d{1,3}$/.test(k) && typeof v === 'string' && /^[A-Ea-e]$/.test(v)) clean[k] = v.toUpperCase();
+  }
+  const json = JSON.stringify(clean);
+  const sess = one<{ id: string; progress_json: string | null; submitted_at: string | null; started_at: string | null }>(
+    db, 'SELECT id, progress_json, submitted_at, started_at FROM exam_sessions WHERE exam_id = ? AND student_id = ?', [examId, studentId]);
+  if (!sess || !sess.started_at || sess.submitted_at) return false;
+  if (sess.progress_json === json) return false;
+  db.run("UPDATE exam_sessions SET progress_json = ?, progress_count = ?, last_seen_at = datetime('now') WHERE id = ?",
+    [json, Object.keys(clean).length, sess.id]);
+  return true;
 }
 
 // SQLite datetime('now') 'YYYY-MM-DD HH:MM:SS' (UTC) döner; ISO biçimine çevir.
@@ -69,9 +86,14 @@ export function assignmentDurationMin(db: Database, examId: string, studentId: s
 }
 
 export function getPdfExamSessionState(db: Database, examId: string, studentId: string): PdfExamSessionState {
-  const sess = one<{ started_at: string | null; submitted_at: string | null }>(
-    db, 'SELECT started_at, submitted_at FROM exam_sessions WHERE exam_id = ? AND student_id = ?', [examId, studentId]);
+  const sess = one<{ started_at: string | null; submitted_at: string | null; progress_json: string | null }>(
+    db, 'SELECT started_at, submitted_at, progress_json FROM exam_sessions WHERE exam_id = ? AND student_id = ?', [examId, studentId]);
+  let progress: Record<string, string> | null = null;
+  if (sess?.progress_json && !sess.submitted_at) {
+    try { progress = JSON.parse(sess.progress_json); } catch { progress = null; }
+  }
   const state: PdfExamSessionState = {
+    progress,
     startedAt: sqliteToIso(sess?.started_at),
     submittedAt: sqliteToIso(sess?.submitted_at),
     durationMin: assignmentDurationMin(db, examId, studentId),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db/database';
+import { hashPassword, randomPassword, checkNewPassword } from '@/lib/accounts';
 
 export async function GET(req: NextRequest) {
   try {
@@ -63,23 +64,29 @@ export async function POST(req: NextRequest) {
       fullName,
       email,
       phone = '',
-      password = 'password123',
       studentIds = [],
       relationshipType = 'anne'
     } = body;
 
-    if (!fullName || !email || !studentIds.length) {
+    if (!fullName || !email || !Array.isArray(studentIds) || !studentIds.length) {
       return NextResponse.json({ success: false, error: 'Veli adı, e-posta ve en az bir öğrenci seçilmelidir' }, { status: 400 });
     }
 
     const db = await getDb();
+    const cleanEmail = String(email).trim().toLowerCase();
+    const dup = db.exec('SELECT 1 FROM users WHERE LOWER(email) = ? LIMIT 1', [cleanEmail]);
+    if (dup.length && dup[0].values.length) {
+      return NextResponse.json({ success: false, error: 'Bu e-posta ile zaten bir hesap var.' }, { status: 409 });
+    }
     const userId = 'parent_' + Math.random().toString(36).substring(2, 9);
+    // Varsayılan/tahmin edilebilir şifre yok: rastgele geçici şifre üretilir, yalnızca bu yanıtta gösterilir
+    const password = typeof body.password === 'string' && !checkNewPassword(body.password) ? body.password : randomPassword();
 
-    // 1. users tablosuna ekle
+    // 1. users tablosuna ekle (şifre bcrypt hash'i olarak)
     db.run(`
-      INSERT OR REPLACE INTO users (id, email, password, name, role)
+      INSERT INTO users (id, email, password, name, role)
       VALUES (?, ?, ?, ?, 'parent')
-    `, [userId, email.trim().toLowerCase(), password, fullName.trim()]);
+    `, [userId, cleanEmail, hashPassword(password), fullName.trim()]);
 
     // 2. guardian_profiles tablosuna ekle
     db.run(`
@@ -113,7 +120,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `${fullName} için veli hesabı başarıyla oluşturuldu ve ${studentIds.length} öğrenciye bağlandı.`,
-      guardianId: userId
+      guardianId: userId,
+      loginEmail: cleanEmail,
+      temporaryPassword: password
     });
   } catch (error: any) {
     console.error('Error creating guardian:', error);
@@ -127,6 +136,18 @@ export async function PUT(req: NextRequest) {
     const { linkId, guardianUserId, studentId, status, relationshipType, permissions } = body;
 
     const db = await getDb();
+
+    // Şifre sıfırlama: yeni rastgele şifre üretilir ve yalnızca bu yanıtta döner
+    if (body.resetPassword && guardianUserId) {
+      const u = db.exec("SELECT email FROM users WHERE id = ? AND role = 'parent'", [guardianUserId]);
+      if (!u.length || !u[0].values.length) {
+        return NextResponse.json({ success: false, error: 'Veli hesabı bulunamadı.' }, { status: 404 });
+      }
+      const pw = randomPassword();
+      db.run("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", [hashPassword(pw), guardianUserId]);
+      saveDb(db);
+      return NextResponse.json({ success: true, message: 'Yeni şifre oluşturuldu.', loginEmail: String(u[0].values[0][0]), temporaryPassword: pw });
+    }
 
     if (linkId && status) {
       db.run('UPDATE student_guardians SET status = ? WHERE id = ?', [status, linkId]);

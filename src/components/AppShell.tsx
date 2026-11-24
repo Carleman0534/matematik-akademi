@@ -210,6 +210,9 @@ export function AppShell({
               <span className="text-slate-500">{roleLabel}</span>
             </span>
             <ThemeToggle />
+            <Link href="/sifre" className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition">
+              Şifre
+            </Link>
             <form action={logout}>
               <button className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition">
                 Çıkış

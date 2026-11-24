@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { verifySession, type SessionPayload } from '@/lib/sessionCookie';
+import { isLocalMode } from '@/lib/env';
 
 // Her istekte oturumu doğrular ve giriş yapmamış kullanıcıyı korunan sayfalardan giriş ekranına yönlendirir.
 // Oturum çerezi (local_session) HMAC ile imzalıdır; imzasız, değiştirilmiş ya da eski biçimdeki çerez geçersizdir.
 // /api/* uç noktaları geçerli bir oturum olmadan çalışmaz; öğretmene özel olanlar rol de ister.
-const PROTECTED = ['/ogretmen', '/ogrenci', '/veli', '/soru', '/coz'];
+const PROTECTED = ['/ogretmen', '/ogrenci', '/veli', '/soru', '/coz', '/sifre'];
 
 const DAY = 60 * 60 * 24;
 
@@ -79,8 +80,8 @@ export async function proxy(request: NextRequest) {
     return res;
   };
 
-  // 2. Yerel modda Supabase auth yerine yalnızca yerel oturum çerezi denetlenir
-  if (process.env.LOCAL_MODE === 'true') {
+  // 2. Yerel modda (ya da Vercel Blob bağlıyken) Supabase auth yerine yalnızca yerel oturum çerezi denetlenir
+  if (isLocalMode()) {
     if (isApi) return dropBadCookie(apiError(401, 'Oturum gerekli; yeniden giriş yapın.'));
     if (isProtected) return dropBadCookie(redirectToLogin(request));
     return dropBadCookie(NextResponse.next({ request }));

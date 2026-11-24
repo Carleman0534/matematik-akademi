@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { IMAGE_BUCKET, EXAM_PAGE_BUCKET } from '@/lib/env';
+import { IMAGE_BUCKET, EXAM_PAGE_BUCKET, isLocalMode } from '@/lib/env';
 import { analyzeQuestion, summarize, type Attempt, type QuestionAnalysis, type BankSummary } from '@/lib/learning';
 import { descendantIds, topicPath, type Topic } from '@/lib/topics';
 import { matchesComputed, sanitizeSearch, type BankFilters } from '@/lib/filters';
@@ -60,6 +60,8 @@ export async function signedUrlMap(sb: SupabaseClient, paths: string[], seconds 
 }
 
 export async function fetchBank(sb: SupabaseClient, studentId: string, f: BankFilters, topics: Topic[], sources: Source[]): Promise<{ items: BankItem[]; truncated: boolean }> {
+  // Bulut (Supabase) soru bankası yerel modda kullanılmaz; boş liste döner (hata fırlatıp sayfayı bozmaz)
+  if (isLocalMode()) return { items: [], truncated: false };
   let query = sb.from('questions').select(Q_SELECT).eq('student_id', studentId).order('created_at', { ascending: false }).limit(BANK_LIMIT + 1);
   query = f.arsiv ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
   if (f.durum) query = query.eq('initial_status', f.durum);
@@ -99,7 +101,7 @@ export async function getQuestion(sb: SupabaseClient, id: string): Promise<Quest
 }
 
 export async function getStudent(sb: SupabaseClient, id: string): Promise<StudentRow | null> {
-  try {
+  if (!isLocalMode()) try {
     const { data } = await sb.from('students').select('id, profile_id, full_name, grade_level, school_name, is_active, notes, created_at, class_id, teacher_id').eq('id', id).maybeSingle();
     if (data) return data as StudentRow;
   } catch {}
@@ -121,9 +123,9 @@ export async function getStudent(sb: SupabaseClient, id: string): Promise<Studen
         st.teacher_id
       FROM students st
       JOIN users u ON u.id = st.user_id
-      WHERE st.id = '${id}' OR st.user_id = '${id}'
+      WHERE st.id = ? OR st.user_id = ?
       LIMIT 1
-    `);
+    `, [id, id]);
     if (res.length > 0 && res[0].values.length > 0) {
       const cols = res[0].columns;
       const obj: any = {};

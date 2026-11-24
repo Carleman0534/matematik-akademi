@@ -72,7 +72,7 @@ export async function POST(req: Request) {
 
     // 6. Soru Çözüm Denemesini Kaydet (Record Attempt & Mistakes)
     if (action === 'record_attempt') {
-      const targetStudentId = body.studentId || session.studentId || session.userId || 'student_muhammed_talha';
+      const targetStudentId = body.studentId || session.studentId || session.userId;
       const isCorrect = Boolean(body.isCorrect);
       const db = await getDb();
       const attemptId = `att_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;

@@ -7,6 +7,8 @@ import { STUDENT_EMAIL_DOMAIN, isLocalMode } from '@/lib/env';
 import { getDb } from '@/lib/db/database';
 import bcrypt from 'bcryptjs';
 import { signSession } from '@/lib/sessionCookie';
+import { headers } from 'next/headers';
+import { loginBlockedMinutes, recordLoginFailure, recordLoginSuccess } from '@/lib/loginLimit';
 
 export interface LoginState { error?: string }
 
@@ -15,6 +17,11 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
   const password = String(form.get('sifre') || '');
   const remember = form.get('beni_hatirla') === '1' || form.get('beni_hatirla') === 'on' || form.get('beni_hatirla') === 'true';
   if (!id || !password) return { error: 'Kullanıcı adınızı (ya da e-postanızı) ve şifrenizi girin.' };
+
+  const hdrs = await headers();
+  const ip = (hdrs.get('x-forwarded-for') || '').split(',')[0].trim() || hdrs.get('x-real-ip') || 'bilinmiyor';
+  const blocked = loginBlockedMinutes(id, ip);
+  if (blocked) return { error: `Çok fazla hatalı deneme. Lütfen yaklaşık ${blocked} dakika sonra tekrar deneyin.` };
 
   const sessionMaxAge = remember ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // Beni hatırla seçilmişse 30 gün, değilse 1 gün
   const store = await cookies();
@@ -66,10 +73,16 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
         let studentId: string | null = null;
         if (user.role === 'student') {
           const sRes = db.exec('SELECT id, status FROM students WHERE user_id = ? LIMIT 1', [user.id]);
-          studentId = sRes.length > 0 && sRes[0].values.length > 0
-            ? String(sRes[0].values[0][0])
-            : user.id;
+          if (sRes.length > 0 && sRes[0].values.length > 0) {
+            if (String(sRes[0].values[0][1]) === 'passive') {
+              return { error: 'Hesabınız pasif durumda. Öğretmeninizle iletişime geçin.' };
+            }
+            studentId = String(sRes[0].values[0][0]);
+          } else {
+            studentId = user.id;
+          }
         }
+        recordLoginSuccess(id);
 
         // Çerez HMAC ile imzalıdır; sunucudaki gizli anahtar olmadan sahte oturum üretilemez
         store.set('local_session', await signSession({
@@ -137,6 +150,7 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
     }
   }
 
+  recordLoginFailure(id, ip);
   return { error: 'Kullanıcı adı / e-posta ya da şifre hatalı.' };
 }
 

@@ -67,7 +67,10 @@ export async function POST(req: NextRequest) {
     } else if (!targetStudentId || targetStudentId === 'null' || targetStudentId === 'undefined') {
       const cookieHeader = req.headers.get('cookie') || '';
       const match = cookieHeader.match(/(?:student_id|studentId)=([^;]+)/);
-      targetStudentId = match ? match[1] : (session?.studentId || 'student_muhammed_talha');
+      targetStudentId = match ? match[1] : (session?.studentId || undefined);
+    }
+    if (!targetStudentId) {
+      return NextResponse.json({ error: 'Öğrenci belirlenemedi; yeniden giriş yapın.' }, { status: 400 });
     }
 
     // Hedef öğrencinin veritabanında var olduğundan emin ol

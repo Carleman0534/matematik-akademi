@@ -35,6 +35,11 @@ export const getSession = cache(async (): Promise<SessionInfo | null> => {
           if (r[0].values[0][0]) fullName = String(r[0].values[0][0]);
           const dbRole = String(r[0].values[0][1]);
           if (dbRole === 'teacher' || dbRole === 'student' || dbRole === 'parent') role = dbRole;
+          // Pasifleştirilen öğrencinin açık oturumu da geçersiz olur
+          if (dbRole === 'student') {
+            const st = db.exec("SELECT 1 FROM students WHERE user_id = ? AND status = 'passive' LIMIT 1", [parsed.userId]);
+            if (st.length && st[0].values.length) accountExists = false;
+          }
         } else {
           accountExists = false;
         }

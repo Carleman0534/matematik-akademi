@@ -952,6 +952,13 @@ async function initDatabase(initialBytes?: Uint8Array): Promise<Database> {
   try {
     database.run('ALTER TABLE exam_pdfs ADD COLUMN file_data TEXT;');
   } catch {}
+  // Sınav sırasında sunucuya kaydedilen cevap taslağı (cihaz değişse/yerel kayıt silinse devam edilebilsin; Canlı Takip'te görünsün)
+  try {
+    database.run('ALTER TABLE exam_sessions ADD COLUMN progress_json TEXT;');
+  } catch {}
+  try {
+    database.run('ALTER TABLE exam_sessions ADD COLUMN progress_count INTEGER DEFAULT 0;');
+  } catch {}
 
   // Safe migrations for exam answers & question breakdown
   try { database.run('ALTER TABLE exam_answers ADD COLUMN id TEXT;'); } catch {}
@@ -1299,6 +1306,18 @@ async function flushToBlob(): Promise<void> {
         shared.__blobEtag = res.etag;
         shared.__blobLastCheck = Date.now();
         if (pendingJournal().length > 0) shared.__blobDirty = true; // yükleme sürerken gelen yeni değişiklikler
+        // Günde bir kez otomatik yedek (hata ana yazmayı etkilemez)
+        const day = new Date().toISOString().slice(0, 10);
+        const sh = shared as unknown as { __backupDay?: string };
+        if (sh.__backupDay !== day) {
+          sh.__backupDay = day;
+          try {
+            const { backupDbToBlob } = await import('./blobStore.ts');
+            if ((await backupDbToBlob(bytes, day)) === 'created') console.log('Günlük veritabanı yedeği alındı:', day);
+          } catch (err) {
+            console.error('Günlük yedek alınamadı:', err);
+          }
+        }
         return;
       }
 

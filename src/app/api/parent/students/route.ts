@@ -25,7 +25,6 @@ export async function GET(_req: NextRequest) {
       WHERE sg.guardian_user_id = ? AND sg.status = 'active'
       GROUP BY s.id
       ORDER BY 
-        CASE WHEN s.id = 'student_muhammed_talha' THEN 1 ELSE 2 END,
         u.name ASC
     `;
 

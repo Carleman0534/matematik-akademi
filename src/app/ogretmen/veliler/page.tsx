@@ -10,6 +10,7 @@ export default function VelilerPage() {
   const [guardians, setGuardians] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creds, setCreds] = useState<{ email: string; password: string } | null>(null);
 
   // Yeni Veli Modalı
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -79,7 +80,9 @@ export default function VelilerPage() {
         })
       });
       const data = await res.json();
+      if (!data.success) { alert(data.error || 'Veli hesabı oluşturulamadı.'); return; }
       if (data.success) {
+        if (data.temporaryPassword) setCreds({ email: data.loginEmail, password: data.temporaryPassword });
         setIsAddModalOpen(false);
         setFullName('');
         setEmail('');
@@ -90,6 +93,20 @@ export default function VelilerPage() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleResetPassword = async (g: any) => {
+    if (!confirm(`${g.guardian_name} için yeni şifre oluşturulsun mu? Eski şifre geçersiz olur.`)) return;
+    try {
+      const res = await fetch('/api/guardians', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetPassword: true, guardianUserId: g.guardian_user_id })
+      });
+      const data = await res.json();
+      if (data.success) setCreds({ email: data.loginEmail, password: data.temporaryPassword });
+      else alert(data.error || 'Şifre sıfırlanamadı.');
+    } catch (e) { console.error(e); }
   };
 
   const handleToggleStatus = async (linkId: string, currentStatus: string) => {
@@ -171,6 +188,14 @@ export default function VelilerPage() {
 
   return (
     <div className="space-y-6">
+      {creds && (
+        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-5 text-emerald-900">
+          <p className="font-black">Veli giriş bilgileri — şifre yalnızca şimdi gösterilir, veliye iletin</p>
+          <p className="mt-2 text-sm">Kullanıcı adı (e-posta): <b className="select-all">{creds.email}</b></p>
+          <p className="text-sm">Geçici şifre: <b className="select-all font-mono">{creds.password}</b></p>
+          <button onClick={() => setCreds(null)} className="mt-3 text-xs font-bold underline">Kapat</button>
+        </div>
+      )}
       {/* Başlık */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 p-6 text-white shadow-lg">
         <div>
@@ -268,6 +293,12 @@ export default function VelilerPage() {
                         className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700"
                       >
                         <Send className="h-3.5 w-3.5" /> Not İlet
+                      </button>
+                      <button
+                        onClick={() => handleResetPassword(g)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700"
+                      >
+                        🔑 Şifre Sıfırla
                       </button>
                     </td>
                   </tr>

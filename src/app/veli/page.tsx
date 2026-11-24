@@ -1,5 +1,6 @@
 'use client';
 
+import { resolveParentStudentId } from '@/lib/parentChild';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
@@ -15,7 +16,8 @@ export default function VeliAnaEkranPage() {
     try {
       setLoading(true);
       const saved = localStorage.getItem('parent_active_student_id');
-      const studentId = (saved && saved !== '50fa22f6-1021-4dde-8278-2339fa65030d') ? saved : 'student_muhammed_talha';
+      const studentId = await resolveParentStudentId(saved);
+      if (!studentId) { setData(null); return; }
       const res = await fetch(`/api/parent/student-data?studentId=${studentId}`);
       const json = await res.json();
       if (json.success) {
