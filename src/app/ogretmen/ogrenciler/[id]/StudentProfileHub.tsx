@@ -649,7 +649,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                             🔍 Soru & Yanlış Analizini İncele
                           </button>
                           <Link
-                            href={`/ogrenci/deneme/${exam.exam_id}?studentId=${student.id}`}
+                            href={exam.is_study_plan ? '/ogrenci/ozel-calismam' : `/ogrenci/denemeler/${encodeURIComponent(exam.exam_id)}/coz?viewOnly=true&studentId=${encodeURIComponent(student.id)}`}
                             target="_blank"
                             className="text-xs text-slate-500 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
                           >
@@ -672,7 +672,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
                             </Link>
                           )}
                           <Link
-                            href={`/ogrenci/deneme/${exam.exam_id}?studentId=${student.id}`}
+                            href={exam.is_study_plan ? '/ogrenci/ozel-calismam' : `/ogrenci/denemeler/${encodeURIComponent(exam.exam_id)}/coz?viewOnly=true&studentId=${encodeURIComponent(student.id)}`}
                             target="_blank"
                             className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold"
                           >
@@ -1568,7 +1568,7 @@ export function StudentProfileHub({ initialData, questionBankNode, studentFormsN
             {/* Modal Alt Barı */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <Link
-                href={`/ogrenci/deneme/${inspectingExam.exam_id}?studentId=${student.id}`}
+                href={`/ogrenci/denemeler/${encodeURIComponent(inspectingExam.exam_id)}/coz?viewOnly=true&studentId=${encodeURIComponent(student.id)}`}
                 target="_blank"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline"
               >

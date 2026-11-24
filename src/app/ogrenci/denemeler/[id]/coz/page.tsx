@@ -184,6 +184,8 @@ export default function OgrenciSinavOdasiPage({
 }) {
   const searchParams = useSearchParams();
   const isViewOnly = searchParams.get('viewOnly') === 'true';
+  // Öğretmenin "Öğrenci Gözüyle Aç" önizlemesi: ?studentId= o öğrencinin durumunu salt okunur gösterir
+  const previewStudentId = searchParams.get('studentId');
   const { id: examId } = use(params);
 
   // Sınav Verisi (soru sayısı ve şıklar cevap anahtarından / çıkarılmış sorulardan gelir)
@@ -251,7 +253,8 @@ export default function OgrenciSinavOdasiPage({
   // 1. LocalStorage ve Veri Yükleme
   useEffect(() => {
     // Çevrimdışı ve yerel hafıza kontrolü
-    const localSaved = localStorage.getItem(`exam_answers_${examId}`);
+    // Salt okunur görünümde (öğretmen önizlemesi dahil) bu tarayıcıdaki taslak cevaplar gösterilmez
+    const localSaved = isViewOnly ? null : localStorage.getItem(`exam_answers_${examId}`);
     if (localSaved) {
       try {
         setAnswers(JSON.parse(localSaved));
@@ -292,7 +295,8 @@ export default function OgrenciSinavOdasiPage({
         }
 
         // Oturum: bittiyse sonuçları getir, bitmediyse (inceleme modu değilse) başlat
-        let sess = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { cache: 'no-store' })
+        const sessionUrl = `/api/pdf-documents/${encodeURIComponent(examId)}/session${previewStudentId ? `?studentId=${encodeURIComponent(previewStudentId)}` : ''}`;
+        let sess = await fetch(sessionUrl, { cache: 'no-store' })
           .then(r => r.json()).catch(() => null);
         if (sess?.success && !sess.submittedAt && !isViewOnly) {
           sess = await fetch(`/api/pdf-documents/${encodeURIComponent(examId)}/session`, { method: 'POST' })
@@ -522,6 +526,10 @@ export default function OgrenciSinavOdasiPage({
               {isUnlimited && <span className="font-sans font-semibold">Geçen süre</span>}
               <span>{formatTime(isUnlimited ? elapsedSec : timeLeftSec)}</span>
             </div>
+          ) : isViewOnly && !examResult ? (
+            <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-xl text-xs font-bold">
+              Önizleme · öğrenci henüz tamamlamadı
+            </span>
           ) : (
             <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-xl text-xs font-bold">
               Tamamlandı
