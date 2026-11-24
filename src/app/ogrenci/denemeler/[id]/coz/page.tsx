@@ -208,6 +208,7 @@ export default function OgrenciSinavOdasiPage({
   });
   const [loadingExam, setLoadingExam] = useState(true);
   const [submitError, setSubmitError] = useState('');
+  const [pendingGrade, setPendingGrade] = useState(false);
   // Oturum çerezi dolduysa gönderim 401 döner; cevaplar cihazda saklı kalır, yeni sekmede giriş yapılıp tekrar gönderilir
   const [sessionExpired, setSessionExpired] = useState(false);
   const [resultDetails, setResultDetails] = useState<Record<number, ResultDetail>>({});
@@ -319,6 +320,9 @@ export default function OgrenciSinavOdasiPage({
           if (sess.submittedAt && sess.result) {
             applyResult(sess.result, sess.details || []);
             localStorage.removeItem(`exam_answers_${examId}`);
+          } else if (sess.submittedAt && sess.pendingGrade) {
+            setPendingGrade(true);
+            localStorage.removeItem(`exam_answers_${examId}`);
           } else if (sess.startedAt) {
             setStartedAtMs(new Date(sess.startedAt).getTime());
             // Bu cihazda yerel taslak yoksa (başka cihaz / temizlenmiş tarayıcı) sunucudaki taslaktan devam et
@@ -383,6 +387,13 @@ export default function OgrenciSinavOdasiPage({
         return;
       }
       setSessionExpired(false);
+      if (data.pendingGrade) {
+        // Cevap anahtarı henüz yok: cevaplar sunucuya alındı, puanlama sonra yapılacak
+        setPendingGrade(true);
+        setSavingStatus('saved');
+        localStorage.removeItem(`exam_answers_${examId}`);
+        return;
+      }
       applyResult(data.result, data.details || []);
       setSavingStatus('saved');
       localStorage.removeItem(`exam_answers_${examId}`);
@@ -494,6 +505,18 @@ export default function OgrenciSinavOdasiPage({
   };
 
   const questionNumbers = Array.from({ length: exam.question_count }, (_, i) => i + 1);
+
+  if (pendingGrade) {
+    return (
+      <div className="max-w-xl mx-auto mt-10 rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100">
+        <h2 className="text-lg font-black">Cevaplarınız alındı ✅</h2>
+        <p className="mt-2 text-sm">
+          Bu denemenin cevap anahtarı henüz eklenmemiş. Cevaplarınız ve süreniz kaydedildi; anahtar eklenince otomatik puanlanacak ve sonuçlarınızı buradan görebileceksiniz.
+        </p>
+        <Link href="/ogrenci/denemeler" className="mt-4 inline-block text-sm font-bold underline">Denemelerime dön</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12">

@@ -959,6 +959,13 @@ async function initDatabase(initialBytes?: Uint8Array): Promise<Database> {
   try {
     database.run('ALTER TABLE exam_sessions ADD COLUMN progress_count INTEGER DEFAULT 0;');
   } catch {}
+  // Cevap anahtarı olmadan teslim edilen deneme: cevaplar burada bekler, anahtar eklenince otomatik puanlanır
+  try {
+    database.run('ALTER TABLE exam_sessions ADD COLUMN pending_answers TEXT;');
+  } catch {}
+  try {
+    database.run('ALTER TABLE exam_sessions ADD COLUMN pending_duration INTEGER;');
+  } catch {}
 
   // Safe migrations for exam answers & question breakdown
   try { database.run('ALTER TABLE exam_answers ADD COLUMN id TEXT;'); } catch {}

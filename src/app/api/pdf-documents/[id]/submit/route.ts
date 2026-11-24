@@ -3,7 +3,7 @@ import { getDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 import type { SheetFallback } from '@/lib/pdfExtraction/answerSheetDb';
 import { getPdfExamSessionState } from '@/lib/pdfExamSession';
-import { scoreAndStorePdfExam } from '@/lib/pdfExamSubmit';
+import { scoreAndStorePdfExam, storeUngradedSubmission } from '@/lib/pdfExamSubmit';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +41,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     fallback,
     startedAtIso: state.startedAt,
   });
+  // Cevap anahtarı henüz yok: cevapları sakla, puanlama anahtar eklenince yapılır
+  if (!out.ok && out.status === 422) {
+    storeUngradedSubmission(db, id, session.studentId, answers, durationSeconds);
+    return NextResponse.json({ success: true, pendingGrade: true, durationSeconds });
+  }
   if (!out.ok) return NextResponse.json({ success: false, error: out.error }, { status: out.status });
 
   return NextResponse.json({

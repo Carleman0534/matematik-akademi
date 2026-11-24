@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { updatePdfAnswerKey } from '@/lib/pdfDocs';
 import { parseAnswerKey } from '@/lib/pdfExtraction/answerKey';
+import { getDb } from '@/lib/db/database';
+import { gradePendingSubmissions } from '@/lib/pdfExamSubmit';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,5 +33,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (!found) {
     return NextResponse.json({ success: false, error: 'PDF sunucuda bulunamadı.' }, { status: 404 });
   }
-  return NextResponse.json({ success: true, answerKey: raw, questionCount, answeredCount: nos.length });
+  // Anahtarsız teslim edilmiş denemeler varsa şimdi puanla
+  let gradedPending = 0;
+  if (nos.length) {
+    try { gradedPending = await gradePendingSubmissions(req, await getDb(), id); } catch (e) { console.error('Bekleyen denemeler puanlanamadı:', e); }
+  }
+  return NextResponse.json({ success: true, answerKey: raw, questionCount, answeredCount: nos.length, gradedPending });
 }

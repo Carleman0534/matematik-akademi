@@ -20,6 +20,50 @@ export type ScoreOutcome =
   | { ok: true; result: { correctCount: number; wrongCount: number; blankCount: number; netScore: number; totalDurationSeconds: number }; gradedCount: number; questionCount: number; details: ScoredDetail[] }
   | { ok: false; status: number; error: string };
 
+// Cevap anahtarı yokken teslim: cevaplar olduğu gibi saklanır, oturum teslim edilmiş sayılır.
+// Anahtar sonradan eklenince gradePendingSubmissions puanlar.
+export function storeUngradedSubmission(db: Database, examId: string, studentId: string, answers: Record<string, string>, durationSeconds: number): void {
+  const clean: Record<string, string> = {};
+  for (const [k, v] of Object.entries(answers || {})) {
+    if (/^\d{1,3}$/.test(k) && typeof v === 'string' && /^[A-Ea-e]$/.test(v)) clean[k] = v.toUpperCase();
+  }
+  db.run(
+    `INSERT INTO exam_sessions (id, exam_id, student_id, started_at, deadline, submitted_at, current_q, pending_answers, pending_duration)
+     VALUES (?, ?, ?, datetime('now'), datetime('now'), datetime('now'), 1, ?, ?)
+     ON CONFLICT(exam_id, student_id) DO UPDATE SET
+       submitted_at = datetime('now'), pending_answers = excluded.pending_answers, pending_duration = excluded.pending_duration`,
+    [`sess_${examId}_${studentId}`, examId, studentId, JSON.stringify(clean), Math.max(1, Math.round(durationSeconds))]
+  );
+  try {
+    db.run("UPDATE exam_assignments SET status = 'in_progress' WHERE exam_id = ? AND student_id = ? AND status = 'assigned'", [examId, studentId]);
+  } catch {}
+  saveDb();
+}
+
+// Cevap anahtarı eklenince, anahtarsız teslim edilmiş denemeleri puanlar. Puanlanan öğrenci sayısını döner.
+export async function gradePendingSubmissions(req: NextRequest, db: Database, examId: string): Promise<number> {
+  const st = db.prepare('SELECT student_id, pending_answers, pending_duration, started_at FROM exam_sessions WHERE exam_id = ? AND pending_answers IS NOT NULL AND submitted_at IS NOT NULL');
+  st.bind([examId]);
+  const rows: { student_id: string; pending_answers: string; pending_duration: number | null; started_at: string | null }[] = [];
+  while (st.step()) rows.push(st.getAsObject() as never);
+  st.free();
+  let graded = 0;
+  for (const r of rows) {
+    let answers: Record<string, string> = {};
+    try { answers = JSON.parse(r.pending_answers); } catch {}
+    const out = await scoreAndStorePdfExam(req, db, {
+      examId, studentId: r.student_id, answers, durationSeconds: Number(r.pending_duration) || 1,
+      startedAtIso: r.started_at ? new Date(r.started_at.replace(' ', 'T') + 'Z').toISOString() : null,
+    });
+    if (out.ok) {
+      db.run('UPDATE exam_sessions SET pending_answers = NULL WHERE exam_id = ? AND student_id = ?', [examId, r.student_id]);
+      graded++;
+    }
+  }
+  if (graded) saveDb();
+  return graded;
+}
+
 // Bir PDF denemesini PDF'in cevap anahtarıyla puanlar ve sonucu mevcut gönderme akışıyla
 // (sonuçlar, yanlış havuzu, konu başarısı, öğretmen paneli) kaydeder. Öğrencinin kendi gönderimi
 // de öğretmenin elle girişi de aynı yoldan geçer: net formülü ve anahtar tek yerde.

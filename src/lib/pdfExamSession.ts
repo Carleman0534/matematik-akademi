@@ -26,6 +26,7 @@ export interface PdfExamSessionState {
   serverNow: string;           // istemci saat farkını düzeltmek için
   result: { correctCount: number; wrongCount: number; blankCount: number; netScore: number; totalDurationSeconds: number } | null;
   details: PdfExamResultDetail[];
+  pendingGrade: boolean;                   // teslim edildi ama cevap anahtarı olmadığı için henüz puanlanmadı
   progress: Record<string, string> | null; // sunucuya kaydedilmiş cevap taslağı (soru no → şık); teslimden sonra null
 }
 
@@ -86,14 +87,15 @@ export function assignmentDurationMin(db: Database, examId: string, studentId: s
 }
 
 export function getPdfExamSessionState(db: Database, examId: string, studentId: string): PdfExamSessionState {
-  const sess = one<{ started_at: string | null; submitted_at: string | null; progress_json: string | null }>(
-    db, 'SELECT started_at, submitted_at, progress_json FROM exam_sessions WHERE exam_id = ? AND student_id = ?', [examId, studentId]);
+  const sess = one<{ started_at: string | null; submitted_at: string | null; progress_json: string | null; pending_answers: string | null }>(
+    db, 'SELECT started_at, submitted_at, progress_json, pending_answers FROM exam_sessions WHERE exam_id = ? AND student_id = ?', [examId, studentId]);
   let progress: Record<string, string> | null = null;
   if (sess?.progress_json && !sess.submitted_at) {
     try { progress = JSON.parse(sess.progress_json); } catch { progress = null; }
   }
   const state: PdfExamSessionState = {
     progress,
+    pendingGrade: Boolean(sess?.submitted_at && sess?.pending_answers),
     startedAt: sqliteToIso(sess?.started_at),
     submittedAt: sqliteToIso(sess?.submitted_at),
     durationMin: assignmentDurationMin(db, examId, studentId),
