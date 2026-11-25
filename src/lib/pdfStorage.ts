@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { mkdir, writeFile, readFile } from 'fs/promises';
+import { blobStoreActive, blobStoreConfigured, putFileToBlob, getFileFromBlob } from '@/lib/db/blobStore';
 
 const IS_SERVERLESS = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
 
@@ -11,11 +12,14 @@ export interface SavedPdfResult {
   publicUrl: string;
   base64Data?: string;
   localPath?: string;
+  blobPath?: string;
 }
 
 /**
- * PDF dosyasını hem sunucusuz (serverless) /tmp ortamına hem de SQLite/veritabanına
- * güvenle kaydeder. EROFS (Read-only filesystem) hatalarını engeller.
+ * PDF dosyasını kaydeder.
+ * - Vercel'de (Blob deposu bağlıysa): Blob'da ayrı bir nesne olarak (pdfs/<id>.pdf). Veritabanına yalnızca yolu
+ *   yazılır; dosya veritabanına gömülmez (gömülürse her değişiklikte tamamı yeniden yüklenir).
+ * - Yerelde: /tmp + public/uploads/pdfs ve (15 MB'a kadar) veritabanında base64.
  */
 export async function saveUploadedPdf(file: File, id: string): Promise<SavedPdfResult> {
   const bytes = await file.arrayBuffer();
@@ -24,6 +28,13 @@ export async function saveUploadedPdf(file: File, id: string): Promise<SavedPdfR
   const originalName = file.name || 'dokuman.pdf';
   const fileExt = originalName.split('.').pop() || 'pdf';
   const uniqueName = `${id}.${fileExt}`;
+  const publicUrl = `/api/pdf-documents/${id}/file`;
+
+  if (blobStoreActive()) {
+    const blobPath = `pdfs/${id}.pdf`;
+    await putFileToBlob(blobPath, buffer, 'application/pdf');
+    return { fileName: originalName, fileSizeMb, publicUrl, blobPath };
+  }
 
   let localPath: string | undefined;
 
@@ -60,8 +71,6 @@ export async function saveUploadedPdf(file: File, id: string): Promise<SavedPdfR
     base64Data = buffer.toString('base64');
   }
 
-  const publicUrl = `/api/pdf-documents/${id}/file`;
-
   return {
     fileName: originalName,
     fileSizeMb,
@@ -80,9 +89,17 @@ export async function getPdfBuffer(doc: {
   file_name?: string;
   file_path?: string;
   file_data?: string | null;
+  blob_path?: string | null;
   title?: string;
 }): Promise<{ buffer: Buffer; fileName: string; isFallback?: boolean }> {
   const fileName = doc.file_name || 'dokuman.pdf';
+
+  // 0. Blob'da ayrı nesne olarak saklanıyorsa oradan oku
+  if (doc.blob_path && blobStoreConfigured()) {
+    const bytes = await getFileFromBlob(doc.blob_path);
+    if (bytes) return { buffer: Buffer.from(bytes), fileName };
+    console.warn('PDF Blob\'da bulunamadı:', doc.blob_path);
+  }
 
   // 1. Veritabanında Base64 saklanmışsa doğrudan belleğe al
   if (doc.file_data && typeof doc.file_data === 'string' && doc.file_data.length > 50) {

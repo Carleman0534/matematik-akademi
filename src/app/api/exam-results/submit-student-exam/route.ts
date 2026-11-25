@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 
 interface AnswerPayload {
@@ -331,7 +331,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 10. Değişiklikleri Dosyaya Yaz
-    saveDb();
+    await commitDb();
 
     return NextResponse.json({
       success: true,

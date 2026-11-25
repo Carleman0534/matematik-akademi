@@ -1,7 +1,7 @@
 import 'server-only';
 import { NextRequest } from 'next/server';
 import type { Database } from 'sql.js';
-import { saveDb } from '@/lib/db/database';
+import { commitDb } from '@/lib/db/database';
 import { loadPdfAnswerSheet, type SheetFallback } from '@/lib/pdfExtraction/answerSheetDb';
 import { loadPdfQuestionSolutions } from '@/lib/pdfExamSession';
 import { POST as submitStudentExam } from '@/app/api/exam-results/submit-student-exam/route';
@@ -22,7 +22,7 @@ export type ScoreOutcome =
 
 // Cevap anahtarı yokken teslim: cevaplar olduğu gibi saklanır, oturum teslim edilmiş sayılır.
 // Anahtar sonradan eklenince gradePendingSubmissions puanlar.
-export function storeUngradedSubmission(db: Database, examId: string, studentId: string, answers: Record<string, string>, durationSeconds: number): void {
+export async function storeUngradedSubmission(db: Database, examId: string, studentId: string, answers: Record<string, string>, durationSeconds: number): Promise<void> {
   const clean: Record<string, string> = {};
   for (const [k, v] of Object.entries(answers || {})) {
     if (/^\d{1,3}$/.test(k) && typeof v === 'string' && /^[A-Ea-e]$/.test(v)) clean[k] = v.toUpperCase();
@@ -37,7 +37,7 @@ export function storeUngradedSubmission(db: Database, examId: string, studentId:
   try {
     db.run("UPDATE exam_assignments SET status = 'in_progress' WHERE exam_id = ? AND student_id = ? AND status = 'assigned'", [examId, studentId]);
   } catch {}
-  saveDb();
+  await commitDb();
 }
 
 // Cevap anahtarı eklenince, anahtarsız teslim edilmiş denemeleri puanlar. Puanlanan öğrenci sayısını döner.
@@ -60,7 +60,7 @@ export async function gradePendingSubmissions(req: NextRequest, db: Database, ex
       graded++;
     }
   }
-  if (graded) saveDb();
+  if (graded) await commitDb();
   return graded;
 }
 
@@ -121,7 +121,7 @@ export async function scoreAndStorePdfExam(
   if (o.startedAtIso) {
     try {
       db.run('UPDATE exam_results SET started_at = ? WHERE exam_id = ? AND student_id = ?', [o.startedAtIso, o.examId, o.studentId]);
-      saveDb();
+      await commitDb();
     } catch {}
   }
 

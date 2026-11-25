@@ -1,7 +1,7 @@
 'use server';
 import bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/auth';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { hashPassword, checkNewPassword } from '@/lib/accounts';
 import { loginBlockedMinutes, recordLoginFailure, recordLoginSuccess } from '@/lib/loginLimit';
 
@@ -32,6 +32,6 @@ export async function changeOwnPassword(_prev: PwState, form: FormData): Promise
 
   recordLoginSuccess(limitKey);
   db.run("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", [hashPassword(next), s.userId]);
-  saveDb(db);
+  await commitDb();
   return { ok: 'Şifreniz değiştirildi.' };
 }

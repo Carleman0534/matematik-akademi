@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         questionText || 'Öğrencinin tekrar listesine eklediği pekiştirme sorusu'
       ]);
 
-      await saveDb();
+      await commitDb();
       return NextResponse.json({ success: true, message: 'Soru aralıklı tekrar kuyruğunuza eklendi! Yarın yeniden çözmek üzere hatırlatılacaktır.' });
     }
 
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         ]);
       }
 
-      await saveDb();
+      await commitDb();
       return NextResponse.json({ success: true });
     }
 

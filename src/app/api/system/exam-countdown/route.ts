@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 
 export async function GET() {
@@ -49,7 +49,7 @@ export async function PUT(req: Request) {
       VALUES ('lgs-target', ?, ?, ?, datetime('now'))
     `, [examTitle || 'LGS Matematik', targetDate, session.userId]);
 
-    await saveDb();
+    await commitDb();
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Güncelleme başarısız' }, { status: 500 });

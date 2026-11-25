@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getDb, saveDb, flushDbNow } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
+import { blobStoreActive, putFileToBlob, getFileFromBlob, deleteBlobPrefix } from '@/lib/db/blobStore';
 import { createPdfDocument, type PdfDocument } from '@/lib/pdfDocs';
 import { saveUploadedPdf } from '@/lib/pdfStorage';
 import path from 'path';
@@ -14,7 +15,10 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    const teacherId = session?.userId || 'teacher-admin';
+    if (!session || session.role !== 'teacher') {
+      return NextResponse.json({ error: 'PDF yüklemek için öğretmen olarak giriş yapın.' }, { status: 403 });
+    }
+    const teacherId = session.userId;
 
     const formData = await request.formData();
     const chunk = formData.get('chunk') as File | null;
@@ -41,30 +45,42 @@ export async function POST(request: NextRequest) {
     const chunkBytes = await chunk.arrayBuffer();
     const chunkBuffer = Buffer.from(chunkBytes);
 
-    // 1. Geçici klasöre parçayı yaz (os.tmpdir() hem Windows hem Vercel/Linux ile uyumludur)
-    const chunksDir = path.join(os.tmpdir(), 'uploads', 'chunks', uploadId);
-    try {
-      if (!fs.existsSync(chunksDir)) {
-        await mkdir(chunksDir, { recursive: true });
-      }
-      await writeFile(path.join(chunksDir, `${chunkIndex}.part`), chunkBuffer);
-    } catch (e) {
-      console.warn('Could not write chunk to disk, will use DB fallback:', e);
+    // Yükleme kimliği yalnızca güvenli karakterler içersin (Blob yolu ve klasör adı olarak kullanılır)
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(uploadId)) {
+      return NextResponse.json({ error: 'Geçersiz yükleme kimliği.' }, { status: 400 });
     }
 
-    // 2. Parça verisini SQLite veritabanına da kaydet (Serverless container ayrışmalarına karşı)
-    try {
-      const db = await getDb();
-      const chunkB64 = chunkBuffer.toString('base64');
-      db.run(
-        `INSERT OR REPLACE INTO upload_chunks (id, upload_id, chunk_index, chunk_data) VALUES (?, ?, ?, ?)`,
-        [`${uploadId}_${chunkIndex}`, uploadId, chunkIndex, chunkB64]
-      );
-      saveDb(db);
-      // Sonraki parça başka bir sunucuya düşebilir: bu parça buluta yazılmadan yanıt dönülmez
-      if (chunkIndex < totalChunks - 1) await flushDbNow();
-    } catch (dbErr) {
-      console.warn('Could not store chunk in SQLite:', dbErr);
+    const chunksDir = path.join(os.tmpdir(), 'uploads', 'chunks', uploadId);
+    const useBlob = blobStoreActive();
+    const chunkBlobPath = (i: number) => `uploads/${uploadId}/${i}`;
+
+    if (useBlob) {
+      // Vercel: sonraki parça başka bir sunucu örneğine düşebilir. Parça Blob'da kendi dosyası olarak saklanır;
+      // veritabanına yazılmaz (yazılırsa her parçada bütün veritabanı yeniden yüklenir).
+      await putFileToBlob(chunkBlobPath(chunkIndex), chunkBuffer, 'application/octet-stream');
+    } else {
+      // 1. Geçici klasöre parçayı yaz (os.tmpdir() hem Windows hem Vercel/Linux ile uyumludur)
+      try {
+        if (!fs.existsSync(chunksDir)) {
+          await mkdir(chunksDir, { recursive: true });
+        }
+        await writeFile(path.join(chunksDir, `${chunkIndex}.part`), chunkBuffer);
+      } catch (e) {
+        console.warn('Could not write chunk to disk, will use DB fallback:', e);
+      }
+
+      // 2. Parça verisini SQLite veritabanına da kaydet
+      try {
+        const db = await getDb();
+        const chunkB64 = chunkBuffer.toString('base64');
+        db.run(
+          `INSERT OR REPLACE INTO upload_chunks (id, upload_id, chunk_index, chunk_data) VALUES (?, ?, ?, ?)`,
+          [`${uploadId}_${chunkIndex}`, uploadId, chunkIndex, chunkB64]
+        );
+        saveDb(db);
+      } catch (dbErr) {
+        console.warn('Could not store chunk in SQLite:', dbErr);
+      }
     }
 
     // Eğer son parça değilse başarıyla alındığını bildir
@@ -87,7 +103,14 @@ export async function POST(request: NextRequest) {
       const partPath = path.join(chunksDir, `${i}.part`);
       const fallbackPartPath = path.join('/tmp', 'uploads', 'chunks', uploadId, `${i}.part`);
 
-      if (fs.existsSync(partPath)) {
+      if (useBlob) {
+        if (i === chunkIndex) {
+          partBuf = chunkBuffer;
+        } else {
+          const bytes = await getFileFromBlob(chunkBlobPath(i));
+          if (bytes) partBuf = Buffer.from(bytes);
+        }
+      } else if (fs.existsSync(partPath)) {
         try {
           partBuf = await readFile(partPath);
         } catch {}
@@ -97,8 +120,8 @@ export async function POST(request: NextRequest) {
         } catch {}
       }
 
-      // Diskten okunamadıysa SQLite'tan oku
-      if (!partBuf) {
+      // Diskten okunamadıysa SQLite'tan oku (yalnızca yerel mod)
+      if (!partBuf && !useBlob) {
         try {
           const stmt = db.prepare('SELECT chunk_data FROM upload_chunks WHERE upload_id = ? AND chunk_index = ?');
           stmt.bind([uploadId, i]);
@@ -146,16 +169,25 @@ export async function POST(request: NextRequest) {
       answer_key: answerKey,
       question_count: questionCount,
       file_data: saved.base64Data,
+      blob_path: saved.blobPath,
     });
 
     // Geçici parçaları temizle
-    try {
-      if (fs.existsSync(chunksDir)) {
-        await rm(chunksDir, { recursive: true, force: true });
+    if (useBlob) {
+      try {
+        await deleteBlobPrefix(`uploads/${uploadId}/`);
+      } catch (e) {
+        console.warn('Geçici yükleme parçaları Blob\'dan silinemedi:', e);
       }
-      db.run('DELETE FROM upload_chunks WHERE upload_id = ?', [uploadId]);
-      saveDb(db);
-    } catch {}
+    } else {
+      try {
+        if (fs.existsSync(chunksDir)) {
+          await rm(chunksDir, { recursive: true, force: true });
+        }
+        db.run('DELETE FROM upload_chunks WHERE upload_id = ?', [uploadId]);
+        saveDb(db);
+      } catch {}
+    }
 
     const { file_data, ...docResponse } = newDoc as any;
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       VALUES (?, ?, ?, ?, ?, 'teacher_note', datetime('now'))
     `, [notifId, guardianUserId, studentId, title, message.trim().substring(0, 120) + '...']);
 
-    saveDb(db);
+    await commitDb();
 
     return NextResponse.json({ success: true, message: 'Özel değerlendirme notu veliye iletildi' });
   } catch (error: any) {

@@ -21,7 +21,7 @@ export async function GET(
     if (!doc) {
       try {
         const db = await getDb();
-        const stmt = db.prepare('SELECT id, title, file_name, file_path, file_data FROM exam_pdfs WHERE id = ?');
+        const stmt = db.prepare('SELECT id, title, file_name, file_path, file_data, blob_path FROM exam_pdfs WHERE id = ?');
         stmt.bind([id]);
         if (stmt.step()) {
           const row = stmt.getAsObject() as any;
@@ -31,6 +31,7 @@ export async function GET(
             file_name: row.file_name,
             file_path: row.file_path,
             file_data: row.file_data,
+            blob_path: row.blob_path,
             teacher_id: '',
             file_type: 'deneme',
             subject: 'Matematik',

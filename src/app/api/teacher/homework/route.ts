@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: Request) {
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       shareWithParent ? 1 : 0
     ]);
 
-    await saveDb();
+    await commitDb();
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Ödev oluşturulamadı' }, { status: 500 });
