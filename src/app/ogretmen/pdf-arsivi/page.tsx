@@ -508,6 +508,10 @@ export default function PdfArsiviPage() {
             <option value="11">11. Sınıf</option>
             <option value="10">10. Sınıf</option>
             <option value="9">9. Sınıf</option>
+                            <option value="8">8. Sınıf</option>
+                            <option value="7">7. Sınıf</option>
+                            <option value="6">6. Sınıf</option>
+                            <option value="5">5. Sınıf</option>
           </select>
 
           <button
@@ -918,6 +922,10 @@ export default function PdfArsiviPage() {
                             <option value="11">11. Sınıf</option>
                             <option value="10">10. Sınıf</option>
                             <option value="9">9. Sınıf</option>
+                            <option value="8">8. Sınıf</option>
+                            <option value="7">7. Sınıf</option>
+                            <option value="6">6. Sınıf</option>
+                            <option value="5">5. Sınıf</option>
                           </select>
                         </div>
                       </div>
