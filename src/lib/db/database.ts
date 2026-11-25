@@ -1300,11 +1300,17 @@ export async function commitDb(): Promise<void> {
 // Eskiden PDF'ler veritabanının içinde base64 olarak saklanıyordu; her değişiklikte bunların tamamı Blob'a
 // yeniden yüklendiği için yazmalar yavaşlıyor ve zaman aşımına uğruyordu. Bu geçiş her PDF'i Blob'da ayrı
 // bir nesneye taşır, satırdaki veriyi siler ve veritabanını küçültür. Tekrar çalışması zararsızdır.
-async function migrateInlinePdfsToBlob(): Promise<void> {
+const MIGRATION_BATCH_MS = 12000;
+
+// Bir tur: süre bütçesi dolana kadar PDF taşır, sonra veritabanını küçültüp kaydeder. Daha fazla kaldıysa true döner.
+// Tek seferde hepsini taşımak bir sunucu örneğini uzun süre meşgul ediyor ve zaman sınırına takılabiliyordu.
+async function migrateInlinePdfsToBlob(): Promise<boolean> {
   const { putFileToBlob } = await import('./blobStore.ts');
   const h = blobHandle();
+  const started = Date.now();
   let moved = 0;
-  for (const table of ['pdf_documents', 'exam_pdfs']) {
+  let more = false;
+  outer: for (const table of ['pdf_documents', 'exam_pdfs']) {
     let ids: string[] = [];
     try {
       const r = h.exec(`SELECT id FROM ${table} WHERE file_data IS NOT NULL AND length(file_data) > 50`);
@@ -1313,6 +1319,7 @@ async function migrateInlinePdfsToBlob(): Promise<void> {
       continue;
     }
     for (const id of ids) {
+      if (moved > 0 && Date.now() - started > MIGRATION_BATCH_MS) { more = true; break outer; }
       const st = h.prepare(`SELECT file_data FROM ${table} WHERE id = ?`);
       st.bind([id]);
       const data = st.step() ? (st.getAsObject() as { file_data: string | null }).file_data : null;
@@ -1320,7 +1327,7 @@ async function migrateInlinePdfsToBlob(): Promise<void> {
       if (!data) continue;
       const pathname = `pdfs/${id}.pdf`;
       await putFileToBlob(pathname, Buffer.from(String(data), 'base64'), 'application/pdf');
-      h.run(`UPDATE ${table} SET blob_path = ?, file_data = NULL WHERE id = ?`, [pathname, id]);
+      h.run(`UPDATE ${table} SET blob_path = ?, file_data = NULL WHERE id = ? AND file_data IS NOT NULL`, [pathname, id]);
       moved++;
     }
   }
@@ -1333,20 +1340,43 @@ async function migrateInlinePdfsToBlob(): Promise<void> {
   if (moved || chunks) {
     try { shared.__appDb?.run('VACUUM'); } catch {}
     await commitDb();
-    console.log(`PDF taşıma: ${moved} PDF Blob'a taşındı, ${chunks} eski yükleme parçası silindi.`);
+    console.log(`PDF taşıma turu: ${moved} PDF Blob'a taşındı, ${chunks} eski yükleme parçası silindi${more ? '; devam edecek' : '; tamamlandı'}.`);
   }
-  shared.__pdfMigrationDone = true;
+  return more;
 }
 
 function startPdfMigrationIfNeeded(): void {
-  if (shared.__pdfMigrationDone) return;
-  const last = shared.__pdfMigrationAt || 0;
-  if (Date.now() - last < 10 * 60 * 1000) return; // başarısız olduysa 10 dakikada bir yeniden dene
+  const s = shared as unknown as { __pdfMigrationRunning?: boolean; __pdfMigrationFailedAt?: number };
+  if (shared.__pdfMigrationDone || s.__pdfMigrationRunning) return;
+  if (Date.now() - (s.__pdfMigrationFailedAt || 0) < 10 * 60 * 1000) return; // başarısız olduysa 10 dakikada bir yeniden dene
+  s.__pdfMigrationRunning = true;
   shared.__pdfMigrationAt = Date.now();
-  const run = () => migrateInlinePdfsToBlob().catch(err => console.error('PDF taşıma başarısız (sonra yeniden denenecek):', err));
+  const run = () =>
+    migrateInlinePdfsToBlob()
+      .then(more => { if (!more) shared.__pdfMigrationDone = true; })
+      .catch(err => { s.__pdfMigrationFailedAt = Date.now(); console.error('PDF taşıma başarısız (sonra yeniden denenecek):', err); })
+      .finally(() => { s.__pdfMigrationRunning = false; });
   import('next/server')
     .then(({ after }) => after(run))
     .catch(() => { void run(); });
+}
+
+// Depolama durumu (öğretmen tanılama ekranı için): veritabanı boyutu, taşınmayı bekleyen PDF'ler, yazılmamış değişiklikler
+export async function getStorageStatus(): Promise<Record<string, unknown>> {
+  const h = await getDb();
+  const one = (sql: string) => { try { const r = h.exec(sql); return r.length ? r[0].values[0][0] : null; } catch { return null; } };
+  const pageCount = Number(one('PRAGMA page_count') || 0);
+  const pageSize = Number(one('PRAGMA page_size') || 0);
+  return {
+    blobSync: blobSyncEnabled(),
+    dbSizeMb: Number(((pageCount * pageSize) / 1048576).toFixed(2)),
+    pdfsInline: Number(one("SELECT COUNT(*) FROM pdf_documents WHERE file_data IS NOT NULL AND length(file_data) > 50") || 0),
+    pdfsInBlob: Number(one('SELECT COUNT(*) FROM pdf_documents WHERE blob_path IS NOT NULL') || 0),
+    uploadChunkRows: Number(one('SELECT COUNT(*) FROM upload_chunks') || 0),
+    pendingWrites: pendingJournal().length,
+    unsavedChanges: Boolean(shared.__blobDirty),
+    migrationDone: Boolean(shared.__pdfMigrationDone),
+  };
 }
 
 // Değişikliği yanıt gönderildikten sonra Blob'a yazar (Vercel bu işi bitene kadar örneği açık tutar).
