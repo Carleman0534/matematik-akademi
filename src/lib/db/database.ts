@@ -1,6 +1,7 @@
 import initSqlJs, { type Database } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
+import { supabaseStoreConfigured, supabaseStoreHost } from './supabaseStore.ts';
 
 const IS_SERVERLESS = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
 const ORIGINAL_DB_PATH = path.join(process.cwd(), 'data', 'app.db');
@@ -1158,7 +1159,7 @@ const shared = globalThis as unknown as {
 
 const BLOB_REFRESH_INTERVAL_MS = 1000;
 function blobSyncEnabled(): boolean {
-  return IS_SERVERLESS && Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+  return IS_SERVERLESS && (supabaseStoreConfigured() || Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID));
 }
 
 // ── Değişiklik günlüğü ────────────────────────────────────────────────────────────────────────
@@ -1355,6 +1356,10 @@ export async function getStorageStatus(): Promise<Record<string, unknown>> {
   const pageSize = Number(one('PRAGMA page_size') || 0);
   return {
     blobSync: blobSyncEnabled(),
+    store: supabaseStoreConfigured() ? 'supabase' : (blobSyncEnabled() ? 'vercel-blob' : 'local'),
+    storeHost: supabaseStoreHost(),
+    storeSynced: Boolean(shared.__blobSynced),
+    lastStoreError: (shared as unknown as { __lastStoreError?: string }).__lastStoreError || null,
     dbSizeMb: Number(((pageCount * pageSize) / 1048576).toFixed(2)),
     pdfsInline: Number(one("SELECT COUNT(*) FROM pdf_documents WHERE file_data IS NOT NULL AND length(file_data) > 50") || 0),
     pdfsInBlob: Number(one('SELECT COUNT(*) FROM pdf_documents WHERE blob_path IS NOT NULL') || 0),
@@ -1468,7 +1473,8 @@ async function refreshFromBlob(): Promise<void> {
       }
       shared.__blobSynced = true;
     } catch (err) {
-      console.error('Vercel Blob okunamadı; geçici yerel kopya kullanılıyor:', err);
+      console.error('Kalıcı depo okunamadı; geçici yerel kopya kullanılıyor (yazmalar kaydedilmez):', err);
+      (shared as unknown as { __lastStoreError?: string }).__lastStoreError = String((err as Error)?.message || err).slice(0, 300);
       if (!shared.__appDb) shared.__appDb = instrument(await initDatabase());
     }
     shared.__blobLastCheck = Date.now();

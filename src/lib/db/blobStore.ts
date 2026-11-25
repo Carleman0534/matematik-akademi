@@ -8,11 +8,17 @@
 // Etkinleşmesi için Vercel projesine bir Blob deposu bağlanmalıdır (BLOB_READ_WRITE_TOKEN
 // ortam değişkeni otomatik eklenir). Değişken yoksa uygulama eskisi gibi yerel dosyayla çalışır.
 import { get, put, list, del, BlobPreconditionFailedError } from '@vercel/blob';
+import {
+  supabaseStoreConfigured, sbPullDb, sbPushDb, sbBackupDb, sbPutFile, sbGetFile, sbDeletePrefix, sbSignedUrl,
+} from './supabaseStore.ts';
+
+// Supabase deposu ayarlıysa (DB_SUPABASE_URL + DB_SUPABASE_SERVICE_KEY) her şey oraya gider; değilse Vercel Blob.
+const onSupabase = () => supabaseStoreConfigured();
 
 export const BLOB_DB_PATHNAME = process.env.DB_BLOB_PATHNAME || 'db/app.db';
 
 export function blobStoreConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+  return supabaseStoreConfigured() || Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 // Veritabanı ile aynı koşul: Vercel'de (ya da production derlemesinde) ve Blob deposu bağlıysa
@@ -28,6 +34,7 @@ function blobTarget(pathname: string): string {
 
 // PDF ve yükleme parçaları gibi dosyalar: veritabanından ayrı, kendi nesneleri olarak saklanır
 export async function putFileToBlob(pathname: string, bytes: Uint8Array, contentType: string): Promise<void> {
+  if (onSupabase()) return sbPutFile(pathname, bytes, contentType);
   await put(pathname, Buffer.from(bytes), {
     access: 'private',
     addRandomSuffix: false,
@@ -37,12 +44,14 @@ export async function putFileToBlob(pathname: string, bytes: Uint8Array, content
 }
 
 export async function getFileFromBlob(pathname: string): Promise<Uint8Array | null> {
+  if (onSupabase()) return sbGetFile(pathname);
   const res = await get(blobTarget(pathname), { access: 'private', useCache: false });
   if (!res || res.statusCode !== 200 || !res.stream) return null;
   return streamToBytes(res.stream);
 }
 
 export async function deleteBlobPrefix(prefix: string): Promise<void> {
+  if (onSupabase()) return sbDeletePrefix(prefix);
   const { blobs } = await list({ prefix, limit: 1000 });
   if (blobs.length) await del(blobs.map(b => b.url));
 }
@@ -79,6 +88,7 @@ export type BlobPullResult =
 
 // Blob'daki kopyayı okur. knownEtag verilirse ve dosya değişmediyse indirmez (304).
 export async function pullDbFromBlob(knownEtag?: string | null): Promise<BlobPullResult> {
+  if (onSupabase()) return sbPullDb(knownEtag);
   const res = await get(blobTarget(BLOB_DB_PATHNAME), {
     access: 'private',
     useCache: false,
@@ -95,6 +105,7 @@ export const BACKUP_PREFIX = 'db/backups/';
 const KEEP_BACKUPS = 14;
 
 export async function backupDbToBlob(bytes: Uint8Array, day: string): Promise<'created' | 'exists'> {
+  if (onSupabase()) return sbBackupDb(bytes, day);
   const name = `${BACKUP_PREFIX}app-${day}.db`;
   try {
     await put(name, Buffer.from(bytes), {
@@ -121,6 +132,7 @@ export async function pushDbToBlob(
   bytes: Uint8Array,
   expectedEtag?: string | null
 ): Promise<{ status: 'ok'; etag: string } | { status: 'conflict' }> {
+  if (onSupabase()) return sbPushDb(bytes, expectedEtag);
   try {
     const res = await put(BLOB_DB_PATHNAME, Buffer.from(bytes), {
       access: 'private',
@@ -135,4 +147,11 @@ export async function pushDbToBlob(
     if (err instanceof BlobPreconditionFailedError) return { status: 'conflict' };
     throw err;
   }
+}
+
+// Öğrenciye/öğretmene PDF'i doğrudan depodan veren kısa süreli bağlantı (yalnızca Supabase'de).
+// Vercel Blob'da null döner; o zaman dosya sunucu üzerinden gönderilir.
+export async function signedFileUrl(pathname: string, seconds = 3600): Promise<string | null> {
+  if (onSupabase()) return sbSignedUrl(pathname, seconds);
+  return null;
 }

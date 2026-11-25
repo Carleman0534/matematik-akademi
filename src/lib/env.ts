@@ -7,7 +7,7 @@ import { DEFAULT_STUDENT_EMAIL_DOMAIN } from './usernames.ts';
 // Supabase'e geri dönmek için Blob deposunu kaldırmak yerine USE_SUPABASE=true ayarlanır.
 const FORCE_LOCAL =
   process.env.USE_SUPABASE !== 'true' &&
-  (process.env.LOCAL_MODE === 'true' || Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID));
+  (process.env.LOCAL_MODE === 'true' || Boolean(process.env.DB_SUPABASE_URL || process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID));
 
 // Yerel çalışmada Supabase istemcisi yine de oluşturulabilsin diye (boş adres hata fırlatır) hiçbir yere bağlanmayan
 // bir yer tutucu kullanılır; çağrılar anında başarısız olur ve sayfalar yerel veritabanına düşer.

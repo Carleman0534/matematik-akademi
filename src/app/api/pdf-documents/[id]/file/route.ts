@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPdfDocument } from '@/lib/pdfDocs';
 import { getPdfBuffer } from '@/lib/pdfStorage';
 import { getDb } from '@/lib/db/database';
+import { signedFileUrl } from '@/lib/db/blobStore';
 
 export async function GET(
   request: NextRequest,
@@ -57,6 +58,16 @@ export async function GET(
           'X-Pdf-Fallback': '1',
         },
       });
+    }
+
+    // Dosya Supabase'de duruyorsa tarayıcı doğrudan oraya yönlendirilir (kısa süreli imzalı bağlantı):
+    // PDF sunucu fonksiyonundan geçmez, Vercel'in veri aktarım hakkı harcanmaz.
+    const blobPath = (doc as { blob_path?: string | null }).blob_path;
+    if (blobPath) {
+      const url = await signedFileUrl(blobPath, 3600);
+      if (url) {
+        return NextResponse.redirect(url, { status: 302, headers: { 'Cache-Control': 'no-store' } });
+      }
     }
 
     const { buffer, fileName, isFallback } = await getPdfBuffer(doc);

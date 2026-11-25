@@ -28,7 +28,8 @@ function secretMaterial(): string | null {
     process.env.SESSION_SECRET ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.BLOB_READ_WRITE_TOKEN ||
-    process.env.BLOB_STORE_ID;
+    process.env.BLOB_STORE_ID ||
+    process.env.DB_SUPABASE_SERVICE_KEY;
   if (fromEnv) return fromEnv;
   if (process.env.NODE_ENV !== 'production' || process.env.LOCAL_MODE === 'true') {
     return 'yerel-gelistirme-anahtari-yalnizca-bu-bilgisayarda-gecerli';
