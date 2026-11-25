@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 import { MISTAKE_ERROR_CATEGORIES, estimateMistakeReason, type MistakeCategoryKey } from '@/lib/learning/diagnosticEngine';
 
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
       analysis.primaryCategory, analysis.probability, analysis.explanation
     ]);
 
-    await saveDb();
+    await commitDb();
 
     return NextResponse.json({
       success: true,
@@ -184,7 +184,7 @@ export async function PUT(req: Request) {
       db.run(`UPDATE smart_mistake_analyses SET teacher_note = ?, verified_by_teacher = 1 WHERE id = ?`, [teacherNote, mistakeId]);
     }
 
-    await saveDb();
+    await commitDb();
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Güncelleme başarısız' }, { status: 500 });

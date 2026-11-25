@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { requireTeacher } from '@/lib/auth';
 
 export async function GET(req: Request) {
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
         plannedGoals || ''
       ]);
 
-      await saveDb();
+      await commitDb();
       return NextResponse.json({ success: true, id });
     }
 
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
         db.run(`UPDATE teacher_lesson_schedules SET status = 'completed' WHERE id = ?`, [scheduleId]);
       }
 
-      await saveDb();
+      await commitDb();
       return NextResponse.json({ success: true, id });
     }
 

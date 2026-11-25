@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getNextAdaptiveDifficulty } from '@/lib/ai/adaptiveLearning';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       stmt.free();
       try {
         const { saveDb } = await import('@/lib/db/database');
-        await saveDb();
+        await commitDb();
       } catch {}
     }
 
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    saveDb(db);
+    await commitDb();
 
     return NextResponse.json({
       success: true,

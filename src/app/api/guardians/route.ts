@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { hashPassword, randomPassword, checkNewPassword } from '@/lib/accounts';
 
 export async function GET(req: NextRequest) {
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       `, ['gn_' + Math.random().toString(36).substring(2, 9), userId, sid]);
     }
 
-    saveDb(db);
+    await commitDb();
 
     return NextResponse.json({
       success: true,
@@ -145,7 +145,7 @@ export async function PUT(req: NextRequest) {
       }
       const pw = randomPassword();
       db.run("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", [hashPassword(pw), guardianUserId]);
-      saveDb(db);
+      await commitDb();
       return NextResponse.json({ success: true, message: 'Yeni şifre oluşturuldu.', loginEmail: String(u[0].values[0][0]), temporaryPassword: pw });
     }
 
@@ -176,7 +176,7 @@ export async function PUT(req: NextRequest) {
       ]);
     }
 
-    saveDb(db);
+    await commitDb();
     return NextResponse.json({ success: true, message: 'Veli kaydı güncellendi' });
   } catch (error: any) {
     console.error('Error updating guardian:', error);
@@ -195,7 +195,7 @@ export async function DELETE(req: NextRequest) {
 
     const db = await getDb();
     db.run('DELETE FROM student_guardians WHERE id = ?', [linkId]);
-    saveDb(db);
+    await commitDb();
 
     return NextResponse.json({ success: true, message: 'Öğrenci-veli ilişkisi sonlandırıldı' });
   } catch (error: any) {

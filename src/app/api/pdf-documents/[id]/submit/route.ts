@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   });
   // Cevap anahtarı henüz yok: cevapları sakla, puanlama anahtar eklenince yapılır
   if (!out.ok && out.status === 422) {
-    storeUngradedSubmission(db, id, session.studentId, answers, durationSeconds);
+    await storeUngradedSubmission(db, id, session.studentId, answers, durationSeconds);
     return NextResponse.json({ success: true, pendingGrade: true, durationSeconds });
   }
   if (!out.ok) return NextResponse.json({ success: false, error: out.error }, { status: out.status });

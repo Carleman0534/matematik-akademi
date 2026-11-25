@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 
 export async function POST(
   request: NextRequest,
@@ -46,7 +46,7 @@ export async function POST(
       [parseInt(questionNo), sessionId]
     );
 
-    saveDb();
+    await commitDb();
 
     return NextResponse.json({
       success: true,

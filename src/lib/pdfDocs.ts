@@ -1,4 +1,4 @@
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -21,6 +21,7 @@ export interface PdfDocument {
   answer_key?: string;
   question_count?: number;
   file_data?: string;
+  blob_path?: string | null;
   is_archived?: boolean | number;
   created_at: string;
 }
@@ -108,8 +109,8 @@ export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_
   const db = await getDb();
   const id = data.id || uuidv4();
   db.run(
-    `INSERT INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count, file_data, is_archived)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO pdf_documents (id, teacher_id, title, file_name, file_path, file_type, subject, grade_level, topic, publisher, file_size_mb, page_count, description, answer_key, question_count, file_data, blob_path, is_archived)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.teacher_id,
@@ -127,10 +128,11 @@ export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_
       data.answer_key || '',
       data.question_count || 40,
       data.file_data || null,
+      data.blob_path || null,
       data.is_archived ? 1 : 0,
     ]
   );
-  saveDb();
+  await commitDb();
   return {
     id,
     teacher_id: data.teacher_id,
@@ -154,9 +156,18 @@ export async function createPdfDocument(data: Omit<PdfDocument, 'id' | 'created_
 
 export async function deletePdfDocument(id: string): Promise<boolean> {
   const db = await getDb();
+  const bp = db.exec('SELECT blob_path FROM pdf_documents WHERE id = ?', [id]);
+  const blobPath = bp.length && bp[0].values.length ? (bp[0].values[0][0] as string | null) : null;
   db.run('DELETE FROM pdf_documents WHERE id = ?', [id]);
-  saveDb();
-
+  await commitDb();
+  if (blobPath) {
+    try {
+      const { deleteBlobFile } = await import('@/lib/db/blobStore');
+      await deleteBlobFile(blobPath);
+    } catch (e) {
+      console.warn('PDF dosyası Blob\'dan silinemedi:', e);
+    }
+  }
   // Geçici veya yerel diskteki dosyaları temizlemeyi dene
   try {
     const tmpCandidate = path.join(os.tmpdir(), 'uploads', 'pdfs', `${id}.pdf`);
@@ -178,14 +189,14 @@ export async function updatePdfAnswerKey(id: string, answerKey: string, question
   } else {
     db.run('UPDATE pdf_documents SET answer_key = ? WHERE id = ?', [answerKey, id]);
   }
-  saveDb(db);
+  await commitDb();
   return true;
 }
 
 export async function archivePdfDocument(id: string, isArchived: boolean = true): Promise<boolean> {
   const db = await getDb();
   db.run('UPDATE pdf_documents SET is_archived = ? WHERE id = ?', [isArchived ? 1 : 0, id]);
-  saveDb();
+  await commitDb();
   return true;
 }
 
@@ -247,7 +258,7 @@ export async function batchAssignExamToStudents(params: {
     [eventId, params.examId, params.assignedBy, JSON.stringify({ student_count: count, duration })]
   );
 
-  saveDb();
+  await commitDb();
   return { success: true, assignedCount: count };
 }
 
@@ -430,7 +441,7 @@ export async function recalculateExamResults(examId: string, performedBy?: strin
     recalculatedCount++;
   }
 
-  saveDb();
+  await commitDb();
   return { success: true, recalculatedCount };
 }
 
@@ -459,7 +470,7 @@ export async function extendStudentExamTime(sessionId: string, extraMinutes: num
     [uuidv4(), sess.exam_id, sessionId, sess.student_id, performedBy || 'teacher-admin', JSON.stringify({ extraMinutes, newDeadline })]
   );
 
-  saveDb();
+  await commitDb();
   return { success: true, newDeadline };
 }
 
@@ -485,7 +496,7 @@ export async function reopenStudentExam(sessionId: string, extraMinutes: number 
     [uuidv4(), sess.exam_id, sessionId, sess.student_id, performedBy || 'teacher-admin', JSON.stringify({ extraMinutes, newDeadline })]
   );
 
-  saveDb();
+  await commitDb();
   return { success: true, newDeadline };
 }
 
@@ -582,6 +593,6 @@ export async function transferWrongQuestionsToBank(examId: string, studentId?: s
     db.run("UPDATE exam_sessions SET transferred_at = datetime('now') WHERE id = ?", [sess.id]);
   }
 
-  saveDb();
+  await commitDb();
   return { success: true, transferredCount };
 }

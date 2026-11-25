@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, saveDb } from '@/lib/db/database';
+import { getDb, commitDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 import { calculateNextSpacedRepetition, estimateForgettingRisk } from '@/lib/learning/diagnosticEngine';
 
@@ -179,7 +179,7 @@ export async function POST(req: Request) {
       itemId
     ]);
 
-    await saveDb();
+    await commitDb();
 
     return NextResponse.json({
       success: true,
