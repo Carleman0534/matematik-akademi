@@ -1300,12 +1300,11 @@ export async function commitDb(): Promise<void> {
 // Eskiden PDF'ler veritabanının içinde base64 olarak saklanıyordu; her değişiklikte bunların tamamı Blob'a
 // yeniden yüklendiği için yazmalar yavaşlıyor ve zaman aşımına uğruyordu. Bu geçiş her PDF'i Blob'da ayrı
 // bir nesneye taşır, satırdaki veriyi siler ve veritabanını küçültür. Tekrar çalışması zararsızdır.
+const MIGRATION_BATCH_MS = 12000;
 
 // Bir tur: süre bütçesi dolana kadar PDF taşır, sonra veritabanını küçültüp kaydeder. Daha fazla kaldıysa true döner.
 // Tek seferde hepsini taşımak bir sunucu örneğini uzun süre meşgul ediyor ve zaman sınırına takılabiliyordu.
-export async function migrateInlinePdfsToBlob(opts: { maxPdfs?: number; budgetMs?: number } = {}): Promise<{ moved: number; more: boolean }> {
-  const maxPdfs = opts.maxPdfs ?? 3;
-  const budgetMs = opts.budgetMs ?? 20000;
+async function migrateInlinePdfsToBlob(): Promise<boolean> {
   const { putFileToBlob } = await import('./blobStore.ts');
   const h = blobHandle();
   const started = Date.now();
@@ -1320,7 +1319,7 @@ export async function migrateInlinePdfsToBlob(opts: { maxPdfs?: number; budgetMs
       continue;
     }
     for (const id of ids) {
-      if (moved > 0 && (moved >= maxPdfs || Date.now() - started > budgetMs)) { more = true; break outer; }
+      if (moved > 0 && Date.now() - started > MIGRATION_BATCH_MS) { more = true; break outer; }
       const st = h.prepare(`SELECT file_data FROM ${table} WHERE id = ?`);
       st.bind([id]);
       const data = st.step() ? (st.getAsObject() as { file_data: string | null }).file_data : null;
@@ -1343,8 +1342,23 @@ export async function migrateInlinePdfsToBlob(opts: { maxPdfs?: number; budgetMs
     await commitDb();
     console.log(`PDF taşıma turu: ${moved} PDF Blob'a taşındı, ${chunks} eski yükleme parçası silindi${more ? '; devam edecek' : '; tamamlandı'}.`);
   }
-  if (!more) shared.__pdfMigrationDone = true;
-  return { moved, more };
+  return more;
+}
+
+function startPdfMigrationIfNeeded(): void {
+  const s = shared as unknown as { __pdfMigrationRunning?: boolean; __pdfMigrationFailedAt?: number };
+  if (shared.__pdfMigrationDone || s.__pdfMigrationRunning) return;
+  if (Date.now() - (s.__pdfMigrationFailedAt || 0) < 10 * 60 * 1000) return; // başarısız olduysa 10 dakikada bir yeniden dene
+  s.__pdfMigrationRunning = true;
+  shared.__pdfMigrationAt = Date.now();
+  const run = () =>
+    migrateInlinePdfsToBlob()
+      .then(more => { if (!more) shared.__pdfMigrationDone = true; })
+      .catch(err => { s.__pdfMigrationFailedAt = Date.now(); console.error('PDF taşıma başarısız (sonra yeniden denenecek):', err); })
+      .finally(() => { s.__pdfMigrationRunning = false; });
+  import('next/server')
+    .then(({ after }) => after(run))
+    .catch(() => { void run(); });
 }
 
 // Depolama durumu (öğretmen tanılama ekranı için): veritabanı boyutu, taşınmayı bekleyen PDF'ler, yazılmamış değişiklikler
@@ -1485,6 +1499,7 @@ async function getDbFromBlobStore(): Promise<Database> {
     }
     await shared.__blobRefresh;
   }
+  if (shared.__blobSynced) startPdfMigrationIfNeeded();
   return blobHandle();
 }
 
