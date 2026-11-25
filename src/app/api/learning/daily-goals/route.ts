@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, commitDb } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: Request) {
@@ -111,7 +111,7 @@ export async function PUT(req: Request) {
         WHERE id = ?
       `, [JSON.stringify(items), completedMinutes, completedQuestions, isFullyCompleted, goalId]);
 
-      await commitDb();
+      await saveDb();
       return NextResponse.json({ success: true, isFullyCompleted: isFullyCompleted === 1 });
     }
 
@@ -139,7 +139,7 @@ export async function PUT(req: Request) {
         incompleteItems.reduce((acc, i) => acc + (i.questionCount || 0), 0)
       ]);
 
-      await commitDb();
+      await saveDb();
       return NextResponse.json({ success: true, message: 'Kalan çalışmalar yarına aktarıldı.' });
     }
 

@@ -952,13 +952,6 @@ async function initDatabase(initialBytes?: Uint8Array): Promise<Database> {
   try {
     database.run('ALTER TABLE exam_pdfs ADD COLUMN file_data TEXT;');
   } catch {}
-  // PDF dosyası Vercel Blob'da ayrı bir nesne olarak durur (veritabanı küçük kalsın diye); burada yolu tutulur
-  try {
-    database.run('ALTER TABLE pdf_documents ADD COLUMN blob_path TEXT;');
-  } catch {}
-  try {
-    database.run('ALTER TABLE exam_pdfs ADD COLUMN blob_path TEXT;');
-  } catch {}
   // Sınav sırasında sunucuya kaydedilen cevap taslağı (cihaz değişse/yerel kayıt silinse devam edilebilsin; Canlı Takip'te görünsün)
   try {
     database.run('ALTER TABLE exam_sessions ADD COLUMN progress_json TEXT;');
@@ -1150,14 +1143,10 @@ const shared = globalThis as unknown as {
   __blobLock?: Promise<unknown>;   // yükleme ve yenilemeyi sıraya sokar
   __blobJournal?: JournalEntry[];  // Blob'a henüz yazılmamış değişiklik komutları (SQL + parametreler)
   __blobHandle?: Database;
-  __journalTotal?: number;         // bu örnekte günlüğe giren toplam değişiklik sayısı
-  __journalFlushed?: number;       // bunlardan Blob'a yazıldığı doğrulananların sayısı
-  __pdfMigrationAt?: number;       // satır içi PDF'leri Blob'a taşıma son deneme zamanı
-  __pdfMigrationDone?: boolean;
 };
 
 const BLOB_REFRESH_INTERVAL_MS = 1000;
-function blobSyncEnabled(): boolean {
+function useBlobStore(): boolean {
   return IS_SERVERLESS && Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
@@ -1171,10 +1160,6 @@ let journalDepth = 0; // iç içe çağrılarda (run → prepare → step) aynı
 
 function pendingJournal(): JournalEntry[] {
   return (shared.__blobJournal ??= []);
-}
-function journalPush(entry: JournalEntry): void {
-  pendingJournal().push(entry);
-  shared.__journalTotal = (shared.__journalTotal || 0) + 1;
 }
 function copyParams(p: unknown): unknown {
   if (Array.isArray(p)) return [...p];
@@ -1193,12 +1178,12 @@ function instrument(d: Database): Database {
 
   d.run = ((sql: string, params?: any) => {
     journalDepth++;
-    try { return rawRun(sql, params); } finally { journalDepth--; if (journalDepth === 0 && WRITE_SQL.test(sql)) journalPush({ sql, params: copyParams(params) }); }
+    try { return rawRun(sql, params); } finally { journalDepth--; if (journalDepth === 0 && WRITE_SQL.test(sql)) pendingJournal().push({ sql, params: copyParams(params) }); }
   }) as Database['run'];
 
   d.exec = ((sql: string, params?: any) => {
     journalDepth++;
-    try { return rawExec(sql, params); } finally { journalDepth--; if (journalDepth === 0 && WRITE_SQL.test(sql)) journalPush({ sql, params: copyParams(params) }); }
+    try { return rawExec(sql, params); } finally { journalDepth--; if (journalDepth === 0 && WRITE_SQL.test(sql)) pendingJournal().push({ sql, params: copyParams(params) }); }
   }) as Database['exec'];
 
   d.prepare = ((sql: string, params?: any) => {
@@ -1211,7 +1196,7 @@ function instrument(d: Database): Database {
     st.bind = ((p?: any) => { bound = copyParams(p); return rawBind(p); }) as typeof st.bind;
     st.step = (() => {
       const r = rawStep();
-      if (journalDepth === 0) journalPush({ sql, params: bound });
+      if (journalDepth === 0) pendingJournal().push({ sql, params: bound });
       return r;
     }) as typeof st.step;
     return st;
@@ -1261,7 +1246,7 @@ async function adoptRemote(bytes: Uint8Array, etag: string): Promise<void> {
 }
 
 export function saveDb(database?: Database): void {
-  const blob = blobSyncEnabled();
+  const blob = useBlobStore();
   const d = blob ? shared.__appDb : (database || db || shared.__appDb);
   if (!d) return;
   try {
@@ -1280,73 +1265,7 @@ export function saveDb(database?: Database): void {
 // Yanıt dönmeden önce değişikliğin Blob'a yazılmasını bekler. Bir sonraki isteğin başka bir sunucu örneğine
 // düşebileceği ve önceki adımın verisine ihtiyaç duyduğu akışlarda (ör. parçalı PDF yükleme) kullanılır.
 export async function flushDbNow(): Promise<void> {
-  if (blobSyncEnabled()) await flushToBlob();
-}
-
-// Değişikliği kaydeder ve kalıcı depoya (Vercel Blob) yazıldığı doğrulanana kadar bekler.
-// Yazılamazsa hata fırlatır: kullanıcıya "kaydedildi" denip değişikliğin sessizce kaybolmasını önler.
-// Yerel modda saveDb ile aynıdır. Atama, sınav cevabı/teslimi, hesap ve PDF işlemlerinde kullanılır.
-export async function commitDb(): Promise<void> {
-  saveDb();
-  if (!blobSyncEnabled()) return;
-  const target = shared.__journalTotal || 0;
-  for (let i = 0; i < 2; i++) {
-    await flushToBlob();
-    if ((shared.__journalFlushed || 0) >= target && !shared.__blobDirty) return;
-  }
-  throw new Error('Değişiklik kalıcı olarak kaydedilemedi. Lütfen birkaç saniye sonra yeniden deneyin.');
-}
-
-// Eskiden PDF'ler veritabanının içinde base64 olarak saklanıyordu; her değişiklikte bunların tamamı Blob'a
-// yeniden yüklendiği için yazmalar yavaşlıyor ve zaman aşımına uğruyordu. Bu geçiş her PDF'i Blob'da ayrı
-// bir nesneye taşır, satırdaki veriyi siler ve veritabanını küçültür. Tekrar çalışması zararsızdır.
-async function migrateInlinePdfsToBlob(): Promise<void> {
-  const { putFileToBlob } = await import('./blobStore.ts');
-  const h = blobHandle();
-  let moved = 0;
-  for (const table of ['pdf_documents', 'exam_pdfs']) {
-    let ids: string[] = [];
-    try {
-      const r = h.exec(`SELECT id FROM ${table} WHERE file_data IS NOT NULL AND length(file_data) > 50`);
-      ids = r.length ? r[0].values.map(v => String(v[0])) : [];
-    } catch {
-      continue;
-    }
-    for (const id of ids) {
-      const st = h.prepare(`SELECT file_data FROM ${table} WHERE id = ?`);
-      st.bind([id]);
-      const data = st.step() ? (st.getAsObject() as { file_data: string | null }).file_data : null;
-      st.free();
-      if (!data) continue;
-      const pathname = `pdfs/${id}.pdf`;
-      await putFileToBlob(pathname, Buffer.from(String(data), 'base64'), 'application/pdf');
-      h.run(`UPDATE ${table} SET blob_path = ?, file_data = NULL WHERE id = ?`, [pathname, id]);
-      moved++;
-    }
-  }
-  let chunks = 0;
-  try {
-    const r = h.exec('SELECT COUNT(*) FROM upload_chunks');
-    chunks = Number(r[0]?.values[0][0] || 0);
-    if (chunks) h.run('DELETE FROM upload_chunks');
-  } catch {}
-  if (moved || chunks) {
-    try { shared.__appDb?.run('VACUUM'); } catch {}
-    await commitDb();
-    console.log(`PDF taşıma: ${moved} PDF Blob'a taşındı, ${chunks} eski yükleme parçası silindi.`);
-  }
-  shared.__pdfMigrationDone = true;
-}
-
-function startPdfMigrationIfNeeded(): void {
-  if (shared.__pdfMigrationDone) return;
-  const last = shared.__pdfMigrationAt || 0;
-  if (Date.now() - last < 10 * 60 * 1000) return; // başarısız olduysa 10 dakikada bir yeniden dene
-  shared.__pdfMigrationAt = Date.now();
-  const run = () => migrateInlinePdfsToBlob().catch(err => console.error('PDF taşıma başarısız (sonra yeniden denenecek):', err));
-  import('next/server')
-    .then(({ after }) => after(run))
-    .catch(() => { void run(); });
+  if (useBlobStore()) await flushToBlob();
 }
 
 // Değişikliği yanıt gönderildikten sonra Blob'a yazar (Vercel bu işi bitene kadar örneği açık tutar).
@@ -1377,7 +1296,6 @@ async function flushToBlob(): Promise<void> {
     }
     const { pushDbToBlob, pullDbFromBlob } = await import('./blobStore.ts');
 
-    let networkFailures = 0;
     for (let attempt = 1; attempt <= 6; attempt++) {
       const pending = pendingJournal().length;
       shared.__blobDirty = false;
@@ -1387,16 +1305,11 @@ async function flushToBlob(): Promise<void> {
         res = await pushDbToBlob(bytes, shared.__blobEtag);
       } catch (err) {
         shared.__blobDirty = true;
-        networkFailures++;
-        console.error(`Veritabanı Blob'a yazılamadı (deneme ${networkFailures}):`, err);
-        // Geçici ağ/hizmet hatalarında kısa bekleyip yeniden dene; ısrar ederse vazgeç (çağıran hatayı görür)
-        if (networkFailures >= 3) return;
-        await new Promise(r => setTimeout(r, 400 * networkFailures));
-        continue;
+        console.error('Veritabanı Blob\'a yazılamadı:', err);
+        return;
       }
       if (res.status === 'ok') {
         pendingJournal().splice(0, pending);
-        shared.__journalFlushed = (shared.__journalFlushed || 0) + pending;
         shared.__blobEtag = res.etag;
         shared.__blobLastCheck = Date.now();
         if (pendingJournal().length > 0) shared.__blobDirty = true; // yükleme sürerken gelen yeni değişiklikler
@@ -1469,12 +1382,11 @@ async function getDbFromBlobStore(): Promise<Database> {
     }
     await shared.__blobRefresh;
   }
-  if (shared.__blobSynced) startPdfMigrationIfNeeded();
   return blobHandle();
 }
 
 export async function getDb(): Promise<Database> {
-  if (blobSyncEnabled()) return getDbFromBlobStore();
+  if (useBlobStore()) return getDbFromBlobStore();
   if (db) return db;
   if (shared.__appDb) {
     db = shared.__appDb;

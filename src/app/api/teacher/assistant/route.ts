@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, commitDb } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
 import { requireTeacher } from '@/lib/auth';
 import { analyzeTeacherQuery } from '@/lib/teacher/assistantEngine';
 
@@ -51,7 +51,7 @@ export async function PUT(req: Request) {
         payload?.durationMin || 35
       ]);
 
-      await commitDb();
+      await saveDb();
       return NextResponse.json({ success: true, message: 'Çalışma planı onaylandı ve öğrenciye atandı!', planId });
     }
 
@@ -75,7 +75,7 @@ export async function PUT(req: Request) {
         payload?.note || title
       ]);
 
-      await commitDb();
+      await saveDb();
       return NextResponse.json({ success: true, message: 'Veliye rehberlik notu başarıyla iletildi!' });
     }
 
@@ -95,7 +95,7 @@ export async function PUT(req: Request) {
         title
       ]);
 
-      await commitDb();
+      await saveDb();
       return NextResponse.json({ success: true, message: 'Ders başarıyla takvime eklendi!' });
     }
 

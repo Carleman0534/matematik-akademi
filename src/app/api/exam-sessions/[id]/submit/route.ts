@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, commitDb } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
 import { v4 as uuidv4 } from 'uuid';
 
 interface SessionRow {
@@ -106,7 +106,7 @@ export async function POST(
       [uuidv4(), sess.exam_id, sessionId, sess.student_id, JSON.stringify({ correctCount, wrongCount, blankCount, netScore })]
     );
 
-    await commitDb();
+    saveDb();
 
     return NextResponse.json({
       success: true,

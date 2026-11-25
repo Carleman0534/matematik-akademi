@@ -15,42 +15,6 @@ export function blobStoreConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
-// Veritabanı ile aynı koşul: Vercel'de (ya da production derlemesinde) ve Blob deposu bağlıysa
-export function blobStoreActive(): boolean {
-  return (!!process.env.VERCEL || process.env.NODE_ENV === 'production') && blobStoreConfigured();
-}
-
-// VERCEL_BLOB_API_URL yalnızca yerel deneme sunucusu (emülatör) için tanımlanır; canlıda boştur.
-function blobTarget(pathname: string): string {
-  const override = process.env.VERCEL_BLOB_API_URL;
-  return override ? `${override.replace(/\/$/, '')}/${pathname}` : pathname;
-}
-
-// PDF ve yükleme parçaları gibi dosyalar: veritabanından ayrı, kendi nesneleri olarak saklanır
-export async function putFileToBlob(pathname: string, bytes: Uint8Array, contentType: string): Promise<void> {
-  await put(pathname, Buffer.from(bytes), {
-    access: 'private',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType,
-  });
-}
-
-export async function getFileFromBlob(pathname: string): Promise<Uint8Array | null> {
-  const res = await get(blobTarget(pathname), { access: 'private', useCache: false });
-  if (!res || res.statusCode !== 200 || !res.stream) return null;
-  return streamToBytes(res.stream);
-}
-
-export async function deleteBlobPrefix(prefix: string): Promise<void> {
-  const { blobs } = await list({ prefix, limit: 1000 });
-  if (blobs.length) await del(blobs.map(b => b.url));
-}
-
-export async function deleteBlobFile(pathname: string): Promise<void> {
-  await deleteBlobPrefix(pathname);
-}
-
 async function streamToBytes(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -79,7 +43,10 @@ export type BlobPullResult =
 
 // Blob'daki kopyayı okur. knownEtag verilirse ve dosya değişmediyse indirmez (304).
 export async function pullDbFromBlob(knownEtag?: string | null): Promise<BlobPullResult> {
-  const res = await get(blobTarget(BLOB_DB_PATHNAME), {
+  // VERCEL_BLOB_API_URL yalnızca yerel deneme sunucusu (emülatör) için tanımlanır; canlıda boştur.
+  const override = process.env.VERCEL_BLOB_API_URL;
+  const target = override ? `${override.replace(/\/$/, '')}/${BLOB_DB_PATHNAME}` : BLOB_DB_PATHNAME;
+  const res = await get(target, {
     access: 'private',
     useCache: false,
     ...(knownEtag ? { ifNoneMatch: knownEtag } : {}),

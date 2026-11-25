@@ -1,5 +1,5 @@
 import 'server-only';
-import { getDb, commitDb } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
 import { parseVisibleFeatures, STUDENT_FEATURES } from '@/lib/studentFeatures';
 
 const SETTING_KEY = 'student_visible_features';
@@ -27,6 +27,6 @@ export async function setVisibleStudentFeatures(keys: string[]): Promise<string[
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
     [SETTING_KEY, JSON.stringify(clean)]
   );
-  await commitDb();
+  saveDb(db);
   return clean;
 }

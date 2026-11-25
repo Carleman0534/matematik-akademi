@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, commitDb } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
 import { getSession } from '@/lib/auth';
 import { getPdfExamSessionState, startPdfExamSession, saveExamProgress } from '@/lib/pdfExamSession';
 
@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   try { body = await req.json(); } catch {}
   const db = await getDb();
   const wrote = saveExamProgress(db, id, session.studentId, body.answers || {});
-  if (wrote) await commitDb();
+  if (wrote) saveDb();
   return NextResponse.json({ success: true, saved: wrote });
 }
 
@@ -56,7 +56,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   const before = getPdfExamSessionState(db, id, session.studentId);
   if (!before.submittedAt && !before.startedAt) {
     startPdfExamSession(db, id, session.studentId);
-    await commitDb();
+    saveDb();
   }
   return NextResponse.json({ success: true, ...getPdfExamSessionState(db, id, session.studentId) });
 }

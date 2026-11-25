@@ -1,7 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth';
-import { getDb, commitDb } from '@/lib/db/database';
+import { getDb, saveDb } from '@/lib/db/database';
 import { normalizeUsername, validateUsername, usernameToEmail } from '@/lib/usernames';
 import { STUDENT_EMAIL_DOMAIN } from '@/lib/env';
 import { hashPassword, checkNewPassword, likeEscape } from '@/lib/accounts';
@@ -56,7 +56,7 @@ export async function createStudent(_prev: FormState, form: FormData): Promise<F
     `INSERT INTO students (id, user_id, teacher_id, grade, school, status, created_at) VALUES (?, ?, ?, ?, ?, 'active', datetime('now'))`,
     [id, id, me.userId, String(gradeOf(form.get('sinif')) ?? 8), String(form.get('okul') || '').trim()]
   );
-  await commitDb();
+  saveDb(db);
   revalidatePath('/ogretmen', 'layout');
   return { ok: `${fullName} eklendi. Giriş bilgileri — kullanıcı adı: ${username}` };
 }
@@ -77,7 +77,7 @@ export async function updateStudent(_prev: FormState, form: FormData): Promise<F
     [String(gradeOf(form.get('sinif')) ?? 8), String(form.get('okul') || '').trim(), String(form.get('notlar') || '').trim(), id]
   );
   db.run("UPDATE users SET name = ?, updated_at = datetime('now') WHERE id = ?", [fullName, userId]);
-  await commitDb();
+  saveDb(db);
   revalidatePath('/ogretmen', 'layout');
   return { ok: 'Kaydedildi.' };
 }
@@ -89,7 +89,7 @@ export async function setStudentActive(id: string, active: boolean): Promise<For
   const st = db.exec('SELECT 1 FROM students WHERE id = ?', [id]);
   if (!st.length || !st[0].values.length) return { error: 'Öğrenci bulunamadı.' };
   db.run('UPDATE students SET status = ? WHERE id = ?', [active ? 'active' : 'passive', id]);
-  await commitDb();
+  saveDb(db);
   revalidatePath('/ogretmen', 'layout');
   return { ok: active ? 'Öğrenci yeniden aktif.' : 'Öğrenci pasifleştirildi.' };
 }
@@ -105,6 +105,6 @@ export async function resetStudentPassword(_prev: FormState, form: FormData): Pr
   const st = db.exec('SELECT user_id FROM students WHERE id = ?', [id]);
   if (!st.length || !st[0].values.length) return { error: 'Bu öğrencinin giriş hesabı yok.' };
   db.run("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", [hashPassword(password), String(st[0].values[0][0])]);
-  await commitDb();
+  saveDb(db);
   return { ok: 'Yeni şifre kaydedildi. Öğrenciye iletin.' };
 }
