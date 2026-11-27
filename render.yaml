@@ -1,0 +1,28 @@
+# Render (ücretsiz) üzerinde barındırma. Render → New → Blueprint ile bu depo seçildiğinde okunur.
+# Veri Supabase'de durur (src/lib/db/supabaseStore.ts); sunucu yalnızca uygulamayı çalıştırır.
+services:
+  - type: web
+    name: matematik-akademi
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /giris
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Ücretsiz sunucu 512 MB bellekli; Node'un bunu aşmaması için
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=460
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      # Supabase projesinin adresi (gizli değildir)
+      - key: DB_SUPABASE_URL
+        value: https://zfqgzifudxudsxxetcjs.supabase.co
+      # Supabase → Project Settings → API Keys → service_role (secret). Kurulumda Render sorar.
+      - key: DB_SUPABASE_SERVICE_KEY
+        sync: false
+      # Oturum çerezlerini imzalayan anahtar; Render rastgele üretir
+      - key: SESSION_SECRET
+        generateValue: true
